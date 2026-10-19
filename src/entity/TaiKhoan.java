@@ -1,4 +1,4 @@
-package entity;
+ package entity;
 
 import java.util.Objects;
 
@@ -8,11 +8,12 @@ public class TaiKhoan {
     private String matKhau;
     private boolean trangThaiHoatDong = true;
 
-    public TaiKhoan() {}
+    public TaiKhoan() {
+    }
 
     public TaiKhoan(String tenDangNhap) {
 		super();
-		this.tenDangNhap = tenDangNhap;
+		setTenDangNhap(tenDangNhap);
 	}
 
 	public TaiKhoan(String tenDangNhap, String matKhau, boolean trangThaiHoatDong) {
@@ -49,7 +50,6 @@ public class TaiKhoan {
         this.tenDangNhap = tenDangNhap;
     }
 
-    // Getter và Setter cho matKhau
     public String getMatKhau() {
         return matKhau;
     }
@@ -77,12 +77,10 @@ public class TaiKhoan {
         this.matKhau = matKhau;
     }
 
-    // Getter cho trạng thái hoạt động
     public boolean isTrangThaiHoatDong() {
         return trangThaiHoatDong;
     }
 
-    // Setter cho trạng thái hoạt động
     public void setTrangThaiHoatDong(boolean trangThaiHoatDong) {
         this.trangThaiHoatDong = trangThaiHoatDong;
     }
