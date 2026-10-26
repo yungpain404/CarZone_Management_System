@@ -3,19 +3,53 @@ package entity;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.Objects;
-import java.time.LocalDate;
 
 import enums.VaiTro;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 
+/**
+ * Nhân viên. Bảng NhanVien (V1). maNV do sp_ThemNhanVien sinh theo vai trò (CCH/TNV/KTV + 3 số).
+ * Cột tuoi trong DB là cột tính toán, không ánh xạ; dùng {@link #getTuoi()}.
+ */
+@Entity
+@Table(name = "NhanVien")
 public class NhanVien {
+	@Id
+	@Column(name = "maNV", length = 10)
 	private String maNV;
+
+	/** Phía nghịch của quan hệ 1-1; khóa nằm ở bảng TaiKhoan (TaiKhoan.maNV). */
+	@OneToOne(mappedBy = "nhanVien")
 	private TaiKhoan taiKhoan;
+
+	@Column(name = "hoTen", nullable = false, length = 100)
 	private String hoTen;
+
+	@Column(name = "ngaySinh", nullable = false)
 	private LocalDate ngaySinh;
+
+	@Column(name = "soDienThoai", nullable = false, length = 11)
+	private String soDienThoai;
+
+	@Column(name = "CCCD", nullable = false, length = 12)
+	private String CCCD;
+
+	@Column(name = "diaChi", length = 200)
 	private String diaChi;
+
+	@Column(name = "ngayVaoLam", nullable = false)
 	private LocalDate ngayVaoLam;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "vaiTro", nullable = false, length = 20)
 	private VaiTro vaiTro;
-	
+
 	public NhanVien() {
 		super();
 	}
@@ -25,13 +59,15 @@ public class NhanVien {
 		setMaNV(maNV);
 	}
 
-	public NhanVien(String maNV, TaiKhoan taiKhoan, String hoTen, LocalDate ngaySinh, String diaChi,
-			LocalDate ngayVaoLam, VaiTro vaiTro) {
+	public NhanVien(String maNV, TaiKhoan taiKhoan, String hoTen, LocalDate ngaySinh, String soDienThoai,
+			String CCCD, String diaChi, LocalDate ngayVaoLam, VaiTro vaiTro) {
 		super();
 		setMaNV(maNV);
-		this.taiKhoan = taiKhoan;
+		setTaiKhoan(taiKhoan);
 		setHoTen(hoTen);
 		setNgaySinh(ngaySinh);
+		setSoDienThoai(soDienThoai);
+		setCCCD(CCCD);
 		setDiaChi(diaChi);
 		setNgayVaoLam(ngayVaoLam);
 		setVaiTro(vaiTro);
@@ -51,6 +87,7 @@ public class NhanVien {
 	}
 	public void setTaiKhoan(TaiKhoan taiKhoan) {
 		this.taiKhoan = taiKhoan;
+		if (taiKhoan != null) taiKhoan.setNhanVien(this);
 	}
 	public String getHoTen() {
 		return hoTen;
@@ -68,15 +105,37 @@ public class NhanVien {
 		if (ngaySinh == null || ngaySinh.isAfter(LocalDate.now())) {
 			throw new IllegalArgumentException("Ngày sinh không hợp lệ.");
 		}
-		if (ngayVaoLam != null && ngaySinh.isAfter(ngayVaoLam)) {
-			throw new IllegalArgumentException("Ngày sinh phải trước ngày vào làm.");
+		if (ngayVaoLam != null && ngaySinh.isAfter(ngayVaoLam.minusYears(18))) {
+			throw new IllegalArgumentException("Nhân viên phải đủ 18 tuổi tại ngày vào làm.");
 		}
 		this.ngaySinh = ngaySinh;
+	}
+	public String getSoDienThoai() {
+		return soDienThoai;
+	}
+	public void setSoDienThoai(String soDienThoai) {
+		// DB: CK_NhanVien_SDT = chỉ số, 10-11 ký tự, bắt đầu bằng 0
+		if (soDienThoai == null || !soDienThoai.matches("^0\\d{9,10}$")) {
+			throw new IllegalArgumentException("Số điện thoại phải gồm 10-11 chữ số và bắt đầu bằng 0.");
+		}
+		this.soDienThoai = soDienThoai;
+	}
+	public String getCCCD() {
+		return CCCD;
+	}
+	public void setCCCD(String CCCD) {
+		if (CCCD == null || !CCCD.matches("^\\d{12}$")) {
+			throw new IllegalArgumentException("CCCD phải gồm 12 chữ số.");
+		}
+		this.CCCD = CCCD;
 	}
 	public String getDiaChi() {
 		return diaChi;
 	}
 	public void setDiaChi(String diaChi) {
+		if (diaChi != null && diaChi.length() > 200) {
+			throw new IllegalArgumentException("Địa chỉ tối đa 200 ký tự.");
+		}
 		this.diaChi = diaChi;
 	}
 	public LocalDate getNgayVaoLam() {
@@ -86,8 +145,9 @@ public class NhanVien {
 		if (ngayVaoLam == null || ngayVaoLam.isAfter(LocalDate.now())) {
 			throw new IllegalArgumentException("Ngày vào làm không hợp lệ.");
 		}
-		if (ngaySinh != null && (ngayVaoLam.isBefore(ngaySinh) || ngayVaoLam.isBefore(ngaySinh.plusYears(16)))) {
-			throw new IllegalArgumentException("Ngày vào làm không hợp lý so với ngày sinh.");
+		// DB: CK_NhanVien_DuTuoi = ngaySinh <= ngayVaoLam - 18 năm
+		if (ngaySinh != null && ngaySinh.isAfter(ngayVaoLam.minusYears(18))) {
+			throw new IllegalArgumentException("Nhân viên phải đủ 18 tuổi tại ngày vào làm.");
 		}
 		this.ngayVaoLam = ngayVaoLam;
 	}
@@ -101,6 +161,7 @@ public class NhanVien {
 		this.vaiTro = vaiTro;
 	}
 
+	/** Thuộc tính suy diễn (/tuoi): chỉ getter, không lưu. */
 	public int getTuoi() {
 		return ngaySinh == null ? 0 : Period.between(ngaySinh, LocalDate.now()).getYears();
 	}
@@ -115,8 +176,8 @@ public class NhanVien {
 	}
 	@Override public String toString() {
 		return "NhanVien [maNV=" + maNV + ", taiKhoan=" + taiKhoan + ", hoTen=" + hoTen
-				+ ", ngaySinh=" + ngaySinh + ", diaChi=" + diaChi + ", ngayVaoLam=" + ngayVaoLam
-				+ ", vaiTro=" + vaiTro + "]";
+				+ ", ngaySinh=" + ngaySinh + ", soDienThoai=" + soDienThoai + ", diaChi=" + diaChi
+				+ ", ngayVaoLam=" + ngayVaoLam + ", vaiTro=" + vaiTro + "]";
 	}
-	
+
 }

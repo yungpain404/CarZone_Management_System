@@ -1,11 +1,41 @@
- package entity;
+package entity;
 
 import java.util.Objects;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapsId;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+
+/**
+ * Tài khoản đăng nhập. Bảng TaiKhoan (V1): khóa chính là maNV (cũng là khóa ngoại tới NhanVien).
+ * tenDangNhap do sp_TaoTaiKhoan sinh theo vai trò (CCH/TNV/KTV + 3 số).
+ */
+@Entity
+@Table(name = "TaiKhoan")
 public class TaiKhoan {
 
+    @Id
+    @Column(name = "maNV", length = 10)
+    private String maNV;
+
+    /** Phía sở hữu của quan hệ 1-1, dùng chung khóa chính với NhanVien. */
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @MapsId
+    @JoinColumn(name = "maNV")
+    private NhanVien nhanVien;
+
+    @Column(name = "tenDangNhap", nullable = false, length = 50)
     private String tenDangNhap;
+
+    @Column(name = "matKhau", nullable = false, length = 255)
     private String matKhau;
+
+    @Column(name = "trangThaiHoatDong", nullable = false)
     private boolean trangThaiHoatDong = true;
 
     public TaiKhoan() {
@@ -20,6 +50,20 @@ public class TaiKhoan {
         setTenDangNhap(tenDangNhap);
         setMatKhau(matKhau);
         this.trangThaiHoatDong = trangThaiHoatDong;
+    }
+
+    public String getMaNV() {
+        return maNV;
+    }
+
+    public NhanVien getNhanVien() {
+        return nhanVien;
+    }
+
+    /** Chỉ gán tham chiếu; phía NhanVien.setTaiKhoan đã đồng bộ hai chiều. */
+    public void setNhanVien(NhanVien nhanVien) {
+        this.nhanVien = nhanVien;
+        if (nhanVien != null) this.maNV = nhanVien.getMaNV();
     }
 
     public String getTenDangNhap() {
@@ -54,6 +98,11 @@ public class TaiKhoan {
         return matKhau;
     }
 
+    /**
+     * Nhận mật khẩu GỐC, kiểm tra độ mạnh rồi lưu bản BĂM SHA-256 (64 ký tự hex in hoa), cùng dạng
+     * với dữ liệu mẫu trong DB (HASHBYTES('SHA2_256', ...)). Không truyền chuỗi đã băm vào hàm này.
+     * Giá trị đọc từ DB do Hibernate gán thẳng vào trường, không đi qua hàm này.
+     */
     public void setMatKhau(String matKhau) {
         if (matKhau == null || matKhau.length() < 8) {
             throw new IllegalArgumentException(
@@ -74,7 +123,24 @@ public class TaiKhoan {
             );
         }
 
-        this.matKhau = matKhau;
+        this.matKhau = bamSha256(matKhau);
+    }
+
+    /** Đăng nhập: so mật khẩu người dùng nhập với bản băm đã lưu. */
+    public boolean khopMatKhau(String matKhauNhap) {
+        return matKhau != null && matKhauNhap != null && matKhau.equalsIgnoreCase(bamSha256(matKhauNhap));
+    }
+
+    private static String bamSha256(String s) {
+        try {
+            byte[] h = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(s.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(64);
+            for (byte b : h) sb.append(String.format("%02X", b));
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public boolean isTrangThaiHoatDong() {
@@ -102,11 +168,10 @@ public class TaiKhoan {
 		return Objects.equals(tenDangNhap, other.tenDangNhap);
 	}
 
+	/** Không in mật khẩu và không in nhanVien (tránh lộ dữ liệu và lặp vô hạn). */
 	@Override
 	public String toString() {
-		return "TaiKhoan [tenDangNhap=" + tenDangNhap + ", matKhau=" + matKhau + ", trangThaiHoatDong="
-				+ trangThaiHoatDong + "]";
+		return "TaiKhoan [tenDangNhap=" + tenDangNhap + ", trangThaiHoatDong=" + trangThaiHoatDong + "]";
 	}
-    
-    
+
 }

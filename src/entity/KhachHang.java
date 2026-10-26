@@ -2,13 +2,37 @@ package entity;
 
 import java.util.Objects;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+/**
+ * Khách hàng. Bảng KhachHang (V1 + V2). Mã KH có DEFAULT lấy từ seq_KhachHang trong DB.
+ */
+@Entity
+@Table(name = "KhachHang")
 public class KhachHang {
+    @Id
+    @Column(name = "maKH", length = 10)
     private String maKH;
+
+    @Column(name = "hoTen", nullable = false, length = 100)
     private String hoTen;
+
+    @Column(name = "soDienThoai", nullable = false, length = 10)
     private String soDienThoai;
+
+    @Column(name = "ghiChu", length = 500)
     private String ghiChu;
+
+    @Column(name = "CCCD", length = 12)
     private String CCCD;
+
+    @Column(name = "thanhVienThanThiet", nullable = false)
     private boolean thanhVienThanThiet;
+
+    @Column(name = "diemTichLuy", nullable = false)
     private double diemTichLuy;
 
     public KhachHang() {
@@ -30,7 +54,8 @@ public class KhachHang {
     	return maKH;
     }
     public void setMaKH(String maKH) {
-        if (maKH == null || !maKH.matches("^KH\\d{6,}$")) {
+        // DB: CK_KhachHang_Ma = 'KH' + đúng 6 chữ số
+        if (maKH == null || !maKH.matches("^KH\\d{6}$")) {
             throw new IllegalArgumentException("Mã khách hàng phải có dạng KH000001.");
         }
     	this.maKH = maKH;
@@ -57,8 +82,9 @@ public class KhachHang {
     	return ghiChu;
     }
     public void setGhiChu(String ghiChu) {
-        if (ghiChu != null && ghiChu.length() > 255) {
-            throw new IllegalArgumentException("Ghi chú không được vượt quá 255 ký tự.");
+        // DB: NVARCHAR(500)
+        if (ghiChu != null && ghiChu.length() > 500) {
+            throw new IllegalArgumentException("Ghi chú không được vượt quá 500 ký tự.");
         }
     	this.ghiChu = ghiChu;
     }
@@ -69,7 +95,8 @@ public class KhachHang {
         if (CCCD != null && !CCCD.isBlank() && !CCCD.matches("\\d{12}")) {
             throw new IllegalArgumentException("CCCD phải gồm 12 chữ số.");
         }
-    	this.CCCD = CCCD;
+        // DB: cột CCCD NULL được và unique có điều kiện; chuỗi rỗng phải lưu thành NULL
+        this.CCCD = (CCCD == null || CCCD.isBlank()) ? null : CCCD;
     }
     public boolean isThanhVienThanThiet() {
     	return thanhVienThanThiet;

@@ -2,12 +2,34 @@ package entity;
 
 import java.util.Objects;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+/**
+ * Dịch vụ sửa chữa. Bảng DichVu (V1). Mã dạng DV + từ 5 chữ số trở lên.
+ */
+@Entity
+@Table(name = "DichVu")
 public class DichVu {
+    @Id
+    @Column(name = "maDV", length = 10)
     private String maDV;
+
+    @Column(name = "tenDV", nullable = false, length = 150)
     private String tenDV;
+
+    @Column(name = "donGia", nullable = false)
     private double donGia;
+
+    @Column(name = "donViTinh", nullable = false, length = 30)
     private String donViTinh;
+
+    @Column(name = "moTa", length = 500)
     private String moTa;
+
+    @Column(name = "dangCungCap", nullable = false)
     private boolean dangCungCap;
 
     public DichVu() {

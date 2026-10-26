@@ -1,15 +1,43 @@
 package entity;
 
-import java.util.Objects;
 import java.time.Year;
+import java.util.Objects;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+
+/**
+ * Xe của khách hàng. Bảng Xe (V1). Khóa chính là biển số xe.
+ */
+@Entity
+@Table(name = "Xe")
 public class Xe {
+    @Id
+    @Column(name = "bienSoXe", length = 15)
     private String bienSoXe;
+
+    @Column(name = "hangXe", nullable = false, length = 50)
     private String hangXe;
+
+    @Column(name = "model", length = 50)
     private String model;
+
+    @Column(name = "mauSac", length = 30)
     private String mauSac;
+
+    @Column(name = "namSanXuat")
     private int namSanXuat;
+
+    @Column(name = "soKmHienTai", nullable = false)
     private int soKmHienTai;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "maKH", nullable = false)
     private KhachHang chuXe;
 
     public Xe() {
@@ -33,6 +61,10 @@ public class Xe {
     public void setBienSoXe(String bienSoXe) {
         if (bienSoXe == null || bienSoXe.isBlank()) {
             throw new IllegalArgumentException("Biển số xe không được để trống.");
+        }
+        // DB: CK_Xe_BienSo = độ dài 6..15
+        if (bienSoXe.length() < 6 || bienSoXe.length() > 15) {
+            throw new IllegalArgumentException("Biển số xe phải từ 6 đến 15 ký tự.");
         }
     	this.bienSoXe = bienSoXe;
     }
@@ -67,7 +99,8 @@ public class Xe {
     	return namSanXuat;
     }
     public void setNamSanXuat(int namSanXuat) {
-        if (namSanXuat < 1886 || namSanXuat > Year.now().getValue()) {
+        // DB: CK_Xe_NamSX = 1900..2100
+        if (namSanXuat < 1900 || namSanXuat > Year.now().getValue()) {
             throw new IllegalArgumentException("Năm sản xuất không hợp lệ.");
         }
     	this.namSanXuat = namSanXuat;
