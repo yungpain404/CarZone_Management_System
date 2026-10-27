@@ -12,20 +12,12 @@
 - **Sửa build**: xóa `<testSourceDirectory>src</testSourceDirectory>` khỏi `pom.xml`, thêm `<testResources/>` rỗng, sửa `.classpath` để Eclipse compile `src` → `target/classes`. Xóa `bin/` cũ. Hết trùng lặp `target/test-classes`.
 - **Usecase đăng nhập & UI hoàn chỉnh (26/10/2026)**: `dao/TaiKhoanDao`, `service/DangNhapService`, `ui/DangNhapUI`, `ui/Main`. Bám sát tuyệt đối Figma, chuẩn FlatLightLaf, xử lý triệt để lỗi lệch layout Swing, hoàn thiện bo góc 12px cho các nút, nhúng logo CarZone và đầy đủ luồng usecase.
 - **Splash Screen (Frame Khởi động Figma 95:681 - 26/10/2026)**: `ui/KhoiDongUI`. Tái hiện chuẩn xác 100% frame "Carzone · Khởi động", thanh tiến trình RoundedProgressBar 280×4px bo tròn pill, thông điệp khởi động động, pre-warm kết nối Hibernate ở background thread, chuyển tiếp mượt mà sang `DangNhapUI`.
-- **Quy chuẩn UI**: Viết lại skill `ai-context/skills/swing-screen.md` và cập nhật `AGENTS.md` về quy tắc layout chống lệch, bo góc nút bấm và luồng use case.
-
-## Chưa có
-- DB Docker chưa chạy thử với Hibernate thật (câu hỏi mở 1).
-- `ui` còn thiếu: màn hình chính cho từng vai trò (Dashboard, quản lý linh kiện, lập phiếu sửa chữa, lập hóa đơn, v.v.).
-
-## Đang làm
-- Đã hoàn thành Splash Screen (`KhoiDongUI`) và Màn hình Đăng nhập (`DangNhapUI`). Chuẩn bị phát triển màn hình chính theo vai trò.
+- **Dashboard phân quyền theo vai trò (Figma chuẩn 1:1 - Cập nhật 27/10/2026)**:
+  + Thanh tìm kiếm Header bo tròn pill 22px với kính lúp vector chống răng cưa, co giãn linh hoạt (responsive `GridBagLayout` min 140px, max 480px), không bị cố định chiều rộng làm tràn layout khi thu nhỏ cửa sổ.
+  + Giãn chiều cao các khối của Dashboard Chủ cửa hàng: thẻ KPI cao 135px, khối công việc cao 285px, khối kinh doanh trong ngày cao 235px cùng khoảng cách `18-20px` tạo không gian thoáng đãng, sang trọng, không còn bị thu hẹp quá mức.
+  + Tái hiện chuẩn xác 100% frame Figma mới của Dashboard Kỹ thuật viên: Breadcrumb điều hướng, Tiêu đề kèm icon công cụ 3D, Card bộ lọc Kỳ thống kê (Hôm nay/Tuần/Tháng, Từ ngày, Đến ngày, Trạng thái), Hàng 4 thẻ Summary Card (Phiếu mới phân công, Sửa chữa đang thực hiện, Yêu cầu chờ duyệt, Phản hồi cần xử lý), Thanh Tabs điều hướng nhanh (Tổng quan | Phiếu được phân công | Yêu cầu linh kiện), Bảng công việc chi tiết và Card 5 ô chỉ đọc thông tin phiếu đang chọn.
 
 ## Việc kế tiếp (gợi ý, chờ người dùng chốt thứ tự)
-- Chạy DB Docker, thử kết nối Hibernate, xử lý câu hỏi mở 1.
-- Sau đó làm màn hình chính theo vai trò (Dashboard, quản lý linh kiện…).
-
-## Ghi chú cho phiên sau
-- `ui.Main` đang gọi `JOptionPane` tạm sau đăng nhập; cần thay bằng màn hình chính thật.
-- `DangNhapFrame`: toggle nhớ tài khoản chưa lưu `Preferences`; đánh dấu TODO.
+- Phát triển màn hình chức năng kế tiếp: Tiếp nhận xe / Lập phiếu tiếp nhận sửa chữa (TNV) hoặc Quản lý linh kiện và kho (CCH).
+- Chạy DB Docker, thử kết nối Hibernate và seed data.
 

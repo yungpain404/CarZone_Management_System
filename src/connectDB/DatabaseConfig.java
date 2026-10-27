@@ -50,12 +50,22 @@ public final class DatabaseConfig {
         return v;
     }
 
+    public static String layCongSql() {
+        try {
+            Map<String, String> env = docEnv();
+            return lay(env, "SQLSERVER_PORT");
+        } catch (Exception e) {
+            return "1433";
+        }
+    }
+
     /** Các thuộc tính JPA để truyền vào Persistence.createEntityManagerFactory("CarZonePU", ...). */
     public static Map<String, Object> thuocTinhJpa() {
         Map<String, String> env = docEnv();
         Map<String, Object> p = new HashMap<>();
         p.put("jakarta.persistence.jdbc.url", "jdbc:sqlserver://localhost:" + lay(env, "SQLSERVER_PORT")
-                + ";databaseName=" + lay(env, "SQLSERVER_DATABASE") + ";encrypt=true;trustServerCertificate=true");
+                + ";databaseName=" + lay(env, "SQLSERVER_DATABASE")
+                + ";encrypt=true;trustServerCertificate=true;loginTimeout=3;connectRetryCount=0");
         p.put("jakarta.persistence.jdbc.user", "sa");
         p.put("jakarta.persistence.jdbc.password", lay(env, "SQLSERVER_SA_PASSWORD"));
         return p;
