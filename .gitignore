@@ -1,0 +1,26 @@
+# Compiled Java files
+bin/
+out/
+*.class
+
+# IDE - Eclipse
+.project
+.classpath
+.settings/
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iml
+
+# Local backup files
+.project.local-backup
+*.local-backup
+*.bak
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
