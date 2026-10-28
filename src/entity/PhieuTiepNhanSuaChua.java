@@ -5,51 +5,25 @@ import java.util.Objects;
 
 import enums.TrangThaiPhieu;
 import enums.VaiTro;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 
 /**
  * Phiếu tiếp nhận - sửa chữa. Bảng PhieuTiepNhanSuaChua (V1). maPhieu do sp_LapPhieuTiepNhan sinh
  * (PSC + ddMMyyyy + A/P + 3 số). Phiếu HOAN_TAT bị khóa ở DB (trigger).
  */
-@Entity
-@Table(name = "PhieuTiepNhanSuaChua")
 public class PhieuTiepNhanSuaChua {
-    @Id
-    @Column(name = "maPhieu", length = 15)
     private String maPhieu;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "bienSoXe", nullable = false)
     private Xe xe;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "maNVTiepNhan", nullable = false)
     private NhanVien nhanVienLap;
 
     /** Kỹ thuật viên chính. DB cho phép NULL khi phiếu còn CHO_SUA, bắt buộc có khi sang DANG_SUA. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "maNVKyThuat")
     private NhanVien nhanVienSuaChua;
 
-    @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "ngayGioTiepNhan", nullable = false)
     private Date ngayGioTiepNhan;
 
-    @Column(name = "yeuCauBanDau", nullable = false, length = 500)
     private String yeuCauBanDau;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "trangThai", nullable = false, length = 15)
     private TrangThaiPhieu trangThai;
 
     public PhieuTiepNhanSuaChua() {

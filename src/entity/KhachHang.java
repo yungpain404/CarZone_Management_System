@@ -2,37 +2,22 @@ package entity;
 
 import java.util.Objects;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
 /**
  * Khách hàng. Bảng KhachHang (V1 + V2). Mã KH có DEFAULT lấy từ seq_KhachHang trong DB.
  */
-@Entity
-@Table(name = "KhachHang")
 public class KhachHang {
-    @Id
-    @Column(name = "maKH", length = 10)
     private String maKH;
 
-    @Column(name = "hoTen", nullable = false, length = 100)
     private String hoTen;
 
-    @Column(name = "soDienThoai", nullable = false, length = 10)
     private String soDienThoai;
 
-    @Column(name = "ghiChu", length = 500)
     private String ghiChu;
 
-    @Column(name = "CCCD", length = 12)
     private String CCCD;
 
-    @Column(name = "thanhVienThanThiet", nullable = false)
     private boolean thanhVienThanThiet;
 
-    @Column(name = "diemTichLuy", nullable = false)
     private double diemTichLuy;
 
     public KhachHang() {

@@ -1,6 +1,6 @@
 package ui;
 
-import connectDB.JpaUtil;
+import connectDB.DbUtil;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -343,10 +343,10 @@ public class KhoiDongUI extends JFrame {
     // TIẾN TRÌNH KHỞI ĐỘNG (Pre-warm DB + Animation mượt mà)
     // ─────────────────────────────────────────────────────────────────────────
     private void batDauTienTrinh() {
-        // Khởi động kết nối ngầm (pre-warm Hibernate EntityManagerFactory)
+        // Khởi động kết nối ngầm (pre-warm kết nối CSDL)
         new Thread(() -> {
             try {
-                JpaUtil.getEntityManagerFactory();
+                DbUtil.isDatabaseOnline();
             } catch (Exception ignored) {
                 // Tiếp tục khởi động bình thường ngay cả khi DB chưa sẵn sàng
             }

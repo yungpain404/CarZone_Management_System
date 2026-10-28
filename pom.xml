@@ -20,7 +20,7 @@
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <main.class>ui.Main</main.class> <!-- TODO: đổi thành class có hàm main() của bạn -->
+        <main.class>app.Main</main.class>
     </properties>
 
     <!-- ===================== THƯ VIỆN PHỤ THUỘC ===================== -->
@@ -30,25 +30,6 @@
             <groupId>com.microsoft.sqlserver</groupId>
             <artifactId>mssql-jdbc</artifactId>
             <version>12.6.4.jre11</version>
-        </dependency>
-
-        <!-- Flyway: chạy migration SQL (dự phòng, hiện Flyway đang chạy bằng Docker) -->
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
-            <version>10.20.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-sqlserver</artifactId>
-            <version>10.20.1</version>
-        </dependency>
-
-        <!-- Hibernate ORM (JPA / Jakarta Persistence 3.2) -->
-        <dependency>
-            <groupId>org.hibernate.orm</groupId>
-            <artifactId>hibernate-core</artifactId>
-            <version>7.4.13.Final</version>
         </dependency>
 
         <!-- Giao diện FlatLaf -->
@@ -73,12 +54,10 @@
         <sourceDirectory>src</sourceDirectory>
         <!-- testSourceDirectory KHÔNG đặt lại src để tránh compile đôi vào target/test-classes -->
 
-        <!-- Đưa META-INF/persistence.xml (nằm trong src/) vào classpath -->
         <resources>
             <resource>
                 <directory>src</directory>
                 <includes>
-                    <include>META-INF/persistence.xml</include>
                     <include>**/*.png</include>
                 </includes>
             </resource>
@@ -119,7 +98,7 @@
                         <phase>package</phase>
                         <goals><goal>shade</goal></goals>
                         <configuration>
-                            <!-- Hibernate/Flyway dùng META-INF/services: phải gộp lại, và bỏ chữ ký jar -->
+                            <!-- Bỏ chữ ký jar của các thư viện để tránh lỗi khi shade -->
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>

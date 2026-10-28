@@ -10,17 +10,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import enums.VaiTro;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 
 /**
  * Chương trình khuyến mãi. Bảng KhuyenMai (V1) + hai bảng nối KhuyenMai_DichVu, KhuyenMai_LinhKien.
@@ -30,44 +19,19 @@ import jakarta.persistence.TemporalType;
  *  - Có liệt kê mặt hàng    = chỉ các mặt hàng nằm trong danh sách được giảm.
  * Khi khuyến mãi đã gắn vào hóa đơn, trigger trong DB không cho đổi mức giảm, thời gian, danh sách.
  */
-@Entity
-@Table(name = "KhuyenMai")
 public class KhuyenMai {
-	@Id
-	@Column(name = "maKM", length = 10)
 	private String maKM;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "maNV", nullable = false)
 	private NhanVien nhanVien;
 
-	@Column(name = "tenChuongTrinh", nullable = false, length = 150)
-	private String tenChuongTrinh;
+	private String tenChuongTrinh;private Set<LinhKien> linhKienApDung = new HashSet<>();private Set<DichVu> dichVuApDung = new HashSet<>();
 
-	@ManyToMany
-	@JoinTable(name = "KhuyenMai_LinhKien",
-			joinColumns = @JoinColumn(name = "maKM"),
-			inverseJoinColumns = @JoinColumn(name = "maLK"))
-	private Set<LinhKien> linhKienApDung = new HashSet<>();
-
-	@ManyToMany
-	@JoinTable(name = "KhuyenMai_DichVu",
-			joinColumns = @JoinColumn(name = "maKM"),
-			inverseJoinColumns = @JoinColumn(name = "maDV"))
-	private Set<DichVu> dichVuApDung = new HashSet<>();
-
-	@Column(name = "mucGiamPhanTram", nullable = false, precision = 5, scale = 2)
 	private double mucGiamPhanTram;
 
-	@Temporal(TemporalType.DATE)
-	@Column(name = "ngayBatDau", nullable = false)
 	private Date ngayBatDau;
 
-	@Temporal(TemporalType.DATE)
-	@Column(name = "ngayKetThuc", nullable = false)
 	private Date ngayKetThuc;
 
-	@Column(name = "ghiChu", length = 500)
 	private String ghiChu;
 
 	public KhuyenMai() {

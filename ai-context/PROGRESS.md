@@ -17,7 +17,31 @@
   + Giãn chiều cao các khối của Dashboard Chủ cửa hàng: thẻ KPI cao 135px, khối công việc cao 285px, khối kinh doanh trong ngày cao 235px cùng khoảng cách `18-20px` tạo không gian thoáng đãng, sang trọng, không còn bị thu hẹp quá mức.
   + Tái hiện chuẩn xác 100% frame Figma mới của Dashboard Kỹ thuật viên: Breadcrumb điều hướng, Tiêu đề kèm icon công cụ 3D, Card bộ lọc Kỳ thống kê (Hôm nay/Tuần/Tháng, Từ ngày, Đến ngày, Trạng thái), Hàng 4 thẻ Summary Card (Phiếu mới phân công, Sửa chữa đang thực hiện, Yêu cầu chờ duyệt, Phản hồi cần xử lý), Thanh Tabs điều hướng nhanh (Tổng quan | Phiếu được phân công | Yêu cầu linh kiện), Bảng công việc chi tiết và Card 5 ô chỉ đọc thông tin phiếu đang chọn.
 
-## Việc kế tiếp (gợi ý, chờ người dùng chốt thứ tự)
-- Phát triển màn hình chức năng kế tiếp: Tiếp nhận xe / Lập phiếu tiếp nhận sửa chữa (TNV) hoặc Quản lý linh kiện và kho (CCH).
-- Chạy DB Docker, thử kết nối Hibernate và seed data.
+## Mới làm (28/10/2026)
+- **Tái cấu trúc Session & Controller**:
+  + Tạo package `session` với `UserSession` (quản lý người dùng, nhân viên, vai trò, thời điểm đăng nhập toàn cục theo mô hình Singleton).
+  + Chuyển đổi toàn bộ `service` sang `controller`: `AuthController`, `DangNhapController`, `DashboardController` đặt tại package `controller`. Xóa hoàn toàn thư mục `service`.
+  + `AuthController`: Xác thực trực tiếp với Database qua `TaiKhoanDao`, đối chiếu băm SHA-256 hex, kiểm tra trạng thái hoạt động, cấp quyền và danh sách navigation menu theo Role, quản lý phiên và xử lý đăng xuất an toàn. Loại bỏ 100% dữ liệu mockup.
+- **Hoàn thiện MainFrame chuẩn mực theo Figma (image45.png)**:
+  + Tạo [MainFrame.java](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/MainFrame.java) làm khung chính điều phối (Master Frame) chứa Header, Navigation và ContentPanel.
+  + Header tự động cập nhật avatar, họ tên, vai trò và mã NV từ Session; search bar co giãn responsive với placeholder theo role.
+  + Navigation lọc chuẩn xác danh mục chức năng theo Role; bo góc 10px, hiệu ứng active nền `#EFF6FF` viền `#BFDBFE` chữ xanh `#2563EB`.
+  + ContentPanel (CardLayout) mở đúng Page tương ứng với navigation được chọn, nạp dữ liệu thật từ DB.
+  + Di chuyển file khởi chạy chính sang [Main.java](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/app/Main.java) (`package app;`), cấu hình `main.class = app.Main` trong `pom.xml`.
 
+- **Mở rộng dữ liệu Seed Demo & Hoàn thiện thông báo lỗi Đăng nhập (28/10/2026)**:
+  + Mở rộng `infra/database/seed/CarZone_Demo.sql`: Bổ sung danh mục dịch vụ (`DV00004` -> `DV00007`), linh kiện (`LK00004` -> `LK00009` với 2 linh kiện tồn 0 kích hoạt cảnh báo hết hàng Figma), 6 khách hàng & xe (Toyota, Mazda, Honda, Hyundai, Kia, Ford), phiếu sửa chữa ở đủ 4 trạng thái (`CHO_SUA`, `DANG_SUA`, `CHO_LINH_KIEN`, `HOAN_TAT`), hóa đơn thanh toán tiền mặt & chuyển khoản, và các phiếu yêu cầu nhập linh kiện theo đúng luồng chuyển trạng thái (`CHO_DUYET`, `DA_DUYET`, `DA_NHAP_KHO`, `TU_CHOI`). Đã chạy nạp thành công vào SQL Server.
+  + Sửa triệt để lỗi thông báo khi đăng nhập sai trong [DangNhapUI.java](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/DangNhapUI.java): Ngăn `DocumentListener` tự động xoá khung lỗi khi gọi `pfMatKhau.setText("")`, làm nổi bật viền đỏ trường nhập, cảnh báo âm thanh `Toolkit.beep()`, cập nhật thanh trạng thái và hiển thị `JOptionPane.showMessageDialog` rõ ràng.
+
+- **Chuyển đổi ORM Hibernate sang JDBC thuần & Tái cấu trúc DAO (28/10/2026)**:
+  + Gỡ bỏ hoàn toàn `hibernate-core`, `flyway-core`, `flyway-sqlserver` khỏi `pom.xml`.
+  + Thay thế `JpaUtil` bằng `connectDB.DbUtil` quản lý kết nối JDBC `DriverManager`.
+  + Lược bỏ toàn bộ JPA annotation (`@Entity`, `@Table`, `@Id`, v.v.) khỏi các entity, giữ nguyên nghiệp vụ và validation.
+  + Chuẩn hóa kiến trúc DAO theo mẫu người dùng cung cấp:
+    * Interface DAO đặt trực tiếp trong package `dao` (không có tiền tố `I`): [TaiKhoanDao](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/TaiKhoanDao.java), [NhanVienDao](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/NhanVienDao.java), [HoaDonDao](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/HoaDonDao.java), [ChiTietHoaDonDao](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/ChiTietHoaDonDao.java), [PasswordResetDao](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/PasswordResetDao.java).
+    * Lớp thực thi đặt trong subpackage `dao.impl`: [TaiKhoanDaoImpl](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/impl/TaiKhoanDaoImpl.java), [NhanVienDaoImpl](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/impl/NhanVienDaoImpl.java), [HoaDonDaoImpl](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/impl/HoaDonDaoImpl.java), [ChiTietHoaDonDaoImpl](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/impl/ChiTietHoaDonDaoImpl.java), [PasswordResetDaoImpl](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/impl/PasswordResetDaoImpl.java).
+  + Chuyển đổi [DashboardController](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/controller/DashboardController.java), [AuthController](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/controller/AuthController.java), [DashboardUI](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/DashboardUI.java), [MainFrame](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/MainFrame.java), [KhoiDongUI](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/KhoiDongUI.java) sang JDBC thuần qua `DbUtil`.
+  + Kiểm thử biên dịch toàn dự án: `mvn clean compile` thành công 100% (46 source files, 0 error).
+
+## Việc kế tiếp (gợi ý, chờ người dùng chốt thứ tự)
+- Phát triển màn hình chức năng chuyên sâu: Tiếp nhận xe / Lập phiếu tiếp nhận sửa chữa (TNV) hoặc Quản lý linh kiện và kho (CCH).

@@ -2,43 +2,22 @@ package entity;
 
 import java.util.Objects;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.EmbeddedId;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.MapsId;
-import jakarta.persistence.Table;
-
 /**
  * Dòng linh kiện đã dùng của một phiếu sửa chữa. Bảng ChiTietLinhKien (V1), khóa chính (maPhieu, maLK).
  * Trigger trg_CTLK_KiemTra trong DB tự trừ tồn kho và chặn dùng vượt tồn (mã lỗi 50123): Java KHÔNG tự trừ tồn.
  * Cột thanhTien trong DB là cột tính toán, không ánh xạ; dùng {@link #tinhThanhTien()}.
  */
-@Entity
-@Table(name = "ChiTietLinhKien")
 public class ChiTietLinhKien {
-    @EmbeddedId
     private ChiTietLinhKienId id = new ChiTietLinhKienId();
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @MapsId("maPhieu")
-    @JoinColumn(name = "maPhieu")
     private PhieuTiepNhanSuaChua phieuSuaChua;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @MapsId("maLK")
-    @JoinColumn(name = "maLK")
     private LinhKien linhKien;
 
-    @Column(name = "soLuong", nullable = false)
     private int soLuong;
 
-    @Column(name = "donGiaXuat", nullable = false)
     private double donGiaXuat;
 
-    @Column(name = "ghiChu", length = 300)
     private String ghiChu;
 
     public ChiTietLinhKien() {

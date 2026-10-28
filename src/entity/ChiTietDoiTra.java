@@ -3,16 +3,6 @@ package entity;
 import java.util.Objects;
 
 import enums.HuongXuLyDoiTra;
-import jakarta.persistence.Column;
-import jakarta.persistence.EmbeddedId;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.MapsId;
-import jakarta.persistence.Table;
 
 /**
  * Dòng chi tiết của phiếu đổi trả. Bảng ChiTietDoiTra (V1), khóa chính (maPhieuDT, stt).
@@ -21,35 +11,22 @@ import jakarta.persistence.Table;
  * Các cột maPhieu, maDV, maLK được giữ dạng chuỗi (không tạo quan hệ tới ChiTietDichVu/ChiTietLinhKien) để
  * tránh trùng cột khóa ghép; trigger trg_CTDT_KiemTra trong DB kiểm tra dòng thuộc hóa đơn gốc và số lượng đổi trả.
  */
-@Entity
-@Table(name = "ChiTietDoiTra")
 public class ChiTietDoiTra {
-    @EmbeddedId
     private ChiTietDoiTraId id = new ChiTietDoiTraId();
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @MapsId("maPhieuDT")
-    @JoinColumn(name = "maPhieuDT")
     private PhieuDoiTra phieuDT;
 
     /** Mã phiếu sửa chữa gốc chứa dòng dịch vụ/linh kiện được đổi trả. */
-    @Column(name = "maPhieu", nullable = false, length = 15)
     private String maPhieu;
 
-    @Column(name = "maDV", length = 10)
     private String maDV;
 
-    @Column(name = "maLK", length = 10)
     private String maLK;
 
-    @Column(name = "soLuong", nullable = false)
     private int soLuong;
 
-    @Column(name = "donGia", nullable = false)
     private double donGia;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "huongXuLy", nullable = false, length = 20)
     private HuongXuLyDoiTra huongXuLy;
 
     public ChiTietDoiTra() {

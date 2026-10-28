@@ -3,48 +3,24 @@ package entity;
 import java.util.Date;
 import java.util.Objects;
 
-import org.hibernate.annotations.Formula;
-
 import enums.TrangThaiThanhToan;
 import enums.VaiTro;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 
 /**
  * Phiếu đổi trả. Bảng PhieuDoiTra (V1). maPhieuDT do sp_LapPhieuDoiTra sinh (PDT + ddMMyyyy + A/P + 2 số).
- * soTienHoanTra là thuộc tính SUY DIỄN, đọc từ view vw_PhieuDoiTra_HoanTien (@Formula), chỉ có getter.
- */
-@Entity
-@Table(name = "PhieuDoiTra")
+ * soTienHoanTra là thuộc tính SUY DIỄN, đọc từ view vw_PhieuDoiTra_HoanTien ( */
 public class PhieuDoiTra {
-    @Id
-    @Column(name = "maPhieuDT", length = 14)
     private String maPhieuDT;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "maHoaDon", nullable = false)
     private HoaDon hoaDon;
 
     /** Tiếp nhận viên lập phiếu (DB: cột maNV). */
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "maNV", nullable = false)
     private NhanVien nhanVien;
 
-    @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "ngayLap", nullable = false)
     private Date ngayLap;
 
-    @Column(name = "lyDoDoiTra", nullable = false, length = 500)
     private String lyDoDoiTra;
 
-    @Formula("(SELECT r.soTienHoanTra FROM vw_PhieuDoiTra_HoanTien r WHERE r.maPhieuDT = maPhieuDT)")
     private double soTienHoanTra;
 
     public PhieuDoiTra() {

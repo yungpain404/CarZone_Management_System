@@ -5,49 +5,29 @@ import java.time.Period;
 import java.util.Objects;
 
 import enums.VaiTro;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.Table;
 
 /**
  * Nhân viên. Bảng NhanVien (V1). maNV do sp_ThemNhanVien sinh theo vai trò (CCH/TNV/KTV + 3 số).
  * Cột tuoi trong DB là cột tính toán, không ánh xạ; dùng {@link #getTuoi()}.
  */
-@Entity
-@Table(name = "NhanVien")
 public class NhanVien {
-	@Id
-	@Column(name = "maNV", length = 10)
 	private String maNV;
 
 	/** Phía nghịch của quan hệ 1-1; khóa nằm ở bảng TaiKhoan (TaiKhoan.maNV). */
-	@OneToOne(mappedBy = "nhanVien")
 	private TaiKhoan taiKhoan;
 
-	@Column(name = "hoTen", nullable = false, length = 100)
 	private String hoTen;
 
-	@Column(name = "ngaySinh", nullable = false)
 	private LocalDate ngaySinh;
 
-	@Column(name = "soDienThoai", nullable = false, length = 11)
 	private String soDienThoai;
 
-	@Column(name = "CCCD", nullable = false, length = 12)
 	private String CCCD;
 
-	@Column(name = "diaChi", length = 200)
 	private String diaChi;
 
-	@Column(name = "ngayVaoLam", nullable = false)
 	private LocalDate ngayVaoLam;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "vaiTro", nullable = false, length = 20)
 	private VaiTro vaiTro;
 
 	public NhanVien() {
@@ -166,6 +146,24 @@ public class NhanVien {
 		return ngaySinh == null ? 0 : Period.between(ngaySinh, LocalDate.now()).getYears();
 	}
 
+	// ── Raw setters dùng trong DAO khi map từ ResultSet ──────────────────────
+	// DB đã đảm bảo dữ liệu hợp lệ; bỏ qua validation để tránh side effect.
+
+	/** Gán maNV trực tiếp (không validate). Dùng trong DAO khi đọc từ DB. */
+	public void setMaNVRaw(String maNV)           { this.maNV = maNV; }
+	/** Gán hoTen trực tiếp. Dùng trong DAO. */
+	public void setHoTenRaw(String hoTen)         { this.hoTen = hoTen; }
+	/** Gán ngaySinh trực tiếp. Dùng trong DAO. */
+	public void setNgaySinhRaw(LocalDate d)       { this.ngaySinh = d; }
+	/** Gán soDienThoai trực tiếp. Dùng trong DAO. */
+	public void setSoDienThoaiRaw(String sdt)     { this.soDienThoai = sdt; }
+	/** Gán CCCD trực tiếp. Dùng trong DAO. */
+	public void setCCCDRaw(String cccd)           { this.CCCD = cccd; }
+	/** Gán ngayVaoLam trực tiếp. Dùng trong DAO. */
+	public void setNgayVaoLamRaw(LocalDate d)     { this.ngayVaoLam = d; }
+	/** Gán vaiTro trực tiếp. Dùng trong DAO. */
+	public void setVaiTroRaw(VaiTro v)            { this.vaiTro = v; }
+
 	@Override public int hashCode() {
 		return Objects.hash(maNV);
 	}
@@ -181,3 +179,4 @@ public class NhanVien {
 	}
 
 }
+

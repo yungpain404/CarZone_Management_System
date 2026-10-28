@@ -5,63 +5,33 @@ import java.util.Objects;
 
 import enums.TrangThaiYeuCau;
 import enums.VaiTro;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 
 /**
  * Phiếu yêu cầu nhập linh kiện. Bảng PhieuYeuCauNhapLinhKien (V1). maYeuCau do sp_TaoYeuCauNhapLinhKien sinh
  * (PYC + ddMMyyyy + A/P + 2 số). Khi chuyển sang DA_NHAP_KHO, trigger trong DB tự cộng tồn kho: Java KHÔNG cộng.
  * DB bắt buộc khi trạng thái khác CHO_DUYET: phải có nhanVienXuLy và ngayXuLy (CK_PYCNLK_XuLy).
  */
-@Entity
-@Table(name = "PhieuYeuCauNhapLinhKien")
 public class PhieuYeuCauNhapLinhKien {
-    @Id
-    @Column(name = "maYeuCau", length = 14)
     private String maYeuCau;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "maLK", nullable = false)
     private LinhKien linhKien;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "maNVLap", nullable = false)
     private NhanVien nhanVienLap;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "maNVXuLy")
     private NhanVien nhanVienXuLy;
 
-    @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "ngayTao", nullable = false)
     private Date ngayTao;
 
-    @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "ngayXuLy")
     private Date ngayXuLy;
 
-    @Column(name = "soLuongYeuCau", nullable = false)
     private int soLuongYeuCau;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "trangThai", nullable = false, length = 15)
     private TrangThaiYeuCau trangThai;
 
     /** Lý do yêu cầu của kỹ thuật viên (DB: NOT NULL). */
-    @Column(name = "ghiChu", nullable = false, length = 300)
     private String ghiChu;
 
     /** Ghi chú của Chủ cửa hàng khi duyệt/từ chối (ví dụ lý do từ chối). */
-    @Column(name = "ghiChuXuLy", length = 300)
     private String ghiChuXuLy;
 
     public PhieuYeuCauNhapLinhKien() {

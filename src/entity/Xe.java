@@ -3,41 +3,22 @@ package entity;
 import java.time.Year;
 import java.util.Objects;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-
 /**
  * Xe của khách hàng. Bảng Xe (V1). Khóa chính là biển số xe.
  */
-@Entity
-@Table(name = "Xe")
 public class Xe {
-    @Id
-    @Column(name = "bienSoXe", length = 15)
     private String bienSoXe;
 
-    @Column(name = "hangXe", nullable = false, length = 50)
     private String hangXe;
 
-    @Column(name = "model", length = 50)
     private String model;
 
-    @Column(name = "mauSac", length = 30)
     private String mauSac;
 
-    @Column(name = "namSanXuat")
     private int namSanXuat;
 
-    @Column(name = "soKmHienTai", nullable = false)
     private int soKmHienTai;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "maKH", nullable = false)
     private KhachHang chuXe;
 
     public Xe() {

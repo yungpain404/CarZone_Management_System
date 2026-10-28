@@ -1,36 +1,35 @@
 package dao;
 
-import connectDB.JpaUtil;
 import entity.TaiKhoan;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.TypedQuery;
 
 /**
- * DAO truy vấn bảng TaiKhoan.
- * Chỉ truy vấn / lưu, không chứa luật nghiệp vụ.
+ * Interface DAO cho bảng TaiKhoan – chỉ đọc/lưu dữ liệu, không chứa luật nghiệp vụ.
  */
-public class TaiKhoanDao {
+public interface TaiKhoanDao {
 
     /**
-     * Tìm TaiKhoan theo tên đăng nhập (JOIN FETCH NhanVien để tránh lazy N+1).
+     * Tìm TaiKhoan kèm NhanVien theo tên đăng nhập.
      *
-     * @param tenDangNhap tên đăng nhập (CCHxxx / TNVxxx / KTVxxx)
-     * @return TaiKhoan kèm NhanVien, hoặc {@code null} nếu không tìm thấy
+     * @param tenDangNhap tên đăng nhập
+     * @return TaiKhoan hoặc {@code null} nếu không tìm thấy
      */
-    public TaiKhoan timTheoTenDangNhap(String tenDangNhap) {
-        EntityManager em = JpaUtil.createEntityManager();
-        try {
-            TypedQuery<TaiKhoan> q = em.createQuery(
-                    "SELECT t FROM TaiKhoan t JOIN FETCH t.nhanVien nv "
-                    + "WHERE t.tenDangNhap = :ten",
-                    TaiKhoan.class);
-            q.setParameter("ten", tenDangNhap);
-            return q.getSingleResult();
-        } catch (NoResultException e) {
-            return null;
-        } finally {
-            em.close();
-        }
-    }
+    TaiKhoan timTheoTenDangNhap(String tenDangNhap);
+
+    /**
+     * Cập nhật mật khẩu đã băm (SHA-256) cho tài khoản.
+     *
+     * @param tenDangNhap tên đăng nhập
+     * @param matKhauMoiHash chuỗi băm hex SHA-256 in hoa
+     * @return true nếu cập nhật thành công
+     */
+    boolean capNhatMatKhau(String tenDangNhap, String matKhauMoiHash);
+
+    /**
+     * Cập nhật trạng thái hoạt động tài khoản.
+     *
+     * @param tenDangNhap tên đăng nhập
+     * @param trangThai true nếu đang hoạt động, false nếu bị khóa
+     * @return true nếu cập nhật thành công
+     */
+    boolean capNhatTrangThai(String tenDangNhap, boolean trangThai);
 }

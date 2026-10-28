@@ -2,11 +2,12 @@ package ui;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import entity.NhanVien;
-import service.DangNhapService;
-import service.DangNhapService.KetQuaDangNhap;
+import controller.DangNhapController;
+import controller.DangNhapController.KetQuaDangNhap;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
+import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -84,8 +85,9 @@ public class DangNhapUI extends JFrame {
     private JLabel lblError;
     private Component errorBottomSpace;
     private JLabel lblStatusLeft;
+    private boolean isProgrammaticClearing = false;
 
-    private final DangNhapService service = new DangNhapService();
+    private final DangNhapController controller = new DangNhapController();
     private DangNhapListener listener;
 
     public interface DangNhapListener {
@@ -460,8 +462,9 @@ public class DangNhapUI extends JFrame {
 
             @Override
             public void focusLost(FocusEvent e) {
+                Color stroke = (pnlError != null && pnlError.isVisible()) ? C_ERR_TEXT : C_INPUT_STROKE;
                 tf.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(C_INPUT_STROKE, 1, true),
+                        BorderFactory.createLineBorder(stroke, 1, true),
                         new EmptyBorder(0, 14, 0, 14)));
             }
         });
@@ -798,9 +801,29 @@ public class DangNhapUI extends JFrame {
     }
 
     private void clearErrorIfVisible() {
-        if (pnlError.isVisible()) {
-            hienLoi(null);
+        if (isProgrammaticClearing) {
+            return;
         }
+        if (pnlError != null && pnlError.isVisible()) {
+            hienLoi(null);
+            resetFieldBorders();
+        }
+    }
+
+    private void highlightErrorFields() {
+        Border errBrd = BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(C_ERR_TEXT, 1, true),
+                new EmptyBorder(0, 14, 0, 14));
+        tfTenDangNhap.setBorder(errBrd);
+        pfMatKhau.setBorder(errBrd);
+    }
+
+    private void resetFieldBorders() {
+        Border normalBrd = BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(C_INPUT_STROKE, 1, true),
+                new EmptyBorder(0, 14, 0, 14));
+        tfTenDangNhap.setBorder(normalBrd);
+        pfMatKhau.setBorder(normalBrd);
     }
 
     /**
@@ -808,7 +831,7 @@ public class DangNhapUI extends JFrame {
      * 1. Validate sớm: Kiểm tra trống, định dạng mã nhân viên (CCHxxx, TNVxxx, KTVxxx).
      * 2. Khóa giao diện (Loading state), đổi trạng thái nút & status bar.
      * 3. Chạy kiểm tra tài khoản, mã băm SHA-256 qua DangNhapService bằng SwingWorker.
-     * 4. Phản hồi kết quả: Hiển thị lỗi tương ứng trên khung lỗi Figma hoặc mở phiên làm việc.
+     * 4. Phản hồi kết quả: Hiển thị lỗi tương ứng trên khung lỗi Figma, viền đỏ, popup và âm thanh cảnh báo.
      */
     private void xuLyDangNhap() {
         String ten = tfTenDangNhap.getText().trim();
@@ -817,6 +840,12 @@ public class DangNhapUI extends JFrame {
         // Bước 1: Validate trống
         if (ten.isBlank() || mk.isBlank()) {
             hienLoi("Vui lòng nhập tên đăng nhập và mật khẩu.");
+            highlightErrorFields();
+            Toolkit.getDefaultToolkit().beep();
+            JOptionPane.showMessageDialog(this,
+                    "Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu.",
+                    "Thông báo đăng nhập",
+                    JOptionPane.WARNING_MESSAGE);
             if (ten.isBlank()) {
                 tfTenDangNhap.requestFocusInWindow();
             } else {
@@ -828,6 +857,12 @@ public class DangNhapUI extends JFrame {
         // Bước 2: Validate định dạng mã nhân viên (3 chữ cái vai trò + 3 chữ số)
         if (!ten.toUpperCase().matches("^(CCH|TNV|KTV)\\d{3}$")) {
             hienLoi("Tên đăng nhập không đúng định dạng (VD: CCH001, TNV001, KTV001).");
+            highlightErrorFields();
+            Toolkit.getDefaultToolkit().beep();
+            JOptionPane.showMessageDialog(this,
+                    "Tên đăng nhập không đúng định dạng!\nQuy ước:\n• CCHxxx: Chủ cửa hàng (VD: CCH001)\n• TNVxxx: Tiếp nhận viên (VD: TNV001)\n• KTVxxx: Kỹ thuật viên (VD: KTV001)",
+                    "Sai định dạng tài khoản",
+                    JOptionPane.WARNING_MESSAGE);
             tfTenDangNhap.requestFocusInWindow();
             return;
         }
@@ -835,6 +870,7 @@ public class DangNhapUI extends JFrame {
         // Bước 3: Đưa giao diện vào trạng thái xử lý
         setFormEnabled(false);
         hienLoi(null);
+        resetFieldBorders();
         btnDangNhap.setText("Đang đăng nhập…");
         lblStatusLeft.setText("Đang xác thực thông tin tài khoản…");
 
@@ -843,7 +879,7 @@ public class DangNhapUI extends JFrame {
         new SwingWorker<KetQuaDangNhap, Void>() {
             @Override
             protected KetQuaDangNhap doInBackground() {
-                return service.dangNhap(username, mk);
+                return controller.dangNhap(username, mk);
             }
 
             @Override
@@ -864,16 +900,39 @@ public class DangNhapUI extends JFrame {
                     } else {
                         btnDangNhap.setText("Đăng nhập");
                         hienLoi(kq.getThongBao());
-                        pfMatKhau.setText("");
+                        highlightErrorFields();
+                        lblStatusLeft.setText("Đăng nhập thất bại: " + kq.getThongBao());
+
+                        // Dùng cờ isProgrammaticClearing để việc xoá mật khẩu không vô tình kích hoạt DocumentListener ẩn lỗi
+                        isProgrammaticClearing = true;
+                        try {
+                            pfMatKhau.setText("");
+                        } finally {
+                            isProgrammaticClearing = false;
+                        }
+
                         pfMatKhau.requestFocusInWindow();
-                        lblStatusLeft.setText("Chưa đăng nhập");
                         setFormEnabled(true);
+                        Toolkit.getDefaultToolkit().beep();
+
+                        JOptionPane.showMessageDialog(DangNhapUI.this,
+                                kq.getThongBao(),
+                                "Đăng nhập thất bại",
+                                JOptionPane.ERROR_MESSAGE);
                     }
                 } catch (Exception ex) {
                     btnDangNhap.setText("Đăng nhập");
-                    hienLoi("Không thể kết nối cơ sở dữ liệu. Vui lòng kiểm tra lại.");
-                    lblStatusLeft.setText("Chưa đăng nhập");
+                    String msg = "Không thể kết nối cơ sở dữ liệu. Vui lòng kiểm tra Docker/SQL Server.";
+                    hienLoi(msg);
+                    highlightErrorFields();
+                    lblStatusLeft.setText("Lỗi kết nối cơ sở dữ liệu");
                     setFormEnabled(true);
+                    Toolkit.getDefaultToolkit().beep();
+
+                    JOptionPane.showMessageDialog(DangNhapUI.this,
+                            msg + "\nChi tiết lỗi: " + ex.getMessage(),
+                            "Lỗi kết nối cơ sở dữ liệu",
+                            JOptionPane.ERROR_MESSAGE);
                 }
             }
         }.execute();

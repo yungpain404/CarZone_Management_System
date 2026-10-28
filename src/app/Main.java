@@ -1,17 +1,20 @@
-package ui;
+package app;
 
 import com.formdev.flatlaf.FlatLightLaf;
 import entity.NhanVien;
+import ui.DangNhapUI;
+import ui.KhoiDongUI;
+import ui.MainFrame;
 
 import javax.swing.*;
 import java.awt.*;
 
 /**
  * Entry point của ứng dụng CarZone.
- * Khởi động Look & Feel, mở màn hình đăng nhập.
- * Sau khi đăng nhập thành công, chuyển sang màn hình chính tương ứng với vai trò.
+ * Khởi động Look & Feel FlatLightLaf, chạy Splash Screen khởi động hệ thống.
+ * Sau khi đăng nhập thành công, mở màn hình chính MainFrame theo phân quyền vai trò.
  *
- * pom.xml trỏ main.class = ui.Main
+ * pom.xml trỏ main.class = app.Main
  */
 public class Main {
 
@@ -44,11 +47,11 @@ public class Main {
         });
     }
 
-    /** Mở màn hình Dashboard theo vai trò sau khi đăng nhập thành công. */
-    private static void moManHinhChinh(NhanVien nhanVien) {
+    /** Mở màn hình chính MainFrame theo vai trò sau khi đăng nhập thành công. */
+    public static void moManHinhChinh(NhanVien nhanVien) {
         SwingUtilities.invokeLater(() -> {
-            DashboardUI dashboard = new DashboardUI(nhanVien);
-            dashboard.setVisible(true);
+            MainFrame mainFrame = new MainFrame(nhanVien);
+            mainFrame.setVisible(true);
         });
     }
 }

@@ -3,18 +3,12 @@ package entity;
 import java.io.Serializable;
 import java.util.Objects;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Embeddable;
-
 /** Khóa chính ghép của ChiTietDichVu: (maPhieu, maDV). */
-@Embeddable
 public class ChiTietDichVuId implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    @Column(name = "maPhieu", length = 15)
     private String maPhieu;
 
-    @Column(name = "maDV", length = 10)
     private String maDV;
 
     public ChiTietDichVuId() {

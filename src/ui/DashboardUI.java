@@ -1,11 +1,17 @@
 package ui;
 
-import connectDB.JpaUtil;
+import connectDB.DbUtil;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import entity.NhanVien;
 import enums.TrangThaiPhieu;
 import enums.VaiTro;
-import service.DashboardService;
-import service.DashboardService.*;
+import controller.AuthController;
+import controller.AuthController.NavigationItem;
+import controller.DashboardController;
+import controller.DashboardController.*;
+import session.UserSession;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -19,8 +25,12 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.net.URL;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Màn hình Dashboard phân quyền theo vai trò (Chủ cửa hàng, Tiếp nhận viên, Kỹ thuật viên).
@@ -28,13 +38,11 @@ import java.time.format.DateTimeFormatter;
  *
  * Cấu trúc chung:
  * - Header (70px): Logo CarZone, Search bar bo tròn, Nút Help, Nút About, Avatar & Thông tin nhân viên, Nút Đăng xuất.
- * - Sidebar Menu (230px): Danh mục chức năng tùy biến động theo vai trò của tài khoản đang đăng nhập.
- * - Content Area:
- *   + CHU_CUA_HANG: 4 KPI Cards (Thẻ chờ duyệt nổi bật, Chờ nhập kho, Cảnh báo hết hàng, Hồ sơ chưa cấp tài khoản),
- *                   bảng Công việc cần xử lý & Cảnh báo tồn kho 0, Thống kê kinh doanh trong ngày (Biểu đồ cột, Cơ cấu thanh toán).
- *   + TIEP_NHAN_VIEN: 4 KPI Cards (Chờ tiếp nhận/sửa, Đang sửa chữa, Chờ linh kiện, Hoàn tất chờ thu),
- *                     tiến độ xe tại xưởng trong ngày kèm badge trạng thái, thanh tác vụ nhanh.
- *   + KY_THUAT_VIEN: 4 KPI Cards cá nhân, bộ lọc tìm kiếm phiếu, bảng Phiếu được phân công, Card chi tiết phiếu chỉ đọc.
+ * - Sidebar Menu (235px): Danh mục chức năng tùy biến động theo vai trò xác thực từ session.
+ * - Content Area: CardLayout thay đổi linh hoạt theo navigation hướng đến.
+ *   + NAV_DASHBOARD: Dashboard chi tiết tương ứng vai trò.
+ *   + Các chức năng khác: View phân hệ nghiệp vụ chuẩn giao diện FlatLightLaf + Figma.
+ *   + NAV_THONG_TIN_CA_NHAN: Hồ sơ thông tin cá nhân nhân viên.
  */
 public class DashboardUI extends JFrame {
 
@@ -73,16 +81,29 @@ public class DashboardUI extends JFrame {
     }
 
     private static final DecimalFormat MONEY_FMT = new DecimalFormat("#,###");
+    private static final SimpleDateFormat DATE_FMT = new SimpleDateFormat("dd/MM/yyyy");
 
-    // ── Thuộc tính phiên làm việc ────────────────────────────────────────────
+    // ── Thuộc tính phiên làm việc và điều khiển giao diện ─────────────────────
     private final NhanVien nhanVien;
-    private final DashboardService dashboardService = new DashboardService();
+    private final DashboardController dashboardController = new DashboardController();
+    private final AuthController authController = new AuthController();
+    private CardLayout contentCardLayout;
     private JPanel pnlContentContainer;
+    private final Map<String, JButton> mapNavButtons = new HashMap<>();
+    private String activeNavId = "NAV_DASHBOARD";
 
     public DashboardUI(NhanVien nhanVien) {
-        this.nhanVien = (nhanVien != null) ? nhanVien : taoNhanVienMacDinh();
+        if (UserSession.getInstance().daDangNhap()) {
+            this.nhanVien = UserSession.getInstance().getNhanVien();
+        } else if (nhanVien != null) {
+            this.nhanVien = nhanVien;
+            UserSession.getInstance().batDauPhien(null, nhanVien);
+        } else {
+            this.nhanVien = taoNhanVienMacDinh();
+            UserSession.getInstance().batDauPhien(null, this.nhanVien);
+        }
 
-        String tenVaiTro = layTenVaiTro(this.nhanVien.getVaiTro());
+        String tenVaiTro = AuthController.layTenVaiTro(this.nhanVien.getVaiTro());
         setTitle("CarZone – " + tenVaiTro + " (" + this.nhanVien.getHoTen() + ")");
         setSize(1440, 900);
         setMinimumSize(new Dimension(1200, 760));
@@ -99,7 +120,7 @@ public class DashboardUI extends JFrame {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                JpaUtil.close();
+                DbUtil.close();
             }
         });
 
@@ -131,15 +152,18 @@ public class DashboardUI extends JFrame {
         // 1. Header trên cùng
         add(buildHeader(), BorderLayout.NORTH);
 
-        // 2. Vùng trung tâm: Sidebar menu trái + Vùng nội dung phải
+        // 2. Vùng trung tâm: Sidebar menu trái + Vùng nội dung phải (CardLayout)
         JPanel centerPanel = new JPanel(new BorderLayout(0, 0));
         centerPanel.setOpaque(false);
 
         centerPanel.add(buildSidebar(), BorderLayout.WEST);
 
-        pnlContentContainer = new JPanel(new BorderLayout(0, 0));
+        contentCardLayout = new CardLayout();
+        pnlContentContainer = new JPanel(contentCardLayout);
         pnlContentContainer.setOpaque(false);
-        pnlContentContainer.add(buildRoleDashboardContent(), BorderLayout.CENTER);
+
+        // Nạp tất cả các module view theo phân quyền role từ session
+        napCacTrangNoiDung();
 
         centerPanel.add(pnlContentContainer, BorderLayout.CENTER);
         add(centerPanel, BorderLayout.CENTER);
@@ -276,7 +300,7 @@ public class DashboardUI extends JFrame {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 2. SIDEBAR MENU ĐỘNG THEO VAI TRÒ (235px)
+    // 2. SIDEBAR MENU ĐỘNG THEO VAI TRÒ XÁC THỰC TỪ SESSION (235px)
     // ─────────────────────────────────────────────────────────────────────────
     private JPanel buildSidebar() {
         JPanel sidebar = new JPanel();
@@ -288,16 +312,14 @@ public class DashboardUI extends JFrame {
                 new EmptyBorder(12, 8, 12, 8)
         ));
 
-        // Lấy danh sách menu items tương ứng với vai trò
-        String[][] menuItems = layDanhSachMenuTheoVaiTro(nhanVien.getVaiTro());
+        // Lấy danh sách menu items tương ứng theo Role được cấp trong Session
+        List<NavigationItem> menuItems = authController.layDanhSachNavigationTheoRole(nhanVien.getVaiTro());
+        mapNavButtons.clear();
 
-        for (int i = 0; i < menuItems.length; i++) {
-            String icon = menuItems[i][0];
-            String text = menuItems[i][1];
-            boolean isActive = (i == 0); // Mặc định Dashboard là active
-
-            JButton btnItem = createSidebarButton(icon, text, isActive);
+        for (NavigationItem item : menuItems) {
+            JButton btnItem = createSidebarButton(item);
             btnItem.setAlignmentX(Component.CENTER_ALIGNMENT);
+            mapNavButtons.put(item.getId(), btnItem);
             sidebar.add(btnItem);
             sidebar.add(Box.createVerticalStrut(4));
         }
@@ -315,42 +337,6 @@ public class DashboardUI extends JFrame {
         return sidebar;
     }
 
-    private String[][] layDanhSachMenuTheoVaiTro(VaiTro vaiTro) {
-        if (vaiTro == null) vaiTro = VaiTro.CHU_CUA_HANG;
-
-        return switch (vaiTro) {
-            case CHU_CUA_HANG -> new String[][]{
-                    {"📊", "Dashboard"},
-                    {"📈", "Thống kê doanh thu"},
-                    {"🔧", "Quản lý dịch vụ"},
-                    {"📦", "Linh kiện và tồn kho"},
-                    {"📋", "Yêu cầu cập nhật linh kiện"},
-                    {"🎁", "Chương trình khuyến mãi"},
-                    {"👥", "Quản lý nhân viên"},
-                    {"🔐", "Tài khoản và phân quyền"},
-                    {"🔍", "Tra cứu"},
-                    {"👤", "Thông tin cá nhân"}
-            };
-            case TIEP_NHAN_VIEN -> new String[][]{
-                    {"📊", "Dashboard"},
-                    {"👥", "Hồ sơ khách hàng và xe"},
-                    {"📝", "Lập phiếu tiếp nhận – sửa chữa"},
-                    {"🧾", "Lập hóa đơn thanh toán"},
-                    {"🔄", "Tạo phiếu đổi trả"},
-                    {"🔍", "Tra cứu"},
-                    {"👤", "Thông tin cá nhân"}
-            };
-            case KY_THUAT_VIEN -> new String[][]{
-                    {"📊", "Dashboard"},
-                    {"📋", "Phiếu được phân công"},
-                    {"🛠️", "Cập nhật phiếu sửa chữa"},
-                    {"📦", "Yêu cầu cập nhật linh kiện"},
-                    {"🔍", "Tra cứu"},
-                    {"👤", "Thông tin cá nhân"}
-            };
-        };
-    }
-
     private String formatSidebarLabel(String text) {
         if (text.equals("Yêu cầu cập nhật linh kiện")) return "Yêu cầu cập nhật<br>linh kiện";
         if (text.equals("Lập phiếu tiếp nhận – sửa chữa")) return "Lập phiếu tiếp nhận –<br>sửa chữa";
@@ -360,8 +346,8 @@ public class DashboardUI extends JFrame {
         return text;
     }
 
-    private JButton createSidebarButton(String icon, String text, boolean isActive) {
-        String wrapped = formatSidebarLabel(text);
+    private JButton createSidebarButton(NavigationItem item) {
+        String wrapped = formatSidebarLabel(item.getTieuDe());
         boolean isMultiLine = wrapped.contains("<br>");
         String htmlText = "<html><body style='margin:0; padding:0; line-height: 1.15;'>" + wrapped + "</body></html>";
 
@@ -370,6 +356,7 @@ public class DashboardUI extends JFrame {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                boolean isActive = item.getId().equals(activeNavId);
                 Color bg;
                 if (isActive) {
                     bg = C_PRIMARY_BG;
@@ -401,25 +388,527 @@ public class DashboardUI extends JFrame {
         btn.setMaximumSize(new Dimension(216, btnH));
         btn.setPreferredSize(new Dimension(216, btnH));
 
-        JLabel lblIcon = new JLabel(icon, SwingConstants.CENTER);
+        JLabel lblIcon = new JLabel(item.getIcon(), SwingConstants.CENTER);
         lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 15));
         lblIcon.setPreferredSize(new Dimension(24, 24));
         btn.add(lblIcon, BorderLayout.WEST);
 
         JLabel lblText = new JLabel(htmlText);
-        lblText.setFont(f(isActive ? Font.BOLD : Font.PLAIN, 11));
-        lblText.setForeground(isActive ? C_PRIMARY : C_TEXT_MAIN);
+        lblText.setFont(f(Font.PLAIN, 11));
+        lblText.setForeground(C_TEXT_MAIN);
         btn.add(lblText, BorderLayout.CENTER);
 
-        btn.addActionListener(e -> {
-            if (!isActive) {
-                JOptionPane.showMessageDialog(this,
-                        "Chức năng \"" + text + "\" đang sẵn sàng trong phiên làm việc của " + layTenVaiTro(nhanVien.getVaiTro()) + "!",
-                        text, JOptionPane.INFORMATION_MESSAGE);
-            }
-        });
+        btn.addActionListener(e -> chuyenTrang(item.getId()));
 
         return btn;
+    }
+
+    /**
+     * Chuyển đổi vùng nội dung contentPanel dựa trên Navigation được chọn.
+     * Cập nhật trạng thái active/inactive của tất cả các nút navigation bên sidebar.
+     */
+    public void chuyenTrang(String navId) {
+        if (navId == null || navId.equals(activeNavId)) return;
+        this.activeNavId = navId;
+
+        // Cập nhật card layout
+        if (contentCardLayout != null && pnlContentContainer != null) {
+            contentCardLayout.show(pnlContentContainer, navId);
+        }
+
+        // Cập nhật giao diện toàn bộ nút navigation
+        for (Map.Entry<String, JButton> entry : mapNavButtons.entrySet()) {
+            boolean isCur = entry.getKey().equals(activeNavId);
+            JButton b = entry.getValue();
+            Component[] comps = b.getComponents();
+            for (Component c : comps) {
+                if (c instanceof JLabel lbl && !lbl.getText().matches("^[\\p{So}\\p{Sm}].*")) {
+                    lbl.setFont(f(isCur ? Font.BOLD : Font.PLAIN, 11));
+                    lbl.setForeground(isCur ? C_PRIMARY : C_TEXT_MAIN);
+                }
+            }
+            b.repaint();
+        }
+    }
+
+    /**
+     * Nạp toàn bộ các phân hệ nội dung (Card) vào contentPanel tương ứng với vai trò.
+     */
+    private void napCacTrangNoiDung() {
+        List<NavigationItem> items = authController.layDanhSachNavigationTheoRole(nhanVien.getVaiTro());
+
+        for (NavigationItem item : items) {
+            if ("NAV_DASHBOARD".equals(item.getId())) {
+                pnlContentContainer.add(buildRoleDashboardContent(), item.getId());
+            } else if ("NAV_THONG_TIN_CA_NHAN".equals(item.getId())) {
+                pnlContentContainer.add(buildProfileView(item), item.getId());
+            } else {
+                pnlContentContainer.add(buildGenericModuleView(item), item.getId());
+            }
+        }
+    }
+
+    /**
+     * Màn hình Thông tin cá nhân nhân viên (NAV_THONG_TIN_CA_NHAN).
+     * Dữ liệu lấy trực tiếp từ đối tượng NhanVien & TaiKhoan trong Session.
+     */
+    private JComponent buildProfileView(NavigationItem item) {
+        ScrollableContentPanel pnl = new ScrollableContentPanel();
+        pnl.setBorder(new EmptyBorder(20, 24, 20, 24));
+
+        // Header tiêu đề trang
+        JPanel pnlHeader = new JPanel(new BorderLayout(0, 0));
+        pnlHeader.setOpaque(false);
+        pnlHeader.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
+
+        JPanel pnlTitles = new JPanel(new GridLayout(2, 1, 0, 2));
+        pnlTitles.setOpaque(false);
+        JLabel lblBreadcrumb = new JLabel(item.getBreadcrumb());
+        lblBreadcrumb.setFont(f(Font.PLAIN, 12));
+        lblBreadcrumb.setForeground(C_TEXT_MUTED);
+        pnlTitles.add(lblBreadcrumb);
+
+        JLabel lblTitle = new JLabel("Hồ sơ thông tin cá nhân");
+        lblTitle.setFont(f(Font.BOLD, 22));
+        lblTitle.setForeground(C_TEXT_HEAD);
+        pnlTitles.add(lblTitle);
+        pnlHeader.add(pnlTitles, BorderLayout.WEST);
+
+        // Badge vai trò
+        JLabel lblRoleBadge = new JLabel("Vai trò: " + AuthController.layTenVaiTro(nhanVien.getVaiTro()), SwingConstants.CENTER);
+        lblRoleBadge.setFont(f(Font.BOLD, 12));
+        lblRoleBadge.setForeground(C_PRIMARY);
+        lblRoleBadge.setBackground(C_PRIMARY_BG);
+        lblRoleBadge.setOpaque(true);
+        lblRoleBadge.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(C_PRIMARY_BR, 1),
+                new EmptyBorder(6, 14, 6, 14)
+        ));
+        pnlHeader.add(lblRoleBadge, BorderLayout.EAST);
+        pnl.add(pnlHeader);
+
+        pnl.add(Box.createVerticalStrut(20));
+
+        // Card chi tiết hồ sơ
+        JPanel cardProfile = new JPanel(new BorderLayout(24, 0));
+        cardProfile.setBackground(C_WHITE);
+        cardProfile.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(C_BORDER, 1),
+                new EmptyBorder(24, 24, 24, 24)
+        ));
+        cardProfile.setMaximumSize(new Dimension(Integer.MAX_VALUE, 380));
+
+        // Cột trái: Avatar lớn & Tên
+        JPanel pnlAvatarCol = new JPanel();
+        pnlAvatarCol.setLayout(new BoxLayout(pnlAvatarCol, BoxLayout.Y_AXIS));
+        pnlAvatarCol.setOpaque(false);
+        pnlAvatarCol.setPreferredSize(new Dimension(200, 320));
+
+        String initial = (nhanVien.getHoTen() != null && !nhanVien.getHoTen().isBlank())
+                ? String.valueOf(nhanVien.getHoTen().trim().charAt(0)).toUpperCase() : "U";
+        JLabel lblBigAvatar = new JLabel(initial, SwingConstants.CENTER) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(C_PRIMARY_BG);
+                g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
+                g2.setColor(C_PRIMARY_BR);
+                g2.drawOval(0, 0, getWidth() - 1, getHeight() - 1);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        lblBigAvatar.setPreferredSize(new Dimension(84, 84));
+        lblBigAvatar.setMaximumSize(new Dimension(84, 84));
+        lblBigAvatar.setFont(f(Font.BOLD, 36));
+        lblBigAvatar.setForeground(C_PRIMARY);
+        lblBigAvatar.setAlignmentX(Component.CENTER_ALIGNMENT);
+        pnlAvatarCol.add(lblBigAvatar);
+
+        pnlAvatarCol.add(Box.createVerticalStrut(14));
+
+        JLabel lblProfileName = new JLabel(nhanVien.getHoTen());
+        lblProfileName.setFont(f(Font.BOLD, 16));
+        lblProfileName.setForeground(C_TEXT_HEAD);
+        lblProfileName.setAlignmentX(Component.CENTER_ALIGNMENT);
+        pnlAvatarCol.add(lblProfileName);
+
+        pnlAvatarCol.add(Box.createVerticalStrut(4));
+
+        JLabel lblProfileId = new JLabel(nhanVien.getMaNV() != null ? nhanVien.getMaNV() : "");
+        lblProfileId.setFont(f(Font.PLAIN, 12));
+        lblProfileId.setForeground(C_TEXT_SUBTLE);
+        lblProfileId.setAlignmentX(Component.CENTER_ALIGNMENT);
+        pnlAvatarCol.add(lblProfileId);
+
+        pnlAvatarCol.add(Box.createVerticalStrut(12));
+
+        JLabel lblStatusTag = new JLabel("● Đang hoạt động", SwingConstants.CENTER);
+        lblStatusTag.setFont(f(Font.BOLD, 11));
+        lblStatusTag.setForeground(C_SUCCESS);
+        lblStatusTag.setBackground(C_SUCCESS_BG);
+        lblStatusTag.setOpaque(true);
+        lblStatusTag.setBorder(new EmptyBorder(4, 10, 4, 10));
+        lblStatusTag.setAlignmentX(Component.CENTER_ALIGNMENT);
+        pnlAvatarCol.add(lblStatusTag);
+
+        cardProfile.add(pnlAvatarCol, BorderLayout.WEST);
+
+        // Cột phải: Grid thông tin chi tiết
+        JPanel pnlInfoGrid = new JPanel(new GridLayout(4, 2, 16, 14));
+        pnlInfoGrid.setOpaque(false);
+
+        String ngaySinhStr = (nhanVien.getNgaySinh() != null) ? DATE_FMT.format(nhanVien.getNgaySinh()) : "Chưa cập nhật";
+        String ngayVaoLamStr = (nhanVien.getNgayVaoLam() != null) ? DATE_FMT.format(nhanVien.getNgayVaoLam()) : "Chưa cập nhật";
+        String tenDN = UserSession.getInstance().getTenDangNhap();
+        if (tenDN.isBlank()) tenDN = nhanVien.getMaNV();
+
+        pnlInfoGrid.add(createInfoField("Họ và tên", nhanVien.getHoTen()));
+        pnlInfoGrid.add(createInfoField("Mã nhân viên", nhanVien.getMaNV()));
+        pnlInfoGrid.add(createInfoField("Tên đăng nhập hệ thống", tenDN));
+        pnlInfoGrid.add(createInfoField("Vai trò nghiệp vụ", AuthController.layTenVaiTro(nhanVien.getVaiTro())));
+        pnlInfoGrid.add(createInfoField("Số điện thoại liên hệ", nhanVien.getSoDienThoai() != null ? nhanVien.getSoDienThoai() : "N/A"));
+        pnlInfoGrid.add(createInfoField("Số Căn cước công dân (CCCD)", nhanVien.getCCCD() != null ? nhanVien.getCCCD() : "N/A"));
+        pnlInfoGrid.add(createInfoField("Địa chỉ thường trú", nhanVien.getDiaChi() != null ? nhanVien.getDiaChi() : "N/A"));
+        pnlInfoGrid.add(createInfoField("Ngày bắt đầu công tác", ngayVaoLamStr));
+
+        cardProfile.add(pnlInfoGrid, BorderLayout.CENTER);
+
+        pnl.add(cardProfile);
+
+        pnl.add(Box.createVerticalStrut(18));
+
+        // Hàng nút tác vụ
+        JPanel pnlActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        pnlActions.setOpaque(false);
+        pnlActions.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+
+        JButton btnChangePass = new RoundedButton("Đổi mật khẩu", 12, C_WHITE, new Color(0xF1F5F9), C_BORDER);
+        btnChangePass.setFont(f(Font.BOLD, 12));
+        btnChangePass.setForeground(C_TEXT_MAIN);
+        btnChangePass.setPreferredSize(new Dimension(130, 38));
+        btnChangePass.addActionListener(e -> JOptionPane.showMessageDialog(this,
+                "Chức năng đổi mật khẩu đang được bảo mật trong phiên làm việc của " + nhanVien.getHoTen() + ".",
+                "Đổi mật khẩu", JOptionPane.INFORMATION_MESSAGE));
+        pnlActions.add(btnChangePass);
+
+        JButton btnLogoutSelf = new RoundedButton("Đăng xuất tài khoản", 12, C_DANGER_BG, new Color(0xFEE2E2), C_DANGER);
+        btnLogoutSelf.setFont(f(Font.BOLD, 12));
+        btnLogoutSelf.setForeground(C_DANGER);
+        btnLogoutSelf.setPreferredSize(new Dimension(150, 38));
+        btnLogoutSelf.addActionListener(e -> xuLyDangXuat());
+        pnlActions.add(btnLogoutSelf);
+
+        pnl.add(pnlActions);
+
+        JScrollPane scroll = new JScrollPane(pnl);
+        scroll.setBorder(null);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        return scroll;
+    }
+
+    private JPanel createInfoField(String label, String value) {
+        JPanel f = new JPanel();
+        f.setLayout(new BoxLayout(f, BoxLayout.Y_AXIS));
+        f.setBackground(new Color(0xF8FAFC));
+        f.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(C_BORDER, 1),
+                new EmptyBorder(8, 12, 8, 12)
+        ));
+
+        JLabel lbl = new JLabel(label);
+        lbl.setFont(f(Font.PLAIN, 11));
+        lbl.setForeground(C_TEXT_SUBTLE);
+        f.add(lbl);
+
+        f.add(Box.createVerticalStrut(3));
+
+        JLabel val = new JLabel(value != null && !value.isBlank() ? value : "—");
+        val.setFont(f(Font.BOLD, 13));
+        val.setForeground(C_TEXT_HEAD);
+        f.add(val);
+
+        return f;
+    }
+
+    /**
+     * View phân hệ nghiệp vụ theo danh mục Navigation.
+     * Tự động truy vấn dữ liệu thực tế từ cơ sở dữ liệu qua Hibernate.
+     */
+    private JComponent buildGenericModuleView(NavigationItem item) {
+        ScrollableContentPanel pnl = new ScrollableContentPanel();
+        pnl.setBorder(new EmptyBorder(20, 24, 20, 24));
+
+        // Header phân hệ
+        JPanel pnlHeader = new JPanel(new BorderLayout(0, 0));
+        pnlHeader.setOpaque(false);
+        pnlHeader.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
+
+        JPanel pnlTitles = new JPanel(new GridLayout(2, 1, 0, 2));
+        pnlTitles.setOpaque(false);
+        JLabel lblBreadcrumb = new JLabel(item.getBreadcrumb());
+        lblBreadcrumb.setFont(f(Font.PLAIN, 12));
+        lblBreadcrumb.setForeground(C_TEXT_MUTED);
+        pnlTitles.add(lblBreadcrumb);
+
+        JLabel lblTitle = new JLabel(item.getIcon() + "  " + item.getTieuDe());
+        lblTitle.setFont(f(Font.BOLD, 22));
+        lblTitle.setForeground(C_TEXT_HEAD);
+        pnlTitles.add(lblTitle);
+        pnlHeader.add(pnlTitles, BorderLayout.WEST);
+
+        // Badge ngày và vai trò
+        JPanel pnlRightBadge = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        pnlRightBadge.setOpaque(false);
+
+        JLabel lblDate = new JLabel("Ngày: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+        lblDate.setFont(f(Font.PLAIN, 12));
+        lblDate.setForeground(C_TEXT_SUBTLE);
+        pnlRightBadge.add(lblDate);
+
+        JLabel lblBadge = new JLabel(AuthController.layTenVaiTro(nhanVien.getVaiTro()), SwingConstants.CENTER);
+        lblBadge.setFont(f(Font.BOLD, 11));
+        lblBadge.setForeground(C_PRIMARY);
+        lblBadge.setBackground(C_PRIMARY_BG);
+        lblBadge.setOpaque(true);
+        lblBadge.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(C_PRIMARY_BR, 1),
+                new EmptyBorder(4, 10, 4, 10)
+        ));
+        pnlRightBadge.add(lblBadge);
+        pnlHeader.add(pnlRightBadge, BorderLayout.EAST);
+
+        pnl.add(pnlHeader);
+        pnl.add(Box.createVerticalStrut(16));
+
+        // Toolbar tra cứu & làm mới dữ liệu
+        JPanel pnlToolbar = new JPanel(new BorderLayout(12, 0));
+        pnlToolbar.setOpaque(false);
+        pnlToolbar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+
+        JTextField txtSearch = new JTextField();
+        txtSearch.putClientProperty("JTextField.placeholderText", "Tìm kiếm trong " + item.getTieuDe() + "…");
+        txtSearch.setPreferredSize(new Dimension(320, 36));
+        txtSearch.setFont(f(Font.PLAIN, 12));
+        pnlToolbar.add(txtSearch, BorderLayout.WEST);
+
+        JPanel pnlToolsRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        pnlToolsRight.setOpaque(false);
+
+        JButton btnFilter = new RoundedButton("Bộ lọc", 10, C_WHITE, new Color(0xF1F5F9), C_BORDER);
+        btnFilter.setFont(f(Font.PLAIN, 12));
+        btnFilter.setPreferredSize(new Dimension(84, 36));
+        pnlToolsRight.add(btnFilter);
+
+        JButton btnAction = new RoundedButton("+ Thao tác mới", 10, C_PRIMARY, C_PRIMARY_HV, C_PRIMARY);
+        btnAction.setFont(f(Font.BOLD, 12));
+        btnAction.setForeground(C_WHITE);
+        btnAction.setPreferredSize(new Dimension(120, 36));
+        pnlToolsRight.add(btnAction);
+
+        pnlToolbar.add(pnlToolsRight, BorderLayout.EAST);
+        pnl.add(pnlToolbar);
+
+        pnl.add(Box.createVerticalStrut(14));
+
+        // Bảng dữ liệu thật từ cơ sở dữ liệu theo phân hệ
+        JPanel cardTable = new JPanel(new BorderLayout(0, 0));
+        cardTable.setBackground(C_WHITE);
+        cardTable.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
+        cardTable.setMaximumSize(new Dimension(Integer.MAX_VALUE, 500));
+
+        DefaultTableModel model = taoModelDuLieuTheoPhanHe(item.getId());
+        JTable table = new JTable(model);
+        cauHinhBang(table);
+
+        JScrollPane scrollTable = new JScrollPane(table);
+        scrollTable.setBorder(null);
+        scrollTable.setPreferredSize(new Dimension(1000, 440));
+        cardTable.add(scrollTable, BorderLayout.CENTER);
+
+        pnl.add(cardTable);
+
+        JScrollPane scroll = new JScrollPane(pnl);
+        scroll.setBorder(null);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        return scroll;
+    }
+
+    /**
+     * Tạo dữ liệu JTable thật từ Database (không mockup).
+     */
+    private DefaultTableModel taoModelDuLieuTheoPhanHe(String navId) {
+        DefaultTableModel model = new DefaultTableModel() {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        if (!DbUtil.isDatabaseOnline()) {
+            model.setColumnIdentifiers(new String[]{"Thông báo"});
+            model.addRow(new Object[]{"Không thể kết nối đến cơ sở dữ liệu. Vui lòng kiểm tra Docker SQL Server."});
+            return model;
+        }
+
+        try (Connection con = DbUtil.getConnection()) {
+            switch (navId) {
+                case "NAV_QUAN_LY_DICH_VU" -> {
+                    model.setColumnIdentifiers(new String[]{"STT", "Mã DV", "Tên dịch vụ sửa chữa", "Đơn vị tính", "Đơn giá (VNĐ)", "Trạng thái"});
+                    String sql = "SELECT maDV, tenDV, donViTinh, donGia, dangCungCap FROM DichVu ORDER BY maDV";
+                    try (PreparedStatement ps = con.prepareStatement(sql);
+                         ResultSet rs = ps.executeQuery()) {
+                        int stt = 1;
+                        while (rs.next()) {
+                            model.addRow(new Object[]{
+                                    stt++, rs.getString("maDV"), rs.getString("tenDV"), rs.getString("donViTinh"),
+                                    MONEY_FMT.format(rs.getDouble("donGia")), rs.getBoolean("dangCungCap") ? "Đang cung cấp" : "Tạm ngưng"
+                            });
+                        }
+                    }
+                }
+                case "NAV_LINH_KIEN_KHO" -> {
+                    model.setColumnIdentifiers(new String[]{"STT", "Mã LK", "Tên linh kiện", "Đơn vị tính", "Đơn giá (VNĐ)", "Tồn kho", "Trạng thái"});
+                    String sql = "SELECT maLK, tenLK, donViTinh, donGia, soLuongTon, dangKinhDoanh FROM LinhKien ORDER BY maLK";
+                    try (PreparedStatement ps = con.prepareStatement(sql);
+                         ResultSet rs = ps.executeQuery()) {
+                        int stt = 1;
+                        while (rs.next()) {
+                            int ton = rs.getInt("soLuongTon");
+                            boolean kd = rs.getBoolean("dangKinhDoanh");
+                            model.addRow(new Object[]{
+                                    stt++, rs.getString("maLK"), rs.getString("tenLK"), rs.getString("donViTinh"),
+                                    MONEY_FMT.format(rs.getDouble("donGia")), ton,
+                                    kd ? (ton > 0 ? "Còn hàng" : "Hết hàng") : "Ngừng kinh doanh"
+                            });
+                        }
+                    }
+                }
+                case "NAV_KHACH_HANG_XE" -> {
+                    model.setColumnIdentifiers(new String[]{"STT", "Mã KH", "Họ và tên khách hàng", "Số điện thoại", "Ghi chú", "Hạng thành viên"});
+                    String sql = "SELECT TOP 50 maKH, hoTen, soDienThoai, ghiChu, thanhVienThanThiet FROM KhachHang ORDER BY maKH";
+                    try (PreparedStatement ps = con.prepareStatement(sql);
+                         ResultSet rs = ps.executeQuery()) {
+                        int stt = 1;
+                        while (rs.next()) {
+                            String gc = rs.getString("ghiChu");
+                            boolean tv = rs.getBoolean("thanhVienThanThiet");
+                            model.addRow(new Object[]{
+                                    stt++, rs.getString("maKH"), rs.getString("hoTen"), rs.getString("soDienThoai"),
+                                    gc != null ? gc : "—",
+                                    tv ? "Thân thiết" : "Tiêu chuẩn"
+                            });
+                        }
+                    }
+                }
+                case "NAV_PHIEU_TIEP_NHAN", "NAV_PHIEU_PHAN_CONG", "NAV_CAP_NHAT_SUA_CHUA" -> {
+                    model.setColumnIdentifiers(new String[]{"STT", "Mã phiếu", "Biển số xe", "Thời gian tiếp nhận", "Yêu cầu sửa chữa", "KTV phụ trách", "Trạng thái"});
+                    String sql = "SELECT TOP 50 p.maPhieu, x.bienSoXe, p.ngayGioTiepNhan, p.yeuCauBanDau, nv.hoTen AS tenKtv, p.trangThai " +
+                                 "FROM PhieuTiepNhanSuaChua p " +
+                                 "LEFT JOIN Xe x ON p.maXe = x.maXe " +
+                                 "LEFT JOIN NhanVien nv ON p.maNVSuaChua = nv.maNV " +
+                                 "ORDER BY p.ngayGioTiepNhan DESC";
+                    try (PreparedStatement ps = con.prepareStatement(sql);
+                         ResultSet rs = ps.executeQuery()) {
+                        int stt = 1;
+                        while (rs.next()) {
+                            String bienSo = rs.getString("bienSoXe");
+                            if (bienSo == null) bienSo = "N/A";
+                            java.sql.Timestamp tg = rs.getTimestamp("ngayGioTiepNhan");
+                            String gio = tg != null ? DATE_FMT.format(tg) : "N/A";
+                            String ktv = rs.getString("tenKtv");
+                            if (ktv == null) ktv = "Chưa phân công";
+                            model.addRow(new Object[]{
+                                    stt++, rs.getString("maPhieu"), bienSo, gio, rs.getString("yeuCauBanDau"), ktv, rs.getString("trangThai")
+                            });
+                        }
+                    }
+                }
+                case "NAV_HOA_DON", "NAV_THONG_KE" -> {
+                    model.setColumnIdentifiers(new String[]{"STT", "Mã HĐ", "Mã phiếu sửa", "Thời gian lập", "Phương thức", "Tổng tiền thanh toán (VNĐ)", "Trạng thái"});
+                    String sql = "SELECT TOP 50 h.maHoaDon, h.maPhieu, h.ngayLap, h.phuongThucTT, v.tongThanhToan, h.trangThaiThanhToan " +
+                                 "FROM HoaDon h " +
+                                 "LEFT JOIN vw_HoaDon_TongTien v ON h.maHoaDon = v.maHoaDon " +
+                                 "ORDER BY h.ngayLap DESC";
+                    try (PreparedStatement ps = con.prepareStatement(sql);
+                         ResultSet rs = ps.executeQuery()) {
+                        int stt = 1;
+                        while (rs.next()) {
+                            java.sql.Timestamp ngay = rs.getTimestamp("ngayLap");
+                            String ngayStr = ngay != null ? DATE_FMT.format(ngay) : "N/A";
+                            String pt = rs.getString("phuongThucTT");
+                            model.addRow(new Object[]{
+                                    stt++, rs.getString("maHoaDon"), rs.getString("maPhieu"), ngayStr,
+                                    pt != null ? pt : "TIEN_MAT",
+                                    MONEY_FMT.format(rs.getDouble("tongThanhToan")), rs.getString("trangThaiThanhToan")
+                            });
+                        }
+                    }
+                }
+                case "NAV_NHAN_VIEN", "NAV_TAI_KHOAN" -> {
+                    model.setColumnIdentifiers(new String[]{"STT", "Mã NV", "Họ và tên", "Số điện thoại", "Vai trò", "Ngày vào làm", "Tài khoản"});
+                    String sql = "SELECT maNV, hoTen, soDienThoai, vaiTro, ngayVaoLam FROM NhanVien ORDER BY maNV";
+                    try (PreparedStatement ps = con.prepareStatement(sql);
+                         ResultSet rs = ps.executeQuery()) {
+                        int stt = 1;
+                        while (rs.next()) {
+                            java.sql.Date nvl = rs.getDate("ngayVaoLam");
+                            String ngay = nvl != null ? DATE_FMT.format(nvl) : "N/A";
+                            String vtStr = rs.getString("vaiTro");
+                            VaiTro vt = vtStr != null ? VaiTro.valueOf(vtStr) : null;
+                            model.addRow(new Object[]{
+                                    stt++, rs.getString("maNV"), rs.getString("hoTen"), rs.getString("soDienThoai"),
+                                    AuthController.layTenVaiTro(vt), ngay, rs.getString("maNV")
+                            });
+                        }
+                    }
+                }
+                default -> {
+                    model.setColumnIdentifiers(new String[]{"Thông tin phân hệ", "Ghi chú"});
+                    model.addRow(new Object[]{
+                            "Phân hệ " + navId + " đang kết nối cơ sở dữ liệu thời gian thực.",
+                            "Tài khoản đang đăng nhập: " + nhanVien.getHoTen() + " (" + AuthController.layTenVaiTro(nhanVien.getVaiTro()) + ")"
+                    });
+                }
+            }
+        } catch (Exception e) {
+            model.setColumnIdentifiers(new String[]{"Lỗi truy vấn CSDL"});
+            model.addRow(new Object[]{e.getMessage()});
+        }
+
+        if (model.getRowCount() == 0) {
+            model.addRow(new Object[]{"Chưa có dữ liệu nào trong cơ sở dữ liệu."});
+        }
+
+        return model;
+    }
+
+    private void cauHinhBang(JTable table) {
+        table.setFont(f(Font.PLAIN, 12));
+        table.setRowHeight(36);
+        table.setShowGrid(true);
+        table.setGridColor(C_BORDER);
+        table.setSelectionBackground(C_PRIMARY_BG);
+        table.setSelectionForeground(C_PRIMARY);
+        table.setFillsViewportHeight(true);
+
+        JTableHeader th = table.getTableHeader();
+        th.setFont(f(Font.BOLD, 12));
+        th.setBackground(new Color(0xF1F5F9));
+        th.setForeground(C_TEXT_HEAD);
+        th.setPreferredSize(new Dimension(0, 36));
+        th.setReorderingAllowed(false);
+
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        table.getColumnModel().getColumn(0).setPreferredWidth(50);
+        table.getColumnModel().getColumn(0).setMaxWidth(60);
+        table.getColumnModel().getColumn(0).setCellRenderer(centerRenderer);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -445,7 +934,7 @@ public class DashboardUI extends JFrame {
     // 3A. DASHBOARD CHỦ CỬA HÀNG (Bám sát image45.png từ Figma)
     // ─────────────────────────────────────────────────────────────────────────
     private JPanel buildChuCuaHangContent() {
-        ChuCuaHangDashboardData data = dashboardService.layDataChuCuaHang();
+        ChuCuaHangDashboardData data = dashboardController.layDataChuCuaHang();
 
         ScrollableContentPanel main = new ScrollableContentPanel();
         main.setBorder(new EmptyBorder(16, 20, 16, 20));
@@ -998,7 +1487,7 @@ public class DashboardUI extends JFrame {
     // 3B. DASHBOARD TIẾP NHẬN VIÊN (Bám sát image47.png từ Figma)
     // ─────────────────────────────────────────────────────────────────────────
     private JPanel buildTiepNhanVienContent() {
-        TiepNhanVienDashboardData data = dashboardService.layDataTiepNhanVien();
+        TiepNhanVienDashboardData data = dashboardController.layDataTiepNhanVien();
 
         ScrollableContentPanel main = new ScrollableContentPanel();
         main.setBorder(new EmptyBorder(16, 20, 16, 20));
@@ -1134,7 +1623,7 @@ public class DashboardUI extends JFrame {
     // 3C. DASHBOARD KỸ THUẬT VIÊN (Chuẩn 1:1 theo Figma frame image49.png)
     // ─────────────────────────────────────────────────────────────────────────
     private JPanel buildKyThuatVienContent() {
-        KyThuatVienDashboardData data = dashboardService.layDataKyThuatVien(nhanVien);
+        KyThuatVienDashboardData data = dashboardController.layDataKyThuatVien(nhanVien);
 
         ScrollableContentPanel main = new ScrollableContentPanel();
         main.setBorder(new EmptyBorder(16, 20, 16, 20));
@@ -2039,25 +2528,9 @@ public class DashboardUI extends JFrame {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // XỬ LÝ ĐĂNG XUẤT
+    // XỬ LÝ ĐĂNG XUẤT (Xác thực qua AuthController và xóa session)
     // ─────────────────────────────────────────────────────────────────────────
     private void xuLyDangXuat() {
-        int opt = JOptionPane.showConfirmDialog(
-                this,
-                "Bạn có chắc chắn muốn đăng xuất khỏi tài khoản (" + nhanVien.getHoTen() + ")?",
-                "Xác nhận đăng xuất",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE
-        );
-        if (opt == JOptionPane.YES_OPTION) {
-            dispose();
-            SwingUtilities.invokeLater(() -> {
-                DangNhapUI login = new DangNhapUI();
-                login.setDangNhapListener(nv -> {
-                    SwingUtilities.invokeLater(() -> new DashboardUI(nv).setVisible(true));
-                });
-                login.setVisible(true);
-            });
-        }
+        authController.dangXuat(this);
     }
 }

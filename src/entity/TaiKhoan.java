@@ -2,40 +2,21 @@ package entity;
 
 import java.util.Objects;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.MapsId;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.Table;
-
 /**
  * Tài khoản đăng nhập. Bảng TaiKhoan (V1): khóa chính là maNV (cũng là khóa ngoại tới NhanVien).
  * tenDangNhap do sp_TaoTaiKhoan sinh theo vai trò (CCH/TNV/KTV + 3 số).
  */
-@Entity
-@Table(name = "TaiKhoan")
 public class TaiKhoan {
 
-    @Id
-    @Column(name = "maNV", length = 10)
     private String maNV;
 
     /** Phía sở hữu của quan hệ 1-1, dùng chung khóa chính với NhanVien. */
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @MapsId
-    @JoinColumn(name = "maNV")
     private NhanVien nhanVien;
 
-    @Column(name = "tenDangNhap", nullable = false, length = 50)
     private String tenDangNhap;
 
-    @Column(name = "matKhau", nullable = false, length = 255)
     private String matKhau;
 
-    @Column(name = "trangThaiHoatDong", nullable = false)
     private boolean trangThaiHoatDong = true;
 
     public TaiKhoan() {
@@ -151,6 +132,27 @@ public class TaiKhoan {
         this.trangThaiHoatDong = trangThaiHoatDong;
     }
 
+	// ── Raw setters dùng trong DAO khi map từ ResultSet ──────────────────────
+
+	/** Gán NhanVien trực tiếp (không validate, không gọi setTaiKhoan ngược). Dùng trong DAO. */
+	public void setNhanVienRaw(NhanVien nhanVien) {
+		this.nhanVien = nhanVien;
+		if (nhanVien != null) this.maNV = nhanVien.getMaNV();
+	}
+
+	/** Gán tenDangNhap trực tiếp (không validate). Dùng trong DAO khi đọc từ DB. */
+	public void setTenDangNhapRaw(String tenDangNhap) {
+		this.tenDangNhap = tenDangNhap;
+	}
+
+	/**
+	 * Gán chuỗi băm SHA-256 đọc từ DB trực tiếp (không băm lại).
+	 * Dùng trong DAO – giá trị đã là hash 64 ký tự hex.
+	 */
+	public void setMatKhauHash(String hash) {
+		this.matKhau = hash;
+	}
+
 	@Override
 	public int hashCode() {
 		return Objects.hash(tenDangNhap);
@@ -175,3 +177,4 @@ public class TaiKhoan {
 	}
 
 }
+

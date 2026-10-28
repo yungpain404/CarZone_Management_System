@@ -2,35 +2,21 @@ package entity;
 
 import java.util.Objects;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
 /**
  * Linh kiện. Bảng LinhKien (V1). Mã dạng LK + từ 5 chữ số trở lên.
  * soLuongTon do trigger trong DB tự trừ/cộng (dùng linh kiện, nhập kho): Java KHÔNG tự cộng trừ.
  */
-@Entity
-@Table(name = "LinhKien")
 public class LinhKien {
-    @Id
-    @Column(name = "maLK", length = 10)
     private String maLK;
 
-    @Column(name = "tenLK", nullable = false, length = 150)
     private String tenLK;
 
-    @Column(name = "donGia", nullable = false)
     private double donGia;
 
-    @Column(name = "donViTinh", nullable = false, length = 30)
     private String donViTinh;
 
-    @Column(name = "soLuongTon", nullable = false)
     private int soLuongTon;
 
-    @Column(name = "dangKinhDoanh", nullable = false)
     private boolean dangKinhDoanh;
 
     public LinhKien() {

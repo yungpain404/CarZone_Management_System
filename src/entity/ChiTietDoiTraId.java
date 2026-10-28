@@ -3,18 +3,12 @@ package entity;
 import java.io.Serializable;
 import java.util.Objects;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Embeddable;
-
 /** Khóa chính ghép của ChiTietDoiTra: (maPhieuDT, stt). stt là SMALLINT, bắt đầu từ 1. */
-@Embeddable
 public class ChiTietDoiTraId implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    @Column(name = "maPhieuDT", length = 14)
     private String maPhieuDT;
 
-    @Column(name = "stt")
     private short stt;
 
     public ChiTietDoiTraId() {

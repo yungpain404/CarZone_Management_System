@@ -12,7 +12,7 @@ description: Dùng khi tạo hoặc sửa một màn hình/form Java Swing trong
 ## 1. Look & Feel và Bảng màu chủ đạo
 
 - **Theme**: CarZone dùng giao diện **Sáng (Light Theme)** theo Figma.
-- **Cấu hình Look & Feel**: Cài đặt một lần duy nhất tại `ui.Main` trước khi mở bất kỳ cửa sổ nào:
+- **Cấu hình Look & Feel**: Cài đặt một lần duy nhất tại `app.Main` trước khi mở bất kỳ cửa sổ nào:
   ```java
   FlatLightLaf.setup(); // Tuyệt đối KHÔNG dùng FlatDarkLaf
   UIManager.put("Button.arc", 12);
@@ -110,7 +110,7 @@ Mỗi màn hình/form tương tác phải triển khai đầy đủ các bước
    - Nhấn `Enter` ở ô trên tự động chuyển sang ô dưới.
    - Nhấn `Enter` ở ô cuối cùng tự động kích hoạt nút hành động chính (Đăng nhập / Lưu / Xác nhận).
 3. **Phản hồi lỗi thời gian thực**:
-   - Validate sớm các trường bắt buộc / định dạng tại tầng UI trước khi gọi Service.
+   - Validate sớm các trường bắt buộc / định dạng tại tầng UI trước khi gọi Controller.
    - Hiển thị lỗi trên khung thông báo đỏ/hồng chuẩn Figma (ví dụ: `pnlError`).
    - Lắng nghe sự kiện gõ phím (`DocumentListener`): Khi người dùng bắt đầu chỉnh sửa lại, tự động ẩn thông báo lỗi cũ để giao diện sạch sẽ.
 4. **Trạng thái đang xử lý (Loading State) & Chống spam click**:
@@ -118,7 +118,7 @@ Mỗi màn hình/form tương tác phải triển khai đầy đủ các bước
    - Đổi nhãn nút sang trạng thái đang chạy (ví dụ: `"Đang đăng nhập…"`, `"Đang lưu…"`).
    - Cập nhật thông điệp tiến trình trên Status Bar bên dưới.
 5. **Xử lý bất đồng bộ bằng `SwingWorker`**:
-   - Tác vụ gọi Service / DB / mã hóa bắt buộc chạy trong `doInBackground()` của `SwingWorker`.
+   - Tác vụ gọi Controller / DB / mã hóa bắt buộc chạy trong `doInBackground()` của `SwingWorker`.
    - Tuyệt đối không gọi tác vụ nặng trực tiếp trên Event Dispatch Thread (EDT) làm treo giao diện.
 6. **Hỗ trợ đầy đủ các nút phụ trợ**:
    - Nút `Help`: Modal hướng dẫn định dạng mã, quy ước nghiệp vụ của màn hình.

@@ -3,88 +3,49 @@ package entity;
 import java.util.Date;
 import java.util.Objects;
 
-import org.hibernate.annotations.Formula;
-
 import enums.PhuongThucThanhToan;
 import enums.TrangThaiPhieu;
 import enums.TrangThaiThanhToan;
 import enums.VaiTro;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 
 /**
  * Hóa đơn. Bảng HoaDon (V1). maHoaDon do sp_LapHoaDon sinh (HD + ddMMyyyy + A/P + 3 số);
  * thanh toán qua sp_ThanhToanHoaDon. Hóa đơn đã thanh toán bị khóa ở DB (trigger).
  *
  * Các số tiền (tongTienDichVu, tongTienLinhKien, tienGiam, thue, tongThanhToan) là thuộc tính SUY DIỄN:
- * chỉ có getter, được Hibernate đọc từ view vw_HoaDon_TongTien mỗi lần nạp hóa đơn từ DB (@Formula),
- * để công thức thuế/khuyến mãi chỉ tồn tại ở MỘT nơi (view). Với đối tượng mới tạo chưa lưu, giá trị là 0;
+ * chỉ có getter, được Hibernate đọc từ view vw_HoaDon_TongTien mỗi lần nạp hóa đơn từ DB ( * để công thức thuế/khuyến mãi chỉ tồn tại ở MỘT nơi (view). Với đối tượng mới tạo chưa lưu, giá trị là 0;
  * sau khi lưu hoặc cập nhật cần refresh để đọc lại.
  */
-@Entity
-@Table(name = "HoaDon")
 public class HoaDon {
-	@Id
-	@Column(name = "maHoaDon", length = 14)
 	private String maHoaDon;
 
 	/** Mỗi phiếu sửa chữa tối đa một hóa đơn (DB: UQ_HoaDon_maPhieu). */
-	@OneToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "maPhieu", nullable = false)
 	private PhieuTiepNhanSuaChua phieuSuaChua;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "maNV", nullable = false)
 	private NhanVien nhanVien;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "maKM")
 	private KhuyenMai khuyenMai;
 
-	@Temporal(TemporalType.TIMESTAMP)
-	@Column(name = "ngayLap", nullable = false)
 	private Date ngayLap;
 
 	/** NULL khi chưa thanh toán; bắt buộc có khi đã thanh toán (DB: CK_HoaDon_DaThanhToan). */
-	@Enumerated(EnumType.STRING)
-	@Column(name = "phuongThucTT", length = 15)
 	private PhuongThucThanhToan phuongThucTT;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "trangThaiThanhToan", nullable = false, length = 20)
 	private TrangThaiThanhToan trangThaiThanhToan;
 
-	@Temporal(TemporalType.TIMESTAMP)
-	@Column(name = "thoiGianThanhToan")
 	private Date thoiGianThanhToan;
 
-	@Column(name = "maGiaoDich", length = 50)
 	private String maGiaoDich;
 
 	// ---- Thuộc tính suy diễn: đọc từ view, không có setter ----
-	@Formula("(SELECT v.tongTienDichVu FROM vw_HoaDon_TongTien v WHERE v.maHoaDon = maHoaDon)")
 	private double tongTienDichVu;
 
-	@Formula("(SELECT v.tongTienLinhKien FROM vw_HoaDon_TongTien v WHERE v.maHoaDon = maHoaDon)")
 	private double tongTienLinhKien;
 
-	@Formula("(SELECT v.tienGiam FROM vw_HoaDon_TongTien v WHERE v.maHoaDon = maHoaDon)")
 	private double tienGiam;
 
-	@Formula("(SELECT v.thue FROM vw_HoaDon_TongTien v WHERE v.maHoaDon = maHoaDon)")
 	private double thue;
 
-	@Formula("(SELECT v.tongThanhToan FROM vw_HoaDon_TongTien v WHERE v.maHoaDon = maHoaDon)")
 	private double tongThanhToan;
 
 	public HoaDon() {
@@ -219,6 +180,13 @@ public class HoaDon {
 	public double getTongThanhToan() {
 		return tongThanhToan;
 	}
+
+	// ── Raw setters dùng trong DAO khi đọc từ CSDL / view ──
+	public void setTongTienDichVuRaw(double tongTienDichVu) { this.tongTienDichVu = tongTienDichVu; }
+	public void setTongTienLinhKienRaw(double tongTienLinhKien) { this.tongTienLinhKien = tongTienLinhKien; }
+	public void setTienGiamRaw(double tienGiam) { this.tienGiam = tienGiam; }
+	public void setThueRaw(double thue) { this.thue = thue; }
+	public void setTongThanhToanRaw(double tongThanhToan) { this.tongThanhToan = tongThanhToan; }
 
 	@Override public int hashCode() {
 		return Objects.hash(maHoaDon);
