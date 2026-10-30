@@ -92,6 +92,7 @@ Mỗi skill là một tệp Markdown thường (có phần đầu `name`/`descri
 - **Mọi màn hình Swing PHẢI bám sát thiết kế Figma** (màu sắc, layout, font, kích thước, vị trí thành phần). Không được tự sáng tác layout khi Figma đã vẽ sẵn.
 - **Theme & Look and Feel**: Dự án dùng giao diện **Sáng** (`FlatLightLaf.setup()`, tuyệt đối không dùng DarkLaf). Bảng màu HEX inspect từ Figma.
 - **Khung giao diện chính (Master Frame)**: Sử dụng [MainFrame.java](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/MainFrame.java) làm layout tổng thể điều hướng (Header + Side Navigation theo vai trò + ContentPanel `CardLayout`).
+- **Không dùng breadcrumb/path trên trang**: Không thêm breadcrumb, đường dẫn phân cấp, hay chuỗi điều hướng kiểu `Trang A / Trang B` vào bất kỳ màn hình/trang nội dung nào. Side Navigation và tiêu đề trang hiện tại là đủ để định vị.
 - **Quy tắc Layout chống lệch (BẮT BUỘC)**:
   - Trong `BoxLayout(Y_AXIS)`, mọi component con trực tiếp PHẢI CÙNG `alignmentX` (khuyến nghị `0.5f` với chiều rộng chuẩn `INNER_WIDTH`). Tuyệt đối không trộn `0.5f` và `0.0f` gây lệch toàn bộ form sang phải.
   - Hàng nút ngang dùng `BoxLayout(X_AXIS)` với `RigidArea(gap, 0)` để tránh bị `FlowLayout` đẩy rớt dòng.

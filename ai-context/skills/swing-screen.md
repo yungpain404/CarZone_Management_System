@@ -145,11 +145,12 @@ Mỗi màn hình/form tương tác phải triển khai đầy đủ các bước
 ## 6. Quy trình triển khai một Màn hình UI mới
 
 1. **Mở Figma**, xác định Page, Frame và inspect mã màu HEX, kích thước, font size.
-2. Tạo file trong package `ui`, hậu tố `UI` (ví dụ `DangNhapUI.java`, `QuanLyKhachHangUI.java`).
-3. Khai báo bảng màu `Color` tĩnh bám sát Figma.
-4. Lắp ráp khung lớn bằng `BorderLayout` (Header NORTH, Content CENTER, Status Bar SOUTH).
-5. Sử dụng cấu trúc `INNER_WIDTH` và `BoxLayout` hoặc `GridBagLayout` đã chuẩn hóa ở trên.
-6. Gắn kết nối sự kiện `bindActions()`, hỗ trợ phím `Enter`, DocumentListener và `SwingWorker`.
-7. Biên dịch kiểm tra: `mvn compile`.
-8. Chạy thử nghiệm và kiểm tra bằng mắt: `mvn exec:java`.
+2. Không thêm breadcrumb/path (ví dụ `Dashboard / Tên trang`) vào màn hình; điều hướng hiện tại được thể hiện bằng Side Navigation và tiêu đề.
+3. Tạo file trong package `ui`, hậu tố `UI` (ví dụ `DangNhapUI.java`, `QuanLyKhachHangUI.java`).
+4. Khai báo bảng màu `Color` tĩnh bám sát Figma.
+5. Lắp ráp khung lớn bằng `BorderLayout` (Header NORTH, Content CENTER, Status Bar SOUTH).
+6. Sử dụng cấu trúc `INNER_WIDTH` và `BoxLayout` hoặc `GridBagLayout` đã chuẩn hóa ở trên.
+7. Gắn kết nối sự kiện `bindActions()`, hỗ trợ phím `Enter`, DocumentListener và `SwingWorker`.
+8. Biên dịch kiểm tra: `mvn compile`.
+9. Chạy thử nghiệm và kiểm tra bằng mắt: `mvn exec:java`.
 9. **Trước khi báo xong, kiểm tra conflict**: `git status` — file nào đang `UU` thì báo người dùng, không tự chọn bên, không tự `git add`; khi sửa màn hình nhiều người sửa (`MainFrame`, `DashboardUI`, `DangNhapUI`) chỉ đổi đúng đoạn cần, không format lại toàn file.
