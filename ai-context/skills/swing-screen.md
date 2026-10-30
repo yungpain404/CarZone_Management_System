@@ -1,6 +1,6 @@
 ---
 name: swing-screen
-description: Dùng khi tạo hoặc sửa một màn hình/form Java Swing trong package ui của CarZone. Không dùng cho logic service/dao.
+description: Dùng khi tạo hoặc sửa một màn hình/form Java Swing trong package ui của CarZone. Không dùng cho logic controller/dao.
 ---
 
 # Kỹ năng và Quy chuẩn xây dựng Giao diện Swing (CarZone UI)
@@ -12,7 +12,7 @@ description: Dùng khi tạo hoặc sửa một màn hình/form Java Swing trong
 ## 1. Look & Feel và Bảng màu chủ đạo
 
 - **Theme**: CarZone dùng giao diện **Sáng (Light Theme)** theo Figma.
-- **Cấu hình Look & Feel**: Cài đặt một lần duy nhất tại `app.Main` trước khi mở bất kỳ cửa sổ nào:
+- **Cấu hình Look & Feel**: Cài đặt một lần duy nhất tại `app.App` trước khi mở bất kỳ cửa sổ nào:
   ```java
   FlatLightLaf.setup(); // Tuyệt đối KHÔNG dùng FlatDarkLaf
   UIManager.put("Button.arc", 12);
@@ -130,10 +130,14 @@ Mỗi màn hình/form tương tác phải triển khai đầy đủ các bước
 ## 5. Xử lý Logo và Icon
 
 1. **Logo ứng dụng**:
-   - File ảnh lưu tại `src/resources/images/carzone_logo.png` (và đã cấu hình trong `pom.xml`).
+   - File ảnh lưu tại `img/carzone_logo.png` (thư mục gốc, cùng cấp `src`; `pom.xml` copy `img/*.png` vào gốc classpath nên đọc bằng `getResource("/carzone_logo.png")`, không đọc được thì fallback đọc file `img/carzone_logo.png`).
    - Thu phóng khử răng cưa bằng `Image.SCALE_SMOOTH`.
    - **Luôn có Fallback**: Nếu không đọc được file ảnh, tự động vẽ vector thay thế bằng `Graphics2D` để màn hình không bao giờ bị rỗng hay ném ngoại lệ.
-2. **Icon trên nút / tiêu đề**:
+2. **Thêm ảnh mới (icon, minh họa, banner)**:
+   - Chỉ đặt file `.png` vào thư mục gốc **`img/`**; `pom.xml` đã trỏ `<resources>` vào `img/` nên ảnh tự động nằm ở gốc classpath.
+   - Đọc bằng `getClass().getResourceAsStream("/ten_anh.png")`; nếu không có trên classpath thì fallback đọc file `new java.io.File("img/ten_anh.png")` (chạy từ thư mục gốc repo) — đúng pattern của logo trong `MainFrame`, `DangNhapUI`, `KhoiDongUI`, `DashboardUI`.
+   - **Cấm** tạo lại `src/resources/images/` hay bỏ `.png` vào `src/ui/`: cấu trúc này đã gỡ ngày 30/10/2026; tái tạo sẽ làm sai đường dẫn đang dùng và conflict với code của nhóm.
+3. **Icon trên nút / tiêu đề**:
    - Ưu tiên vẽ bằng `Icon` vector tùy biến (anti-aliased) để hiển thị sắc nét trên mọi màn hình (Retina, 4K, scale DPI).
 
 ---
@@ -148,3 +152,4 @@ Mỗi màn hình/form tương tác phải triển khai đầy đủ các bước
 6. Gắn kết nối sự kiện `bindActions()`, hỗ trợ phím `Enter`, DocumentListener và `SwingWorker`.
 7. Biên dịch kiểm tra: `mvn compile`.
 8. Chạy thử nghiệm và kiểm tra bằng mắt: `mvn exec:java`.
+9. **Trước khi báo xong, kiểm tra conflict**: `git status` — file nào đang `UU` thì báo người dùng, không tự chọn bên, không tự `git add`; khi sửa màn hình nhiều người sửa (`MainFrame`, `DashboardUI`, `DangNhapUI`) chỉ đổi đúng đoạn cần, không format lại toàn file.

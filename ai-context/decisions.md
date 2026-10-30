@@ -22,13 +22,14 @@
   + Chuyển sang dùng **JDBC thuần (`DriverManager`)** qua `connectDB/DbUtil` và `connectDB/DatabaseConfig`.
   + Gỡ bỏ hoàn toàn `hibernate-core`, `flyway-core`, `flyway-sqlserver` khỏi `pom.xml`, xóa `persistence.xml`.
   + Xóa toàn bộ annotation JPA trên các entity (`@Entity`, `@Table`, `@Id`, ...), entity là Java POJO thuần túy.
-- **Cấu trúc thư mục tầng DAO (28/10/2026)**:
-  + Interface DAO đặt trực tiếp trong package `dao` (không có tiền tố `I`, ví dụ: `TaiKhoanDao`, `NhanVienDao`, `HoaDonDao`, `ChiTietHoaDonDao`, `PasswordResetDao`).
-  + Lớp thực thi đặt trong subpackage `dao.impl` (ví dụ: `TaiKhoanDaoImpl`, `NhanVienDaoImpl`, `HoaDonDaoImpl`, `ChiTietHoaDonDaoImpl`, `PasswordResetDaoImpl`), quản lý `Connection` theo từng hàm bằng `try-with-resources`.
+- **Cấu trúc thư mục tầng DAO (chốt lại ngày 30/10/2026, thay cho cấu trúc 28/10)**:
+  + Mỗi bảng/nhóm nghiệp vụ là **MỘT class duy nhất** đặt tại package `dao` (`src/dao/`), tên file viết hoa ký tự đầu, không tiền tố `I`, không hậu tố `Impl` (ví dụ: `TaiKhoanDao`, `NhanVienDao`, `HoaDonDao`, `ChiTietHoaDonDao`, `PasswordResetDao`, `ThongKeDoanhThuDao`).
+  + Đã **bỏ hoàn toàn interface và subpackage `dao.impl`**: class trong `dao` chính là lớp thực thi JDBC thuần, quản lý `Connection` theo từng hàm bằng `try-with-resources`, giữ nguyên javadoc nghiệp vụ (chữ ký + chú thích cột trả về).
 - **Chuyển đổi Service sang Controller & Quản lý Session (28/10/2026)**:
-  + Thư mục `service` đã được xóa và thay thế bằng `controller` (`AuthController`, `DangNhapController`, `DashboardController`).
+  + Thư mục `service` đã được xóa và thay thế bằng `controller` (`AuthController`, `DangNhapController`, `DashboardController`). *Hoàn tất ngày 30/10/2026: xóa nốt file còn sót `src/service/ThongKeDoanhThuService.java` → `src/controller/ThongKeDoanhThuController.java` (đổi tên class theo quy ước `*Controller`), `ThongKeDoanhThuUI` gọi qua `controller`. Trong `src/` không còn package `service`.*
+  + Ảnh đặt tại thư mục gốc `img/` (không còn `src/resources/images/`); `pom.xml` trỏ `<resources>` vào `img/` nên `getResource("/carzone_logo.png")`, `getResourceAsStream("/revenue_illustration.png")` vẫn đọc được từ classpath (kèm fallback đọc file `img/...` khi chạy từ thư mục gốc repo).
   + Tạo `session.UserSession` (Singleton) lưu giữ thông tin nhân viên đăng nhập, vai trò, thời điểm phiên hiện tại.
-  + Entry point chính của ứng dụng đặt tại [src/app/Main.java](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/app/Main.java) (`main.class = app.Main`).
+  + Entry point chính của ứng dụng đặt tại [src/app/App.java](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/app/App.java) (`main.class = app.App`).
 - **`.env` vẫn được đẩy lên git** để bạn bè pull về dùng chung; dữ liệu lưu local nên không ảnh hưởng kết quả của nhóm. Không coi đây là lỗi lộ bí mật, nhưng không đặt thông tin thật nào khác vào `.env`.
 
 ## Phân vai hai tầng (đã được nhóm xác nhận)

@@ -14,9 +14,9 @@ import java.awt.*;
  * Khởi động Look & Feel FlatLightLaf, chạy Splash Screen khởi động hệ thống.
  * Sau khi đăng nhập thành công, mở màn hình chính MainFrame theo phân quyền vai trò.
  *
- * pom.xml trỏ main.class = app.Main
+ * pom.xml trỏ main.class = app.App
  */
-public class Main {
+public class App {
 
     public static void main(String[] args) {
         // 1. Cài FlatLaf Light đồng bộ giao diện sáng theo thiết kế Figma

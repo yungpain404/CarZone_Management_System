@@ -7,15 +7,10 @@ import java.util.Objects;
  */
 public class DichVu {
     private String maDV;
-
     private String tenDV;
-
     private double donGia;
-
     private String donViTinh;
-
     private String moTa;
-
     private boolean dangCungCap;
 
     public DichVu() {

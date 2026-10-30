@@ -2,7 +2,6 @@ package controller;
 
 import connectDB.DbUtil;
 import dao.TaiKhoanDao;
-import dao.impl.TaiKhoanDaoImpl;
 import entity.NhanVien;
 import entity.TaiKhoan;
 import enums.VaiTro;
@@ -23,7 +22,7 @@ public class AuthController {
     private final TaiKhoanDao taiKhoanDao;
 
     public AuthController() {
-        this.taiKhoanDao = new TaiKhoanDaoImpl();
+        this.taiKhoanDao = new TaiKhoanDao();
     }
 
     /**
@@ -172,7 +171,7 @@ public class AuthController {
                 DangNhapUI loginFrame = new DangNhapUI();
                 loginFrame.setDangNhapListener(nhanVien -> {
                     // Khi đăng nhập lại thì mở lại MainFrame
-                    app.Main.moManHinhChinh(nhanVien);
+                    app.App.moManHinhChinh(nhanVien);
                 });
                 loginFrame.setVisible(true);
             });

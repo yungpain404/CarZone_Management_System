@@ -442,6 +442,9 @@ public class DashboardUI extends JFrame {
                 pnlContentContainer.add(buildRoleDashboardContent(), item.getId());
             } else if ("NAV_THONG_TIN_CA_NHAN".equals(item.getId())) {
                 pnlContentContainer.add(buildProfileView(item), item.getId());
+            } else if ("NAV_THONG_KE".equals(item.getId())) {
+                // Báo cáo doanh thu Chủ cửa hàng (Figma 50:1634) - dùng chung CardLayout navId
+                pnlContentContainer.add(new ThongKeDoanhThuUI(nhanVien), item.getId());
             } else {
                 pnlContentContainer.add(buildGenericModuleView(item), item.getId());
             }
@@ -2327,44 +2330,83 @@ public class DashboardUI extends JFrame {
             g2.dispose();
             super.paintComponent(g);
         }
-    }
+    }    // ─────────────────────────────────────────────────────────────────────────
+    // LOGO COMPONENT (Vẽ ảnh gốc độ nét cao với Bicubic Antialiasing & giữ đúng tỷ lệ)
+    // ─────────────────────────────────────────────────────────────────────────
 
     private JComponent createLogoComponent(int targetW, int targetH) {
-        ImageIcon icon = loadLogoImage(targetW, targetH);
-        if (icon != null) {
-            JLabel lbl = new JLabel(icon);
-            lbl.setPreferredSize(new Dimension(targetW, targetH));
-            return lbl;
+        Image rawImg = loadRawLogoImage();
+        if (rawImg != null) {
+            JPanel panel = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                    g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                    g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+                    g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+
+                    int cw = getWidth();
+                    int ch = getHeight();
+                    double iw = rawImg.getWidth(null);
+                    double ih = rawImg.getHeight(null);
+                    if (iw > 0 && ih > 0) {
+                        double imgAspect = iw / ih;
+                        double compAspect = (double) cw / ch;
+                        int drawW, drawH;
+                        if (compAspect > imgAspect) {
+                            drawH = ch;
+                            drawW = (int) Math.round(drawH * imgAspect);
+                        } else {
+                            drawW = cw;
+                            drawH = (int) Math.round(drawW / imgAspect);
+                        }
+                        int x = (cw - drawW) / 2;
+                        int y = (ch - drawH) / 2;
+                        g2.drawImage(rawImg, x, y, drawW, drawH, null);
+                    }
+                    g2.dispose();
+                }
+            };
+            panel.setOpaque(false);
+            panel.setPreferredSize(new Dimension(targetW, targetH));
+            panel.setMaximumSize(new Dimension(targetW, targetH));
+            return panel;
         }
 
-        JPanel panel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(C_PRIMARY);
-                g2.setFont(new Font(FONT_FAMILY, Font.BOLD | Font.ITALIC, 18));
-                g2.drawString("CarZone", 4, 24);
-                g2.dispose();
+        JPanel fallback = new JPanel();
+        fallback.setOpaque(false);
+        fallback.setPreferredSize(new Dimension(targetW, targetH));
+        return fallback;
+    }
+
+    private static Image rawLogoImage = null;
+
+    private static Image loadRawLogoImage() {
+        if (rawLogoImage != null) return rawLogoImage;
+        try {
+            java.net.URL url = DashboardUI.class.getResource("/carzone_logo.png");
+            if (url == null) {
+                url = DashboardUI.class.getResource("carzone_logo.png");
             }
-        };
-        panel.setOpaque(false);
-        panel.setPreferredSize(new Dimension(targetW, targetH));
-        return panel;
+            if (url != null) {
+                rawLogoImage = javax.imageio.ImageIO.read(url);
+            } else {
+                java.io.File file = new java.io.File("img/carzone_logo.png");
+                if (file.exists()) {
+                    rawLogoImage = javax.imageio.ImageIO.read(file);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return rawLogoImage;
     }
 
     private static ImageIcon loadLogoImage(int targetW, int targetH) {
         try {
-            URL url = DashboardUI.class.getResource("/resources/images/carzone_logo.png");
-            if (url == null) url = DashboardUI.class.getResource("carzone_logo.png");
-            Image img = null;
-            if (url != null) {
-                img = new ImageIcon(url).getImage();
-            } else {
-                File file = new File("src/resources/images/carzone_logo.png");
-                if (file.exists()) img = ImageIO.read(file);
-            }
+            Image img = loadRawLogoImage();
             if (img != null) {
                 Image scaled = img.getScaledInstance(targetW, targetH, Image.SCALE_SMOOTH);
                 return new ImageIcon(scaled);
@@ -2373,7 +2415,6 @@ public class DashboardUI extends JFrame {
         }
         return null;
     }
-
     private static Icon createWarningIcon(int size, Color color) {
         return new Icon() {
             @Override

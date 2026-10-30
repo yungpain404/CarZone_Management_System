@@ -1,6 +1,7 @@
 # Compiled Java files
 bin/
 out/
+target/
 *.class
 
 # IDE - Eclipse

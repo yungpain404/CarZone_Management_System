@@ -268,68 +268,83 @@ public class KhoiDongUI extends JFrame {
 
     // ─────────────────────────────────────────────────────────────────────────
     // LOGO LOADING & FALLBACK
+    // ─────────────────────────────────────────────────────────────────────────    // ─────────────────────────────────────────────────────────────────────────
+    // LOGO COMPONENT (Vẽ ảnh gốc độ nét cao với Bicubic Antialiasing & giữ đúng tỷ lệ)
     // ─────────────────────────────────────────────────────────────────────────
+
     private JComponent createLogoComponent(int targetW, int targetH) {
-        ImageIcon icon = loadLogoImage(targetW, targetH);
-        if (icon != null) {
-            JLabel lbl = new JLabel(icon);
-            lbl.setPreferredSize(new Dimension(targetW, targetH));
-            lbl.setMaximumSize(new Dimension(targetW, targetH));
-            return lbl;
+        Image rawImg = loadRawLogoImage();
+        if (rawImg != null) {
+            JPanel panel = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                    g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                    g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+                    g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+
+                    int cw = getWidth();
+                    int ch = getHeight();
+                    double iw = rawImg.getWidth(null);
+                    double ih = rawImg.getHeight(null);
+                    if (iw > 0 && ih > 0) {
+                        double imgAspect = iw / ih;
+                        double compAspect = (double) cw / ch;
+                        int drawW, drawH;
+                        if (compAspect > imgAspect) {
+                            drawH = ch;
+                            drawW = (int) Math.round(drawH * imgAspect);
+                        } else {
+                            drawW = cw;
+                            drawH = (int) Math.round(drawW / imgAspect);
+                        }
+                        int x = (cw - drawW) / 2;
+                        int y = (ch - drawH) / 2;
+                        g2.drawImage(rawImg, x, y, drawW, drawH, null);
+                    }
+                    g2.dispose();
+                }
+            };
+            panel.setOpaque(false);
+            panel.setPreferredSize(new Dimension(targetW, targetH));
+            panel.setMaximumSize(new Dimension(targetW, targetH));
+            return panel;
         }
 
-        // Fallback vector nếu chưa nạp được ảnh
-        JPanel panel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        JPanel fallback = new JPanel();
+        fallback.setOpaque(false);
+        fallback.setPreferredSize(new Dimension(targetW, targetH));
+        return fallback;
+    }
 
-                int cx = getWidth() / 2;
-                g2.setColor(C_PRIMARY);
+    private static Image rawLogoImage = null;
 
-                int[] bodyX = { cx - 52, cx - 42, cx + 42, cx + 52, cx + 52, cx - 52 };
-                int[] bodyY = { 20, 10, 10, 20, 26, 26 };
-                g2.fillPolygon(bodyX, bodyY, bodyX.length);
-
-                int[] roofX = { cx - 32, cx - 20, cx + 20, cx + 32 };
-                int[] roofY = { 20, 4, 4, 20 };
-                g2.fillPolygon(roofX, roofY, roofX.length);
-
-                g2.setColor(new Color(0x1E3A5F));
-                g2.fillOval(cx - 40, 22, 18, 18);
-                g2.fillOval(cx + 22, 22, 18, 18);
-
-                g2.setFont(new Font(FONT_FAMILY, Font.BOLD | Font.ITALIC, 20));
-                g2.setColor(new Color(0x0F172A));
-                FontMetrics fm = g2.getFontMetrics();
-                String text = "CarZone";
-                g2.drawString(text, cx - fm.stringWidth(text) / 2, 53);
-                g2.dispose();
+    private static Image loadRawLogoImage() {
+        if (rawLogoImage != null) return rawLogoImage;
+        try {
+            java.net.URL url = KhoiDongUI.class.getResource("/carzone_logo.png");
+            if (url == null) {
+                url = KhoiDongUI.class.getResource("carzone_logo.png");
             }
-        };
-        panel.setOpaque(false);
-        panel.setPreferredSize(new Dimension(targetW, targetH));
-        panel.setMaximumSize(new Dimension(targetW, targetH));
-        return panel;
+            if (url != null) {
+                rawLogoImage = javax.imageio.ImageIO.read(url);
+            } else {
+                java.io.File file = new java.io.File("img/carzone_logo.png");
+                if (file.exists()) {
+                    rawLogoImage = javax.imageio.ImageIO.read(file);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return rawLogoImage;
     }
 
     private static ImageIcon loadLogoImage(int targetW, int targetH) {
         try {
-            URL url = KhoiDongUI.class.getResource("/resources/images/carzone_logo.png");
-            if (url == null) {
-                url = KhoiDongUI.class.getResource("carzone_logo.png");
-            }
-            Image img = null;
-            if (url != null) {
-                img = new ImageIcon(url).getImage();
-            } else {
-                File file = new File("src/resources/images/carzone_logo.png");
-                if (file.exists()) {
-                    img = ImageIO.read(file);
-                }
-            }
+            Image img = loadRawLogoImage();
             if (img != null) {
                 Image scaled = img.getScaledInstance(targetW, targetH, Image.SCALE_SMOOTH);
                 return new ImageIcon(scaled);
@@ -338,7 +353,6 @@ public class KhoiDongUI extends JFrame {
         }
         return null;
     }
-
     // ─────────────────────────────────────────────────────────────────────────
     // TIẾN TRÌNH KHỞI ĐỘNG (Pre-warm DB + Animation mượt mà)
     // ─────────────────────────────────────────────────────────────────────────

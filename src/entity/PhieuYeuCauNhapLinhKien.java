@@ -13,24 +13,15 @@ import enums.VaiTro;
  */
 public class PhieuYeuCauNhapLinhKien {
     private String maYeuCau;
-
     private LinhKien linhKien;
-
     private NhanVien nhanVienLap;
-
     private NhanVien nhanVienXuLy;
-
     private Date ngayTao;
-
     private Date ngayXuLy;
-
     private int soLuongYeuCau;
-
     private TrangThaiYeuCau trangThai;
-
     /** Lý do yêu cầu của kỹ thuật viên (DB: NOT NULL). */
     private String ghiChu;
-
     /** Ghi chú của Chủ cửa hàng khi duyệt/từ chối (ví dụ lý do từ chối). */
     private String ghiChuXuLy;
 
