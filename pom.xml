@@ -20,7 +20,7 @@
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <main.class>app.Main</main.class>
+        <main.class>app.App</main.class>
     </properties>
 
     <!-- ===================== THƯ VIỆN PHỤ THUỘC ===================== -->
@@ -56,7 +56,7 @@
 
         <resources>
             <resource>
-                <directory>src</directory>
+                <directory>img</directory>
                 <includes>
                     <include>**/*.png</include>
                 </includes>

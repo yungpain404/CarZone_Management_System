@@ -9,21 +9,21 @@
 - Trong pom: `mssql-jdbc` 12.6.4, `flatlaf` 3.7, JUnit 5. Shade có `ServicesResourceTransformer`.
 - **Cơ chế truy cập dữ liệu: JDBC thuần (DriverManager)**, quản lý tập trung qua `connectDB/DbUtil` và `connectDB/DatabaseConfig`. **ĐÃ BỎ HOÀN TOÀN HIBERNATE/JPA** (không còn `persistence.xml`, không dùng `jakarta.persistence.*`, entity là POJO thuần).
 - Cấu hình kết nối đọc từ `infra/docker/.env` qua `DatabaseConfig`.
-- `pom.xml`: `sourceDirectory` là `src`; `main.class` = `app.Main`. Entry point chính tại [src/app/Main.java](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/app/Main.java).
+- `pom.xml`: `sourceDirectory` là `src`; `main.class` = `app.App`. Entry point chính tại [src/app/App.java](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/app/App.java).
 - Hạ tầng: Docker Compose chạy SQL Server 2022 (collation `Vietnamese_CI_AS`) → tạo DB → Flyway migrate (Flyway chạy trong container, không chạy từ Java).
 
 ## Cấu trúc thư mục thật
 ```
 src/
-├── app/          # Entry point chính (Main.java)
+├── app/          # Entry point chính (App.java)
 ├── connectDB/    # Kết nối JDBC thuần (DatabaseConfig.java, DbUtil.java)
 ├── controller/   # Điều phối nghiệp vụ (AuthController, DangNhapController, DashboardController)
-├── dao/          # Interface DAO (TaiKhoanDao, NhanVienDao, HoaDonDao, ChiTietHoaDonDao, ...)
-│   └── impl/     # Lớp thực thi JDBC thuần (TaiKhoanDaoImpl, NhanVienDaoImpl, HoaDonDaoImpl, ...)
+├── dao/          # Lớp DAO JDBC thuần, mỗi bảng/nhóm 1 class (TaiKhoanDao, NhanVienDao, HoaDonDao, ChiTietHoaDonDao, ThongKeDoanhThuDao, ...)
 ├── entity/       # Thực thể POJO (validate trong setter, raw setters cho DAO map DB)
 ├── enums/        # Các enum trạng thái và vai trò
 ├── session/      # Quản lý phiên làm việc người dùng (UserSession Singleton)
 └── ui/           # Giao diện Swing FlatLaf bám sát Figma (MainFrame, DashboardUI, DangNhapUI, KhoiDongUI)
+img/              # Ảnh dùng chung (carzone_logo.png, revenue_illustration.png); pom copy vào gốc classpath
 infra/docker/compose.yml, infra/docker/.env
 infra/database/fly_way_migrations/V*.sql   # migration Flyway (tên thư mục có dấu gạch dưới)
 infra/database/seed/CarZone_Demo.sql       # kịch bản chạy thử, KHÔNG phải migration
@@ -33,13 +33,13 @@ ai-context/                                # ngữ cảnh + skill cho AI (xem b�
 Làm việc trên nhánh `develop`; chủ repo tự merge sau, agent KHÔNG merge. Nhánh `feature/infrastructure` có V2 + seed mà `develop` chưa có: entity `KhachHang` đã map cột của V2 (`thanhVienThanThiet`, `diemTichLuy`), nên muốn chạy DB khớp entity thì V2 phải có trong DB (hỏi chủ repo trước khi tự sao chép).
 
 ## Kiến trúc phân tầng
-`ui` → `controller` → `dao` (interface & `impl`) → `entity`/`enums`. Kết nối DB ở `connectDB`, phiên ở `session`.
+`ui` → `controller` → `dao` → `entity`/`enums`. Kết nối DB ở `connectDB`, phiên ở `session`.
 - `ui`: Chỉ dựng giao diện, bắt sự kiện, gọi `controller` qua `SwingWorker` ở luồng nền. Tuyệt đối không viết SQL, không mockup dữ liệu, không xử lý nghiệp vụ tại UI.
 - `session`: `UserSession` (Singleton) lưu giữ thông tin nhân viên đăng nhập, vai trò, thời điểm phiên hiện tại.
 - `controller`: Tiếp nhận yêu cầu từ `ui`, kiểm tra quyền từ `session`, gọi `dao`, điều phối luồng nghiệp vụ.
-- `dao`: Phân tách rành mạch 2 tầng:
-  + **Interface DAO** đặt trực tiếp tại `src/dao/` (không có tiền tố `I`, ví dụ `TaiKhoanDao.java`, `NhanVienDao.java`, `HoaDonDao.java`).
-  + **Lớp thực thi (Implementation)** đặt tại `src/dao/impl/` (ví dụ `TaiKhoanDaoImpl.java`, `NhanVienDaoImpl.java`), thực thi bằng JDBC thuần qua `DbUtil.getConnection()`, luôn đóng tài nguyên trong `try-with-resources`.
+- `dao`: **Mỗi bảng/nhóm nghiệp vụ là MỘT class duy nhất** đặt tại `src/dao/` (từ 30/10/2026 đã bỏ interface và subpackage `dao.impl`):
+  + Tên file viết hoa ký tự đầu, không tiền tố `I`, không hậu tố `Impl` (ví dụ `TaiKhoanDao.java`, `NhanVienDao.java`, `HoaDonDao.java`).
+  + Class đó chính là lớp thực thi JDBC thuần qua `DbUtil.getConnection()`, luôn đóng tài nguyên trong `try-with-resources`.
 - `entity`: POJO thuần Java, validate logic chặt chẽ trong các setter thông thường. Cung cấp thêm các raw setters (`setXxxRaw(...)`) để DAO gán dữ liệu trực tiếp khi đọc từ `ResultSet` mà không bị kiểm tra lặp.
 - **Luật nghiệp vụ kết hợp hai tầng (đã chốt):** DB có trigger/stored procedure/CHECK (V1) và Java cũng validate. DB sinh mã và trừ/cộng tồn kho, Java không làm hai việc này; Java validate sớm, kiểm quyền, dịch lỗi DB (50xxx) sang tiếng Việt. Đổi luật thì sửa `docs/business-rules.md` trước rồi cập nhật cả hai tầng.
 
@@ -68,10 +68,11 @@ Làm việc trên nhánh `develop`; chủ repo tự merge sau, agent KHÔNG merg
 | Tệp | Khi nào đọc |
 |---|---|
 | `ai-context/PROGRESS.md` | Đầu mỗi phiên; xong việc thì cập nhật |
+| `ai-context/skills/tranh-conflict.md` | Đầu mỗi phiên và khi `git status` có `UU` — tránh xung đột với nhóm |
 | `ai-context/decisions.md` | Quyết định đã chốt + câu hỏi còn mở. Không lật lại |
 | `ai-context/business-rules.md` | Làm bất cứ thứ gì chạm luật nghiệp vụ |
 | `ai-context/skills/new-feature-slice.md` | Thêm một chức năng đi qua nhiều lớp |
-| `ai-context/skills/jdbc-dao-mapping.md` | Viết DAO interface / DAO impl dùng JDBC thuần |
+| `ai-context/skills/jdbc-dao-mapping.md` | Viết/sửa lớp DAO JDBC thuần (mỗi bảng 1 class) và ánh xạ ResultSet → entity |
 | `ai-context/skills/flyway-migration.md` | Đổi schema DB |
 | `ai-context/skills/swing-screen.md` | Làm màn hình Swing bám sát Figma |
 | `ai-context/skills/verify-business-rules.md` | Kiểm tra lại luật nghiệp vụ trước khi báo xong |

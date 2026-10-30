@@ -442,6 +442,9 @@ public class DashboardUI extends JFrame {
                 pnlContentContainer.add(buildRoleDashboardContent(), item.getId());
             } else if ("NAV_THONG_TIN_CA_NHAN".equals(item.getId())) {
                 pnlContentContainer.add(buildProfileView(item), item.getId());
+            } else if ("NAV_THONG_KE".equals(item.getId())) {
+                // Báo cáo doanh thu Chủ cửa hàng (Figma 50:1634) - dùng chung CardLayout navId
+                pnlContentContainer.add(new ThongKeDoanhThuUI(nhanVien), item.getId());
             } else {
                 pnlContentContainer.add(buildGenericModuleView(item), item.getId());
             }
@@ -2384,15 +2387,14 @@ public class DashboardUI extends JFrame {
     private static Image loadRawLogoImage() {
         if (rawLogoImage != null) return rawLogoImage;
         try {
-            java.net.URL url = DashboardUI.class.getResource("/resources/images/carzone_logo.png");
+            java.net.URL url = DashboardUI.class.getResource("/carzone_logo.png");
             if (url == null) {
                 url = DashboardUI.class.getResource("carzone_logo.png");
             }
             if (url != null) {
                 rawLogoImage = javax.imageio.ImageIO.read(url);
             } else {
-                java.io.File file = new java.io.File("src/resources/images/carzone_logo.png");
-                if (!file.exists()) file = new java.io.File("src/ui/carzone_logo.png");
+                java.io.File file = new java.io.File("img/carzone_logo.png");
                 if (file.exists()) {
                     rawLogoImage = javax.imageio.ImageIO.read(file);
                 }

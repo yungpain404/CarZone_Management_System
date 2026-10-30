@@ -1556,15 +1556,14 @@ public class MainFrame extends JFrame {
     private static Image loadRawLogoImage() {
         if (rawLogoImage != null) return rawLogoImage;
         try {
-            java.net.URL url = MainFrame.class.getResource("/resources/images/carzone_logo.png");
+            java.net.URL url = MainFrame.class.getResource("/carzone_logo.png");
             if (url == null) {
                 url = MainFrame.class.getResource("carzone_logo.png");
             }
             if (url != null) {
                 rawLogoImage = javax.imageio.ImageIO.read(url);
             } else {
-                java.io.File file = new java.io.File("src/resources/images/carzone_logo.png");
-                if (!file.exists()) file = new java.io.File("src/ui/carzone_logo.png");
+                java.io.File file = new java.io.File("img/carzone_logo.png");
                 if (file.exists()) {
                     rawLogoImage = javax.imageio.ImageIO.read(file);
                 }

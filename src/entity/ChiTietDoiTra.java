@@ -12,21 +12,14 @@ import enums.HuongXuLyDoiTra;
  * tránh trùng cột khóa ghép; trigger trg_CTDT_KiemTra trong DB kiểm tra dòng thuộc hóa đơn gốc và số lượng đổi trả.
  */
 public class ChiTietDoiTra {
-    private ChiTietDoiTraId id = new ChiTietDoiTraId();
-
     private PhieuDoiTra phieuDT;
-
+    private int stt;
     /** Mã phiếu sửa chữa gốc chứa dòng dịch vụ/linh kiện được đổi trả. */
     private String maPhieu;
-
     private String maDV;
-
     private String maLK;
-
     private int soLuong;
-
     private double donGia;
-
     private HuongXuLyDoiTra huongXuLy;
 
     public ChiTietDoiTra() {
@@ -50,15 +43,14 @@ public class ChiTietDoiTra {
     public void setPhieuDT(PhieuDoiTra phieuDT) {
         if (phieuDT == null) throw new IllegalArgumentException("Chi tiết đổi trả phải gắn với một phiếu đổi trả.");
     	this.phieuDT = phieuDT;
-    	this.id.setMaPhieuDT(phieuDT.getMaPhieuDT());
     }
     /** Số thứ tự dòng trong phiếu, từ 1. */
     public int getStt() {
-    	return id.getStt();
+    	return stt;
     }
     public void setStt(int stt) {
         if (stt <= 0 || stt > Short.MAX_VALUE) throw new IllegalArgumentException("Số thứ tự dòng đổi trả không hợp lệ.");
-    	this.id.setStt((short) stt);
+    	this.stt = stt;
     }
     public String getMaPhieu() {
     	return maPhieu;
@@ -111,15 +103,15 @@ public class ChiTietDoiTra {
     }
 
     @Override public int hashCode() {
-    	return Objects.hash(phieuDT, id.getStt());
+    	return Objects.hash(phieuDT, stt);
     }
     @Override public boolean equals(Object obj) {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
         ChiTietDoiTra o = (ChiTietDoiTra) obj;
-        return id.getStt() == o.id.getStt() && Objects.equals(phieuDT, o.phieuDT);
+        return stt == o.stt && Objects.equals(phieuDT, o.phieuDT);
     }
     @Override public String toString() {
-    	return "ChiTietDoiTra [" + "phieuDT=" + (phieuDT == null ? null : phieuDT.getMaPhieuDT()) + ", " + "stt=" + id.getStt() + ", " + "maPhieu=" + maPhieu + ", " + "maDV=" + maDV + ", " + "maLK=" + maLK + ", " + "soLuong=" + soLuong + ", " + "donGia=" + donGia + ", " + "huongXuLy=" + huongXuLy + "]";
+    	return "ChiTietDoiTra [" + "phieuDT=" + (phieuDT == null ? null : phieuDT.getMaPhieuDT()) + ", " + "stt=" + stt + ", " + "maPhieu=" + maPhieu + ", " + "maDV=" + maDV + ", " + "maLK=" + maLK + ", " + "soLuong=" + soLuong + ", " + "donGia=" + donGia + ", " + "huongXuLy=" + huongXuLy + "]";
     }
 }

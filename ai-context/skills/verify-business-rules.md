@@ -1,6 +1,6 @@
 ---
 name: verify-business-rules
-description: Dùng sau khi sửa entity/dao/service hoặc migration của CarZone để kiểm tra vẫn tuân thủ luật nghiệp vụ (trạng thái, tồn kho, hóa đơn, thuế, khuyến mãi, đổi trả, phân quyền). Chạy trước khi báo xong.
+description: Dùng sau khi sửa entity/dao/controller hoặc migration của CarZone để kiểm tra vẫn tuân thủ luật nghiệp vụ (trạng thái, tồn kho, hóa đơn, thuế, khuyến mãi, đổi trả, phân quyền). Chạy trước khi báo xong.
 ---
 
 # Kiểm tra luật nghiệp vụ

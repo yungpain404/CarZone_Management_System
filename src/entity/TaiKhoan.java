@@ -7,16 +7,11 @@ import java.util.Objects;
  * tenDangNhap do sp_TaoTaiKhoan sinh theo vai trò (CCH/TNV/KTV + 3 số).
  */
 public class TaiKhoan {
-
     private String maNV;
-
     /** Phía sở hữu của quan hệ 1-1, dùng chung khóa chính với NhanVien. */
     private NhanVien nhanVien;
-
     private String tenDangNhap;
-
     private String matKhau;
-
     private boolean trangThaiHoatDong = true;
 
     public TaiKhoan() {

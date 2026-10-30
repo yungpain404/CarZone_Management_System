@@ -7,16 +7,10 @@ import java.util.Objects;
  * Cột thanhTien trong DB là cột tính toán, không ánh xạ; dùng {@link #tinhThanhTien()} (cùng công thức).
  */
 public class ChiTietDichVu {
-    private ChiTietDichVuId id = new ChiTietDichVuId();
-
     private PhieuTiepNhanSuaChua phieuSuaChua;
-
     private DichVu dichVu;
-
     private int soLuong;
-
     private double donGiaThucHien;
-
     private String ghiChu;
 
     public ChiTietDichVu() {
@@ -40,7 +34,6 @@ public class ChiTietDichVu {
     public void setPhieuSuaChua(PhieuTiepNhanSuaChua phieuSuaChua) {
         if (phieuSuaChua == null) throw new IllegalArgumentException("Chi tiết dịch vụ phải thuộc phiếu sửa chữa.");
     	this.phieuSuaChua = phieuSuaChua;
-    	this.id.setMaPhieu(phieuSuaChua.getMaPhieu());
     }
     public DichVu getDichVu() {
     	return dichVu;
@@ -48,7 +41,6 @@ public class ChiTietDichVu {
     public void setDichVu(DichVu dichVu) {
         if (dichVu == null) throw new IllegalArgumentException("Phải chọn dịch vụ.");
     	this.dichVu = dichVu;
-    	this.id.setMaDV(dichVu.getMaDV());
     }
     public int getSoLuong() {
     	return soLuong;

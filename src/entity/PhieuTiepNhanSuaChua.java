@@ -12,18 +12,12 @@ import enums.VaiTro;
  */
 public class PhieuTiepNhanSuaChua {
     private String maPhieu;
-
     private Xe xe;
-
     private NhanVien nhanVienLap;
-
     /** Kỹ thuật viên chính. DB cho phép NULL khi phiếu còn CHO_SUA, bắt buộc có khi sang DANG_SUA. */
     private NhanVien nhanVienSuaChua;
-
     private Date ngayGioTiepNhan;
-
     private String yeuCauBanDau;
-
     private TrangThaiPhieu trangThai;
 
     public PhieuTiepNhanSuaChua() {

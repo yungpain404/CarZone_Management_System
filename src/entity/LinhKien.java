@@ -8,15 +8,10 @@ import java.util.Objects;
  */
 public class LinhKien {
     private String maLK;
-
     private String tenLK;
-
     private double donGia;
-
     private String donViTinh;
-
     private int soLuongTon;
-
     private boolean dangKinhDoanh;
 
     public LinhKien() {
