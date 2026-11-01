@@ -186,9 +186,7 @@ CarZone/
 │           └── CarZone_Demo.sql   # Demo data (not a migration)
 │
 ├── docs/                 # Project report (Word)
-├── ai-context/           # AI agent context files (skills, decisions, progress)
-├── pom.xml
-└── AGENTS.md             # Shared AI agent instructions
+└── pom.xml
 ```
 
 ---
@@ -342,7 +340,7 @@ Key invariants enforced by both the Java layer (early validation) and the databa
 - **Tax rates:** services-only → 7%; parts-only → 1.5%; mixed → 4.5%.
 - **Promotions:** max 1 active promotion per invoice; empty applicable-items list means "applies to everything."
 
-> For the full rule set, see [`ai-context/business-rules.md`](./ai-context/business-rules.md).
+
 
 ---
 
@@ -371,8 +369,6 @@ develop          ← active development
 feature/<name>   ← individual feature branches
 main             ← stable / tagged releases
 ```
-
-**AI agents working in this repo** should read [`AGENTS.md`](./AGENTS.md) before making any changes. It contains architecture constraints, naming conventions, and skill guides.
 
 ---
 
