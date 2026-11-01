@@ -20,7 +20,7 @@ import java.util.List;
  * DAO cho bảng Hóa đơn (`HoaDon`) - JDBC thuần (DriverManager),
  * mỗi phương thức tự mở/đóng Connection trong try-with-resources.
  */
-public class HoaDonDao {
+public class HoaDonDAO {
 
     private static final String SELECT_BASE =
             "SELECT h.maHoaDon, h.maPhieu, h.maNV, h.maKM, h.ngayLap, h.phuongThucTT, " +

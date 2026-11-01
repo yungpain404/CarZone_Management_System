@@ -1,7 +1,7 @@
 package controller;
 
 import connectDB.DbUtil;
-import dao.TaiKhoanDao;
+import dao.TaiKhoanDAO;
 import entity.NhanVien;
 import entity.TaiKhoan;
 import enums.VaiTro;
@@ -19,10 +19,10 @@ import java.util.List;
  */
 public class AuthController {
 
-    private final TaiKhoanDao taiKhoanDao;
+    private final TaiKhoanDAO taiKhoanDao;
 
     public AuthController() {
-        this.taiKhoanDao = new TaiKhoanDao();
+        this.taiKhoanDao = new TaiKhoanDAO();
     }
 
     /**
@@ -198,7 +198,7 @@ public class AuthController {
         return switch (vaiTro) {
             case CHU_CUA_HANG -> List.of(
                     new NavigationItem("NAV_DASHBOARD", "📊", "Dashboard", "Trang chủ / Tổng quan"),
-                    new NavigationItem("NAV_THONG_KE", "📈", "Thống kê doanh thu", "Kinh doanh / Báo cáo doanh thu"),
+                    new NavigationItem("NAV_THONG_KE", "📈", "Thống kê báo cáo", "Kinh doanh / Báo cáo doanh thu"),
                     new NavigationItem("NAV_QUAN_LY_DICH_VU", "🔧", "Quản lý dịch vụ", "Danh mục / Dịch vụ sửa chữa"),
                     new NavigationItem("NAV_LINH_KIEN_KHO", "📦", "Linh kiện và tồn kho", "Kho hàng / Quản lý linh kiện"),
                     new NavigationItem("NAV_YC_LINH_KIEN", "📋", "Yêu cầu cập nhật linh kiện", "Kho hàng / Yêu cầu phê duyệt"),

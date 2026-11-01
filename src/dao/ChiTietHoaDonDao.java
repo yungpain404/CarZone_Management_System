@@ -13,7 +13,7 @@ import java.util.List;
  * DAO cho chi tiết các khoản mục trên hóa đơn (linh kiện & dịch vụ) -
  * JDBC thuần truy vấn từ ChiTietDichVu và ChiTietLinhKien theo mã hóa đơn.
  */
-public class ChiTietHoaDonDao {
+public class ChiTietHoaDonDAO {
 
     /**
      * DTO đại diện cho một dòng chi tiết hóa đơn (dịch vụ hoặc linh kiện).

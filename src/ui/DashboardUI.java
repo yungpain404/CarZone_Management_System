@@ -464,17 +464,12 @@ public class DashboardUI extends JFrame {
         pnlHeader.setOpaque(false);
         pnlHeader.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
 
-        JPanel pnlTitles = new JPanel(new GridLayout(2, 1, 0, 2));
+        JPanel pnlTitles = new JPanel(new BorderLayout());
         pnlTitles.setOpaque(false);
-        JLabel lblBreadcrumb = new JLabel(item.getBreadcrumb());
-        lblBreadcrumb.setFont(f(Font.PLAIN, 12));
-        lblBreadcrumb.setForeground(C_TEXT_MUTED);
-        pnlTitles.add(lblBreadcrumb);
-
         JLabel lblTitle = new JLabel("Hồ sơ thông tin cá nhân");
         lblTitle.setFont(f(Font.BOLD, 22));
         lblTitle.setForeground(C_TEXT_HEAD);
-        pnlTitles.add(lblTitle);
+        pnlTitles.add(lblTitle, BorderLayout.CENTER);
         pnlHeader.add(pnlTitles, BorderLayout.WEST);
 
         // Badge vai trò
@@ -650,17 +645,12 @@ public class DashboardUI extends JFrame {
         pnlHeader.setOpaque(false);
         pnlHeader.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
 
-        JPanel pnlTitles = new JPanel(new GridLayout(2, 1, 0, 2));
+        JPanel pnlTitles = new JPanel(new BorderLayout());
         pnlTitles.setOpaque(false);
-        JLabel lblBreadcrumb = new JLabel(item.getBreadcrumb());
-        lblBreadcrumb.setFont(f(Font.PLAIN, 12));
-        lblBreadcrumb.setForeground(C_TEXT_MUTED);
-        pnlTitles.add(lblBreadcrumb);
-
         JLabel lblTitle = new JLabel(item.getIcon() + "  " + item.getTieuDe());
         lblTitle.setFont(f(Font.BOLD, 22));
         lblTitle.setForeground(C_TEXT_HEAD);
-        pnlTitles.add(lblTitle);
+        pnlTitles.add(lblTitle, BorderLayout.CENTER);
         pnlHeader.add(pnlTitles, BorderLayout.WEST);
 
         // Badge ngày và vai trò
@@ -1378,7 +1368,7 @@ public class DashboardUI extends JFrame {
         lblTitle.setForeground(C_TEXT_HEAD);
         header.add(lblTitle, BorderLayout.WEST);
 
-        JLabel lblLink = new JLabel("Thống kê doanh thu ↗");
+        JLabel lblLink = new JLabel("Thống kê báo cáo ↗");
         lblLink.setFont(f(Font.BOLD, 11));
         lblLink.setForeground(C_PRIMARY);
         lblLink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -1636,17 +1626,7 @@ public class DashboardUI extends JFrame {
         pnlTitle.setOpaque(false);
         pnlTitle.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
 
-        // Breadcrumb + Title
-        JPanel pnlTitleLeft = new JPanel();
-        pnlTitleLeft.setLayout(new BoxLayout(pnlTitleLeft, BoxLayout.Y_AXIS));
-        pnlTitleLeft.setOpaque(false);
-
-        JLabel lblBreadcrumb = new JLabel("CarZone  ›  Kỹ thuật viên  ›  Dashboard");
-        lblBreadcrumb.setFont(f(Font.PLAIN, 11));
-        lblBreadcrumb.setForeground(C_TEXT_SUBTLE);
-        pnlTitleLeft.add(lblBreadcrumb);
-        pnlTitleLeft.add(Box.createVerticalStrut(2));
-
+        // Tiêu đề hiện tại là định vị trang; không hiển thị breadcrumb/path.
         JPanel pnlMainHeading = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         pnlMainHeading.setOpaque(false);
         JLabel lblToolIcon = new JLabel("🛠️");
@@ -1657,9 +1637,7 @@ public class DashboardUI extends JFrame {
         lblTitle.setFont(f(Font.BOLD, 20));
         lblTitle.setForeground(C_TEXT_HEAD);
         pnlMainHeading.add(lblTitle);
-        pnlTitleLeft.add(pnlMainHeading);
-
-        pnlTitle.add(pnlTitleLeft, BorderLayout.WEST);
+        pnlTitle.add(pnlMainHeading, BorderLayout.WEST);
 
         JLabel lblUserBadge = new JLabel("Kỹ thuật viên: " + nhanVien.getHoTen());
         lblUserBadge.setFont(f(Font.BOLD, 12));
@@ -1910,7 +1888,7 @@ public class DashboardUI extends JFrame {
 
         JPanel pnlDetailHead = new JPanel(new BorderLayout());
         pnlDetailHead.setOpaque(false);
-        JLabel lblDetailTitle = new JLabel("Chi tiết phiếu đang chọn · Chỉ đọc");
+        JLabel lblDetailTitle = new JLabel("Chi tiết phiếu đang chọn");
         lblDetailTitle.setFont(f(Font.BOLD, 14));
         lblDetailTitle.setForeground(C_TEXT_HEAD);
         pnlDetailHead.add(lblDetailTitle, BorderLayout.WEST);
@@ -1932,9 +1910,9 @@ public class DashboardUI extends JFrame {
         JLabel lblValXe = new JLabel("—");
         JLabel lblValSt = new JLabel("—");
 
-        pnlRow1.add(createReadOnlyBox("Mã phiếu · Chỉ đọc", lblValMa));
-        pnlRow1.add(createReadOnlyBox("Xe · Chỉ đọc", lblValXe));
-        pnlRow1.add(createReadOnlyBox("Trạng thái · Chỉ đọc", lblValSt));
+        pnlRow1.add(createReadOnlyBox("Mã phiếu", lblValMa));
+        pnlRow1.add(createReadOnlyBox("Xe", lblValXe));
+        pnlRow1.add(createReadOnlyBox("Trạng thái", lblValSt));
         pnlDetailBoxes.add(pnlRow1);
 
         // Hàng 2: Ngày phân công, Nội dung phân công
@@ -1948,13 +1926,13 @@ public class DashboardUI extends JFrame {
         gbc.weightx = 0.35;
         gbc.insets = new Insets(0, 0, 0, 10);
         JLabel lblValNgay = new JLabel("—");
-        pnlRow2.add(createReadOnlyBox("Ngày phân công · Chỉ đọc", lblValNgay), gbc);
+        pnlRow2.add(createReadOnlyBox("Ngày phân công", lblValNgay), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 0.65;
         gbc.insets = new Insets(0, 0, 0, 0);
         JLabel lblValNoiDung = new JLabel("—");
-        pnlRow2.add(createReadOnlyBox("Nội dung phân công · Chỉ đọc", lblValNoiDung), gbc);
+        pnlRow2.add(createReadOnlyBox("Nội dung phân công", lblValNoiDung), gbc);
         pnlDetailBoxes.add(pnlRow2);
 
         cardDetail.add(pnlDetailBoxes, BorderLayout.CENTER);
@@ -2017,9 +1995,14 @@ public class DashboardUI extends JFrame {
         btnReset.addActionListener(e -> {
             cboPeriod.setSelectedIndex(0);
             cboStatus.setSelectedIndex(0);
-            if (!data.danhSachPhanCong.isEmpty()) {
-                table.setRowSelectionInterval(0, 0);
-            }
+            model.setRowCount(0);
+            table.clearSelection();
+            lblTblStatus.setText("Chưa tải dữ liệu");
+            lblValMa.setText("—");
+            lblValXe.setText("—");
+            lblValSt.setText("—");
+            lblValNgay.setText("—");
+            lblValNoiDung.setText("—");
         });
 
         btnApply.addActionListener(e -> {

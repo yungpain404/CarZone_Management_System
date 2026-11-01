@@ -12,7 +12,7 @@ Nguồn: báo cáo `Nhom01_v3_ApplicationDevelopment.docx`, bảng Q&A, và migr
 ## 2. Máy trạng thái
 - Phiếu sửa chữa (`TrangThaiPhieu`): `CHO_SUA → DANG_SUA ⇄ CHO_LINH_KIEN`, và `DANG_SUA → HOAN_TAT`. Phiếu `HOAN_TAT` bị khóa (không thêm/sửa/xóa dịch vụ, linh kiện).
 - Hóa đơn (`TrangThaiThanhToan`): `CHUA_THANH_TOAN → DA_THANH_TOAN`. Đã thanh toán thì không sửa, không xóa. `thoiGianThanhToan` và `phuongThucTT` chỉ có khi đã thanh toán.
-- Yêu cầu nhập linh kiện (`TrangThaiYeuCau`): tạo ở `CHO_DUYET → DA_DUYET | TU_CHOI`; `DA_DUYET → DA_NHAP_KHO` (lúc này tồn kho được cộng).
+- Yêu cầu nhập linh kiện (`TrangThaiYeuCau`): tạo ở `CHO_DUYET → DA_DUYET | TU_CHOI`; `DA_DUYET → DA_NHAP_KHO`. Khi xác nhận nhập, Chủ cửa hàng ghi số lượng thực nhận (> 0, được phép khác số lượng yêu cầu); trigger cộng đúng số thực nhận vào tồn kho.
 - `PhuongThucThanhToan`: `TIEN_MAT`, `CHUYEN_KHOAN`. `HuongXuLyDoiTra`: `DOI_MOI`, `HOAN_TIEN`, `SUA_LAI_MIEN_PHI`.
 
 ## 3. Mã tự sinh
@@ -46,6 +46,7 @@ Hiện V1 sinh mã theo ngày/ca và theo vai trò bằng stored procedure (`sp_
 
 ## 5. Ràng buộc dữ liệu chính
 - Số lượng > 0; đơn giá dịch vụ/linh kiện > 0; tồn kho ≥ 0; số lượng dùng ≤ tồn; không thêm dịch vụ/linh kiện đã ngừng cung cấp/kinh doanh vào phiếu.
+- Nhập kho theo yêu cầu đã duyệt: số lượng thực nhận phải > 0, có thể khác số lượng yêu cầu; lưu riêng số yêu cầu và số thực nhận. Khi trạng thái sang `DA_NHAP_KHO`, trigger chỉ cộng số thực nhận một lần.
 - Khuyến mãi: mức giảm trong (0, 100]; ngày kết thúc ≥ ngày bắt đầu; mã áp dụng phải tồn tại, không trùng; chỉ Chủ cửa hàng tạo; đã gắn vào hóa đơn thì không đổi mức giảm, thời gian, danh sách áp dụng. Danh sách áp dụng lưu ở bảng `KhuyenMai_DichVu`, `KhuyenMai_LinhKien`.
 - Xe: biển số duy nhất; bắt buộc có chủ xe; số km không giảm; năm sản xuất ≤ năm hiện tại.
 - Khách hàng: SĐT đúng 10 số, bắt đầu bằng 0, duy nhất (V2); CCCD nếu có thì không trùng; có `thanhVienThanThiet` và `diemTichLuy ≥ 0` (V2).

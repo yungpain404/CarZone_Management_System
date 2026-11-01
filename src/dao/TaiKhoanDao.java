@@ -6,16 +6,107 @@ import entity.TaiKhoan;
 import enums.VaiTro;
 
 import java.sql.Connection;
+import java.sql.CallableStatement;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * DAO cho bảng Tài khoản (`TaiKhoan`) - JDBC thuần (DriverManager),
  * chỉ đọc/lưu dữ liệu, không chứa luật nghiệp vụ.
  * Mỗi phương thức tự mở/đóng Connection trong try-with-resources.
  */
-public class TaiKhoanDao {
+public class TaiKhoanDAO {
+
+    /** Tìm hồ sơ nhân viên và trạng thái cấp tài khoản theo từ khóa. */
+    public List<NhanVien> timKiemHoSo(String tuKhoa) {
+        if (tuKhoa == null || tuKhoa.isBlank()) return List.of();
+        String sql = selectHoSoSql()
+                + " WHERE nv.maNV LIKE ? OR nv.hoTen LIKE ? OR nv.soDienThoai LIKE ? OR tk.tenDangNhap LIKE ?"
+                + " ORDER BY nv.maNV";
+        String pattern = "%" + tuKhoa.trim() + "%";
+        List<NhanVien> result = new ArrayList<>();
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
+            for (int i = 1; i <= 4; i++) ps.setString(i, pattern);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) result.add(mapHoSo(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tìm kiếm hồ sơ tài khoản: " + e.getMessage(), e);
+        }
+        return result;
+    }
+
+    /** Lấy nhân viên chưa có tài khoản để người dùng chọn khi bấm Thêm tài khoản. */
+    public List<NhanVien> layNhanVienChuaCoTaiKhoan() {
+        String sql = selectHoSoSql() + " WHERE tk.maNV IS NULL ORDER BY nv.maNV";
+        List<NhanVien> result = new ArrayList<>();
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) result.add(mapHoSo(rs));
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi lấy hồ sơ chưa có tài khoản: " + e.getMessage(), e);
+        }
+        return result;
+    }
+
+    /** Tạo tài khoản bằng stored procedure để username được sinh nhất quán theo vai trò. */
+    public String taoTaiKhoan(String maNV, String matKhauHash) {
+        String sql = "{call sp_TaoTaiKhoan(?, ?, ?)}";
+        try (Connection con = DbUtil.getConnection(); CallableStatement cs = con.prepareCall(sql)) {
+            cs.setString(1, maNV);
+            cs.setString(2, matKhauHash);
+            cs.registerOutParameter(3, Types.VARCHAR);
+            cs.execute();
+            return cs.getString(3);
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tạo tài khoản: " + e.getMessage(), e);
+        }
+    }
+
+    /** Xóa tài khoản đăng nhập, giữ nguyên hồ sơ nhân viên. */
+    public boolean xoaTaiKhoan(String tenDangNhap) {
+        String sql = "DELETE FROM TaiKhoan WHERE tenDangNhap = ?";
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, tenDangNhap);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi xóa tài khoản: " + e.getMessage(), e);
+        }
+    }
+
+    private static String selectHoSoSql() {
+        return "SELECT nv.maNV, nv.hoTen, nv.ngaySinh, nv.soDienThoai, nv.CCCD, nv.diaChi, nv.ngayVaoLam, nv.vaiTro, "
+                + "tk.tenDangNhap, tk.trangThaiHoatDong "
+                + "FROM NhanVien nv LEFT JOIN TaiKhoan tk ON tk.maNV = nv.maNV";
+    }
+
+    private static NhanVien mapHoSo(ResultSet rs) throws SQLException {
+        NhanVien nv = new NhanVien();
+        nv.setMaNVRaw(rs.getString("maNV"));
+        nv.setHoTenRaw(rs.getString("hoTen"));
+        Date ngaySinh = rs.getDate("ngaySinh");
+        if (ngaySinh != null) nv.setNgaySinhRaw(ngaySinh.toLocalDate());
+        nv.setSoDienThoaiRaw(rs.getString("soDienThoai"));
+        nv.setCCCDRaw(rs.getString("CCCD"));
+        nv.setDiaChi(rs.getString("diaChi"));
+        Date ngayVaoLam = rs.getDate("ngayVaoLam");
+        if (ngayVaoLam != null) nv.setNgayVaoLamRaw(ngayVaoLam.toLocalDate());
+        nv.setVaiTroRaw(VaiTro.valueOf(rs.getString("vaiTro")));
+        String tenDangNhap = rs.getString("tenDangNhap");
+        if (tenDangNhap != null) {
+            TaiKhoan tk = new TaiKhoan();
+            tk.setNhanVienRaw(nv);
+            tk.setTenDangNhapRaw(tenDangNhap);
+            tk.setTrangThaiHoatDong(rs.getBoolean("trangThaiHoatDong"));
+            nv.setTaiKhoan(tk);
+        }
+        return nv;
+    }
 
     /**
      * Tìm TaiKhoan kèm NhanVien theo tên đăng nhập.

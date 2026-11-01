@@ -34,6 +34,7 @@
 
 ## Phân vai hai tầng (đã được nhóm xác nhận)
 Mục đích là tránh hai bên làm trùng hoặc mâu thuẫn:
+- **Số lượng nhập thực tế**: Chủ cửa hàng được xác nhận số nhận khác số lượng yêu cầu; lưu riêng `soLuongNhapThucTe`, giữ `soLuongYeuCau` để đối chiếu và trigger cộng đúng số thực nhận một lần khi sang `DA_NHAP_KHO`.
 - **DB là nguồn cuối cùng** cho: sinh mã theo ngày/ca/vai trò (stored procedure, an toàn khi nhiều người cùng lập), trừ/cộng tồn kho (trigger đã có), khóa phiếu `HOAN_TAT` và hóa đơn đã thanh toán, các CHECK/UNIQUE/FK.
 - **Java** validate sớm để báo lỗi thân thiện (setter entity, controller), kiểm quyền theo vai trò, dịch mã lỗi DB (50xxx) thành thông báo tiếng Việt.
 - **Java không được tự trừ/cộng tồn kho** (trigger đã làm, làm thêm sẽ trừ hai lần) và không tự sinh mã đã giao cho stored procedure.
