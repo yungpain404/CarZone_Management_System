@@ -5,29 +5,24 @@ import enums.VaiTro;
 import controller.ThongKeDoanhThuController;
 import controller.ThongKeDoanhThuController.BaoCao;
 import controller.ThongKeDoanhThuController.Dong;
+import com.toedter.calendar.JDateChooser;
+import com.toedter.calendar.JTextFieldDateEditor;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Calendar;
 import java.util.Date;
-import java.util.ArrayList;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
-import java.util.List;
 
 /** Báo cáo doanh thu, xe/phiếu và dịch vụ/linh kiện dành cho Chủ cửa hàng. */
 public class ThongKeDoanhThuUI extends JPanel {
@@ -38,10 +33,9 @@ public class ThongKeDoanhThuUI extends JPanel {
     private final NhanVien nhanVien;
     private final ThongKeDoanhThuController controller = new ThongKeDoanhThuController();
     private final JComboBox<String> cboLoai = new JComboBox<>(new String[]{ThongKeDoanhThuController.DOANH_THU, ThongKeDoanhThuController.XE_PHIEU, ThongKeDoanhThuController.DICH_VU_LINH_KIEN});
-    private final JTextField txtTuNgay = new JTextField(10), txtDenNgay = new JTextField(10);
+    private final JDateChooser dcTuNgay = createDateChooser(164), dcDenNgay = createDateChooser(164);
     private final JButton btnXem = new JButton("Xem");
     private final JButton btnXuat = new JButton("Xuất báo cáo");
-    private final List<JButton> calendarButtons = new ArrayList<>();
     private final JLabel lblError = label("", 12, RED, Font.PLAIN);
     private final JPanel reportContent = new JPanel(new BorderLayout(0, 12));
     private String loai = ThongKeDoanhThuController.DOANH_THU;
@@ -57,10 +51,10 @@ public class ThongKeDoanhThuUI extends JPanel {
         }
         add(buildContent(), BorderLayout.CENTER);
         bindActions();
-        String today = LocalDate.now().format(DATE);
-        txtTuNgay.setText(today);
-        txtDenNgay.setText(today);
-        SwingUtilities.invokeLater(() -> { txtTuNgay.requestFocusInWindow(); taiBaoCao(); });
+        Date today = Date.from(LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
+        dcTuNgay.setDate(today);
+        dcDenNgay.setDate(today);
+        SwingUtilities.invokeLater(() -> { dcTuNgay.getCalendarButton().requestFocusInWindow(); taiBaoCao(); });
     }
 
     private JComponent buildContent() {
@@ -96,8 +90,8 @@ public class ThongKeDoanhThuUI extends JPanel {
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
         GridBagConstraints g = new GridBagConstraints(); g.gridy=0; g.insets=new Insets(0, 0, 0, 12); g.anchor=GridBagConstraints.WEST;
         addField(card, g, "Loại báo cáo", cboLoai, 0, 0.28);
-        addField(card, g, "Từ ngày", txtTuNgay, 1, 0.20);
-        addField(card, g, "Đến ngày", txtDenNgay, 2, 0.20);
+        addField(card, g, "Từ ngày", dcTuNgay, 1, 0.20);
+        addField(card, g, "Đến ngày", dcDenNgay, 2, 0.20);
         btnXem.setFont(new Font("SansSerif", Font.BOLD, 13));
         btnXem.setForeground(WHITE);
         btnXem.setBackground(PRIMARY);
@@ -147,49 +141,23 @@ public class ThongKeDoanhThuUI extends JPanel {
     private void addField(JPanel card, GridBagConstraints base, String caption, JComponent field, int x, double weight) {
         JPanel p = new JPanel(new BorderLayout(0, 6)); p.setOpaque(false); p.setMinimumSize(new Dimension(150, 64));
         p.add(label(caption, 13, BODY, Font.PLAIN), BorderLayout.NORTH);
-        field.setFont(new Font("SansSerif", Font.PLAIN, 13)); field.setPreferredSize(new Dimension(caption.equals("Loại báo cáo") ? 216 : 164, 44));
-        field.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(INPUT), new EmptyBorder(0, 10, 0, 10)));
-        JComponent control = field;
-        if (field instanceof JTextField dateField) {
-            dateField.setPreferredSize(new Dimension(126, 44));
-            JPanel dateControl = new JPanel(new BorderLayout()); dateControl.setOpaque(false);
-            dateControl.setPreferredSize(new Dimension(164, 44));
-            dateControl.add(dateField, BorderLayout.CENTER);
-            JButton calendar = new JButton("▦"); calendar.setFont(new Font("SansSerif", Font.PLAIN, 17)); calendar.setForeground(SUBTLE);
-            calendar.setPreferredSize(new Dimension(38, 44)); calendar.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(INPUT), new EmptyBorder(0, 6, 0, 6)));
-            calendar.setBackground(WHITE); calendar.setFocusPainted(false); calendar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            calendar.addActionListener(e -> chonNgay(dateField)); calendarButtons.add(calendar);
-            dateControl.add(calendar, BorderLayout.EAST); control = dateControl;
+        field.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        field.setPreferredSize(new Dimension(caption.equals("Loại báo cáo") ? 216 : 164, 44));
+        if (!(field instanceof JDateChooser)) {
+            field.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(INPUT), new EmptyBorder(0, 10, 0, 10)));
         }
-        p.add(control, BorderLayout.CENTER); GridBagConstraints g=(GridBagConstraints)base.clone(); g.gridx=x; g.weightx=weight; g.fill=GridBagConstraints.HORIZONTAL; card.add(p,g);
+        p.add(field, BorderLayout.CENTER); GridBagConstraints g=(GridBagConstraints)base.clone(); g.gridx=x; g.weightx=weight; g.fill=GridBagConstraints.HORIZONTAL; card.add(p,g);
     }
 
     private void bindActions() {
-        DocumentListener dl=new DocumentListener(){public void insertUpdate(DocumentEvent e){clearError();capNhatTrangThaiXuat();} public void removeUpdate(DocumentEvent e){clearError();capNhatTrangThaiXuat();} public void changedUpdate(DocumentEvent e){clearError();capNhatTrangThaiXuat();}};
-        txtTuNgay.getDocument().addDocumentListener(dl); txtDenNgay.getDocument().addDocumentListener(dl);
-        txtTuNgay.addKeyListener(new KeyAdapter(){@Override public void keyPressed(KeyEvent e){if(e.getKeyCode()==KeyEvent.VK_ENTER)txtDenNgay.requestFocusInWindow();}});
-        txtDenNgay.addKeyListener(new KeyAdapter(){@Override public void keyPressed(KeyEvent e){if(e.getKeyCode()==KeyEvent.VK_ENTER)taiBaoCao();}});
-    }
-
-    private void chonNgay(JTextField target) {
-        Date current;
-        try { current = Date.from(UIInputRules.parseDate(target.getText()).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()); }
-        catch (RuntimeException ex) { current = new Date(); }
-        SpinnerDateModel model = new SpinnerDateModel(current, null, null, Calendar.DAY_OF_MONTH);
-        JSpinner picker = new JSpinner(model);
-        picker.setEditor(new JSpinner.DateEditor(picker, "dd/MM/yyyy"));
-        int result = JOptionPane.showConfirmDialog(this, picker, "Chọn ngày", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-        if (result == JOptionPane.OK_OPTION) {
-            target.setText(((Date) picker.getValue()).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DATE));
-            taiBaoCao();
-        }
+        dcTuNgay.addPropertyChangeListener("date", e -> { clearError(); capNhatTrangThaiXuat(); });
+        dcDenNgay.addPropertyChangeListener("date", e -> { clearError(); capNhatTrangThaiXuat(); });
     }
 
     private void taiBaoCao() {
         if(loading)return;
         LocalDate from,to;
-        try { from=UIInputRules.parseDate(txtTuNgay.getText()); to=UIInputRules.parseDate(txtDenNgay.getText());
+        try { from=UIInputRules.readDate(dcTuNgay); to=UIInputRules.readDate(dcDenNgay);
             if(to.isBefore(from)) throw new IllegalArgumentException("Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.");
         } catch(DateTimeParseException|IllegalArgumentException ex){showError(ex.getMessage()==null?"Ngày phải có định dạng dd/MM/yyyy.":ex.getMessage());return;}
         setLoading(true); clearError();
@@ -288,7 +256,7 @@ public class ThongKeDoanhThuUI extends JPanel {
     private void capNhatTrangThaiXuat(){
         boolean current=baoCao!=null&&!loading&&baoCao.loai.equals(loai);
         if(current){
-            try{current=baoCao.tuNgay.equals(LocalDate.parse(txtTuNgay.getText().trim(),DATE))&&baoCao.denNgay.equals(LocalDate.parse(txtDenNgay.getText().trim(),DATE));}
+            try{current=baoCao.tuNgay.equals(UIInputRules.readDate(dcTuNgay))&&baoCao.denNgay.equals(UIInputRules.readDate(dcDenNgay));}
             catch(DateTimeParseException ex){current=false;}
         }
         btnXuat.setEnabled(current);
@@ -329,13 +297,32 @@ public class ThongKeDoanhThuUI extends JPanel {
     }
 
     private void renderEmpty(){reportContent.removeAll();reportContent.revalidate();reportContent.repaint();}
-    private void setLoading(boolean value){loading=value;cboLoai.setEnabled(!value);txtTuNgay.setEnabled(!value);txtDenNgay.setEnabled(!value);btnXem.setEnabled(!value);for(JButton button:calendarButtons)button.setEnabled(!value);capNhatTrangThaiXuat();}
+    private void setLoading(boolean value){loading=value;cboLoai.setEnabled(!value);dcTuNgay.setEnabled(!value);dcDenNgay.setEnabled(!value);dcTuNgay.getCalendarButton().setEnabled(!value);dcDenNgay.getCalendarButton().setEnabled(!value);btnXem.setEnabled(!value);capNhatTrangThaiXuat();}
     private void showError(String message){lblError.setText(message==null?"Có lỗi khi tải dữ liệu.":message);}
     private void clearError(){lblError.setText("");}
     private static Component leftGap(int height){JComponent gap=(JComponent)Box.createRigidArea(new Dimension(0,height));gap.setAlignmentX(Component.LEFT_ALIGNMENT);return gap;}
     private JPanel cardPanel(){JPanel p=new JPanel();p.setBackground(WHITE);p.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(BORDER),new EmptyBorder(16,16,16,16)));p.setAlignmentX(Component.LEFT_ALIGNMENT);return p;}
     private static JLabel label(String text,int size,Color color,int style){JLabel l=new JLabel(text);l.setFont(new Font("SansSerif",style,size));l.setForeground(color);return l;}
     private static String money(double n){return new java.text.DecimalFormat("#,##0",java.text.DecimalFormatSymbols.getInstance(java.util.Locale.forLanguageTag("vi-VN"))).format(n);}
+
+    private static JDateChooser createDateChooser(int width) {
+        JDateChooser chooser = new JDateChooser();
+        chooser.setDateFormatString("dd/MM/yyyy");
+        chooser.setPreferredSize(new Dimension(width, 44));
+        chooser.setBackground(WHITE);
+        if (chooser.getDateEditor() instanceof JTextFieldDateEditor editor) {
+            editor.setEditable(false);
+            editor.setFont(new Font("SansSerif", Font.PLAIN, 13));
+            editor.setBorder(new EmptyBorder(0, 10, 0, 2));
+            editor.setMargin(new Insets(0, 0, 0, 0));
+        }
+        JButton calendar = chooser.getCalendarButton();
+        calendar.setPreferredSize(new Dimension(32, 34));
+        calendar.setFocusable(false);
+        calendar.setMargin(new Insets(0, 0, 0, 0));
+        chooser.setBorder(new TraCuuUI.RoundedLineBorder(INPUT, 10));
+        return chooser;
+    }
 
     private static class BarChart extends JPanel {
         private final String[] labels;

@@ -16,18 +16,18 @@ import java.net.URL;
  * Màn hình Khởi động CarZone (Splash Screen) – Chuẩn mực tuyệt đối theo frame "Carzone · Khởi động" (Node 95:681) trong Figma.
  *
  * Cấu trúc thiết kế Figma:
- * - Kích thước: 1280×840px, nền #F8FAFC, viền ngoài #E2E8F0, bo góc 20px
- * - Khối Startup Identity (768px, layout vertical, centered, gap 32px):
+ * - Kích thước gọn 600×380px, nền #F8FAFC, căn giữa màn hình như splash Eclipse
+ * - Khối Startup Identity căn giữa, giữ logo, tiến trình và trạng thái tải:
  *   + Brand Block:
- *     - Logo: 200×58.49px căn giữa
- *     - Brand Name: "CARZONE" (Arimo Bold 32px, #0F172A)
- *     - App Purpose: "Hệ thống quản lý gara ô tô" (Arimo Regular 16px, #64748B)
+ *     - Logo: 160×47px căn giữa
+ *     - Brand Name: "CARZONE" (Arimo Bold 24px, #0F172A)
+ *     - App Purpose: "Hệ thống quản lý gara ô tô" (Arimo Regular 13px, #64748B)
  *   + Loading State:
- *     - Progress Track: 280×4px, nền #E2E8F0, bo tròn pill (cornerRadius 999)
+ *     - Progress Track: 220×4px, nền #E2E8F0, bo tròn pill (cornerRadius 999)
  *     - Progress Bar: 4px, màu #2563EB, bo tròn pill, tăng dần 0% - 100%
  *     - Loading Message: "Đang khởi động hệ thống…" (Arimo Regular 13px, #334155)
  *     - Loading Instruction: "Vui lòng chờ trong giây lát" (Arimo Regular 12px, #94A3B8)
- * - Khối Startup Footer (72px, layout vertical, centered, gap 6px):
+ * - Footer gọn ở đáy (56px, căn giữa):
  *   + Version: "CarZone 1.0" (Arimo Bold 12px, #64748B)
  *   + Copyright: "© 2026 Carzone. Bảo lưu mọi quyền." (Arimo Regular 12px, #94A3B8)
  */
@@ -73,8 +73,8 @@ public class KhoiDongUI extends JFrame {
 
     public KhoiDongUI() {
         setTitle("CarZone – Khởi động hệ thống");
-        setSize(1280, 840);
-        setMinimumSize(new Dimension(1024, 720));
+        setSize(600, 380);
+        setMinimumSize(new Dimension(560, 350));
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setLocationRelativeTo(null);
         getContentPane().setBackground(C_BG);
@@ -135,33 +135,33 @@ public class KhoiDongUI extends JFrame {
         pnlBrand.setOpaque(false);
         pnlBrand.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // Logo 200×58.49px
-        JComponent logoComp = createLogoComponent(200, 58);
+        // Logo vừa phải cho splash window nhỏ gọn
+        JComponent logoComp = createLogoComponent(160, 47);
         logoComp.setAlignmentX(Component.CENTER_ALIGNMENT);
         pnlBrand.add(logoComp);
 
-        pnlBrand.add(Box.createVerticalStrut(20));
+        pnlBrand.add(Box.createVerticalStrut(12));
 
         // Brand name: "CARZONE" (Bold 32px)
         JLabel lblBrandName = new JLabel("CARZONE");
-        lblBrandName.setFont(f(Font.BOLD, 32));
+        lblBrandName.setFont(f(Font.BOLD, 24));
         lblBrandName.setForeground(C_TEXT_NAME);
         lblBrandName.setAlignmentX(Component.CENTER_ALIGNMENT);
         pnlBrand.add(lblBrandName);
 
-        pnlBrand.add(Box.createVerticalStrut(8));
+        pnlBrand.add(Box.createVerticalStrut(5));
 
         // App purpose: "Hệ thống quản lý gara ô tô" (Regular 16px)
         JLabel lblAppPurpose = new JLabel("Hệ thống quản lý gara ô tô");
-        lblAppPurpose.setFont(f(Font.PLAIN, 16));
+        lblAppPurpose.setFont(f(Font.PLAIN, 13));
         lblAppPurpose.setForeground(C_TEXT_PURPOSE);
         lblAppPurpose.setAlignmentX(Component.CENTER_ALIGNMENT);
         pnlBrand.add(lblAppPurpose);
 
         centerBox.add(pnlBrand);
 
-        // Gap giữa Brand và Loading: 32px
-        centerBox.add(Box.createVerticalStrut(32));
+        // Khoảng cách giữa thương hiệu và tiến trình
+        centerBox.add(Box.createVerticalStrut(22));
 
         // ── Loading State (Progress Track + Message + Instruction) ────────────
         JPanel pnlLoading = new JPanel();
@@ -169,12 +169,12 @@ public class KhoiDongUI extends JFrame {
         pnlLoading.setOpaque(false);
         pnlLoading.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // Progress bar 280×4px pill
+        // Progress bar pill
         progressBar = new RoundedProgressBar();
         progressBar.setAlignmentX(Component.CENTER_ALIGNMENT);
         pnlLoading.add(progressBar);
 
-        pnlLoading.add(Box.createVerticalStrut(14));
+        pnlLoading.add(Box.createVerticalStrut(10));
 
         // Loading message: "Đang khởi động hệ thống…" (Regular 13px)
         lblLoadingMsg = new JLabel("Đang khởi động hệ thống…");
@@ -183,7 +183,7 @@ public class KhoiDongUI extends JFrame {
         lblLoadingMsg.setAlignmentX(Component.CENTER_ALIGNMENT);
         pnlLoading.add(lblLoadingMsg);
 
-        pnlLoading.add(Box.createVerticalStrut(14));
+        pnlLoading.add(Box.createVerticalStrut(8));
 
         // Loading instruction: "Vui lòng chờ trong giây lát" (Regular 12px)
         lblLoadingInstruction = new JLabel("Vui lòng chờ trong giây lát");
@@ -205,8 +205,8 @@ public class KhoiDongUI extends JFrame {
         JPanel footer = new JPanel();
         footer.setLayout(new BoxLayout(footer, BoxLayout.Y_AXIS));
         footer.setOpaque(false);
-        footer.setPreferredSize(new Dimension(1280, 72));
-        footer.setBorder(new EmptyBorder(8, 0, 18, 0));
+        footer.setPreferredSize(new Dimension(600, 56));
+        footer.setBorder(new EmptyBorder(4, 0, 8, 0));
 
         // Version: "CarZone 1.0" (Bold 12px)
         JLabel lblVersion = new JLabel("CarZone 1.0");
@@ -228,15 +228,15 @@ public class KhoiDongUI extends JFrame {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // CUSTOM COMPONENT: ROUNDED PROGRESS BAR (280×4px pill)
+    // CUSTOM COMPONENT: ROUNDED PROGRESS BAR
     // ─────────────────────────────────────────────────────────────────────────
     private static class RoundedProgressBar extends JComponent {
         private int progress = 0; // 0 -> 100
 
         public RoundedProgressBar() {
-            setPreferredSize(new Dimension(280, 4));
-            setMaximumSize(new Dimension(280, 4));
-            setMinimumSize(new Dimension(280, 4));
+            setPreferredSize(new Dimension(220, 4));
+            setMaximumSize(new Dimension(220, 4));
+            setMinimumSize(new Dimension(220, 4));
             setOpaque(false);
         }
 

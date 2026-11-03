@@ -27,6 +27,7 @@
 - **Thông tin cá nhân**: cập nhật trang trong `MainFrame` theo ảnh; tab Hồ sơ cá nhân đứng trước, hiển thị họ tên, mã nhân viên, username từ session, điện thoại, CCCD, ngày sinh, ngày vào làm, tuổi và địa chỉ từ hồ sơ hiện tại. Tab Thông tin vai trò đứng sau với bảng chức năng/phạm vi theo navigation role, không dùng breadcrumb; `mvn -q compile` đạt.
 
 ## Mới làm (03/11/2026)
+- **Cửa sổ sau đăng nhập và splash:** `MainFrame` mở maximized toàn màn hình sau đăng nhập; splash `KhoiDongUI` thu gọn 600×380px, bố cục thương hiệu/progress/footer cân lại.
 - **Tự động sao lưu CSDL SQL Server (Quartz) & Audit Log (SLF4J/Logback)**:
   + Cấu hình Quartz lập lịch 3 Job (FULL 00:00/12:00, DIFF 04:00/08:00/16:00/20:00, LOG mỗi 15 phút), dùng chung `ReentrantLock(fair=true)` phân quyền ưu tiên FULL > DIFF > LOG (LOG skip ghi WARN nếu lock bận).
   + **Hỗ trợ Đa máy trạm (Multi-Client) chống đè dữ liệu:** 
@@ -58,6 +59,9 @@
   + Intercept tập trung qua dynamic proxy `AuditConnectionProxy`/`AuditStatementProxy` bọc `DbUtil.getConnection()`, ghi audit log DML kèm thời gian, người dùng (UserSession), số dòng affected, tham số (tự mask mật khẩu/chuỗi nhạy cảm). Tách file `app.log` và `audit.log` qua `AsyncAppender` Logback rolling 30 ngày.
   + Modal `ShutdownDialog` + `AppShutdownManager`: Bắt toàn bộ thao tác thoát trên mọi JFrame (`MainFrame`, `DangNhapUI`, `KhoiDongUI`), chạy DIFF + LOG ca làm việc, hiển thị tiến độ, timeout bảo vệ, chống tắt ngang.
   + Chuẩn hóa trạng thái phiếu sửa chữa KTV: xóa bỏ toàn bộ nhãn sai lệch "Mới phân công" / "Mới", đồng bộ chuẩn 4 trạng thái theo enum (`CHO_SUA` -> "Chờ sửa", `DANG_SUA` -> "Đang sửa", `CHO_LINH_KIEN` -> "Chờ linh kiện", `HOAN_TAT` -> "Hoàn tất") trên KPI card, bảng công việc gần đây, dialog chi tiết phiếu, biểu đồ tiến độ và donut tỷ lệ hoàn thành (`MainFrame.java`, `ThongKeSuaChuaUI.java`).
+  + Dùng JCalendar cho bộ lọc ngày của Thống kê báo cáo và Quản lý khuyến mãi Chủ cửa hàng; khóa nhập tay và chuẩn hóa đọc ngày qua `UIInputRules`.
+  + Khôi phục điều hướng `MainFrame` tới ba màn Chủ cửa hàng Dịch vụ, Linh kiện/tồn kho và Xử lý yêu cầu linh kiện; các lớp đã có nhưng bị route KTV ghi đè khi nhập nhánh.
+  + Rà soát lớp trùng theo vai trò: gỡ `TraCuuChuCuaHangUI` chỉ kế thừa `TraCuuUI`; các vai trò dùng chung `TraCuuUI(VaiTro)` và `TraCuuController`/`TraCuuDAO`.
   + `mvn -q compile` đạt 100%, không sinh file `.class` rác.
 
 ## Mới làm (02/11/2026)

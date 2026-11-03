@@ -1,7 +1,9 @@
 package ui;
 
 import javax.swing.JSpinner;
+import com.toedter.calendar.JDateChooser;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
@@ -46,5 +48,12 @@ public final class UIInputRules {
             throw new DateTimeParseException("Ngày phải theo định dạng dd/MM/yyyy.", "", 0);
         }
         return parseDate(editor.getTextField().getText());
+    }
+
+    public static LocalDate readDate(JDateChooser chooser) {
+        if (chooser == null || chooser.getDate() == null) {
+            throw new DateTimeParseException("Vui lòng chọn ngày theo định dạng dd/MM/yyyy.", "", 0);
+        }
+        return chooser.getDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
 }

@@ -1,5 +1,7 @@
 package ui;
 
+import com.toedter.calendar.JDateChooser;
+import com.toedter.calendar.JTextFieldDateEditor;
 import controller.KhuyenMaiController;
 import dao.KhuyenMaiDAO;
 import entity.DichVu;
@@ -21,7 +23,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,8 +44,8 @@ public class QuanLyKhuyenMaiUI extends JPanel {
 
     private final KhuyenMaiController controller = new KhuyenMaiController();
     private final JTextField txtQuery = new JTextField();
-    private final JSpinner spnTuNgay = dateSpinner(Date.from(LocalDate.now().withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
-    private final JSpinner spnDenNgay = dateSpinner(new Date());
+    private final JDateChooser dcTuNgay = createDateChooser(Date.from(LocalDate.now().withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant()), 165);
+    private final JDateChooser dcDenNgay = createDateChooser(new Date(), 165);
     private final JButton btnSearch = button("Tìm kiếm", true);
     private final JButton btnReset = button("Làm mới", false);
     private final JButton btnAdd = button("Thêm chương trình", true);
@@ -137,8 +138,8 @@ public class QuanLyKhuyenMaiUI extends JPanel {
         g.fill = GridBagConstraints.HORIZONTAL;
         g.insets = new Insets(0, 0, 0, 12);
         addSearchField(row, g, "Tìm mã / tên", txtQuery, 0, 0.34, 255);
-        addSearchField(row, g, "Từ ngày", spnTuNgay, 1, 0.22, 165);
-        addSearchField(row, g, "Đến ngày", spnDenNgay, 2, 0.22, 165);
+        addSearchField(row, g, "Từ ngày", dcTuNgay, 1, 0.22, 165);
+        addSearchField(row, g, "Đến ngày", dcDenNgay, 2, 0.22, 165);
         JPanel buttons = new JPanel(new BorderLayout(0, 6));
         buttons.setOpaque(false);
         buttons.add(label(" ", 12, BODY, Font.PLAIN), BorderLayout.NORTH);
@@ -165,7 +166,17 @@ public class QuanLyKhuyenMaiUI extends JPanel {
         field.setFont(new Font("SansSerif", Font.PLAIN, 13));
         field.setPreferredSize(new Dimension(width, 44));
         field.setBackground(WHITE);
-        field.setBorder(BorderFactory.createCompoundBorder(new RoundedBorder(new Color(0xC9D5E5), 10), new EmptyBorder(0, 11, 0, 10)));
+        if (field instanceof JDateChooser chooser) {
+            chooser.setBorder(new RoundedBorder(new Color(0xC9D5E5), 10));
+            if (chooser.getDateEditor() instanceof JTextFieldDateEditor editor) {
+                editor.setEditable(false);
+                editor.setBorder(new EmptyBorder(0, 10, 0, 2));
+            }
+            chooser.getCalendarButton().setFocusable(false);
+            chooser.getCalendarButton().setPreferredSize(new Dimension(32, 34));
+        } else {
+            field.setBorder(BorderFactory.createCompoundBorder(new RoundedBorder(new Color(0xC9D5E5), 10), new EmptyBorder(0, 11, 0, 10)));
+        }
         if (field instanceof JTextField input) input.putClientProperty("JTextField.placeholderText", "Nhập mã hoặc tên…");
         if (field instanceof JSpinner spinner && spinner.getEditor() instanceof JSpinner.DateEditor editor) {
             editor.getTextField().setBorder(new EmptyBorder(0, 0, 0, 0));
@@ -203,8 +214,8 @@ public class QuanLyKhuyenMaiUI extends JPanel {
         LocalDate fromDate;
         LocalDate throughDate;
         try {
-            fromDate = UIInputRules.readDate(spnTuNgay);
-            throughDate = UIInputRules.readDate(spnDenNgay);
+            fromDate = UIInputRules.readDate(dcTuNgay);
+            throughDate = UIInputRules.readDate(dcDenNgay);
         } catch (DateTimeParseException ex) {
             showError("Ngày tìm kiếm phải đúng định dạng dd/MM/yyyy và là ngày hợp lệ.");
             return;
@@ -244,8 +255,8 @@ public class QuanLyKhuyenMaiUI extends JPanel {
 
     private void reset() {
         txtQuery.setText("");
-        spnTuNgay.setValue(Date.from(LocalDate.now().withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
-        spnDenNgay.setValue(normalizedDate(new Date()));
+        dcTuNgay.setDate(Date.from(LocalDate.now().withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        dcDenNgay.setDate(normalizedDate(new Date()));
         results = new ArrayList<>();
         selectedDetails = null;
         searched = false;
@@ -398,8 +409,8 @@ public class QuanLyKhuyenMaiUI extends JPanel {
         dialog.setVisible(true);
         if (dialog.saved != null) {
             txtQuery.setText(dialog.saved.getMaKM());
-            spnTuNgay.setValue(normalizedDate(dialog.saved.getNgayBatDau()));
-            spnDenNgay.setValue(normalizedDate(dialog.saved.getNgayKetThuc()));
+            dcTuNgay.setDate(normalizedDate(dialog.saved.getNgayBatDau()));
+            dcDenNgay.setDate(normalizedDate(dialog.saved.getNgayKetThuc()));
             search();
         }
     }
@@ -414,8 +425,10 @@ public class QuanLyKhuyenMaiUI extends JPanel {
     private void setBusy(boolean value) {
         busy = value;
         txtQuery.setEnabled(!value);
-        spnTuNgay.setEnabled(!value);
-        spnDenNgay.setEnabled(!value);
+        dcTuNgay.setEnabled(!value);
+        dcDenNgay.setEnabled(!value);
+        dcTuNgay.getCalendarButton().setEnabled(!value);
+        dcDenNgay.getCalendarButton().setEnabled(!value);
         table.setEnabled(!value);
         updateActions();
         if (value) lblStatus.setText("Đang xử lý…");
@@ -472,6 +485,24 @@ public class QuanLyKhuyenMaiUI extends JPanel {
                 return cell;
             }
         };
+    }
+
+    private static JDateChooser createDateChooser(Date value, int width) {
+        JDateChooser chooser = new JDateChooser();
+        chooser.setDateFormatString("dd/MM/yyyy");
+        chooser.setDate(normalizedDate(value));
+        chooser.setPreferredSize(new Dimension(width, 44));
+        chooser.setBackground(WHITE);
+        if (chooser.getDateEditor() instanceof JTextFieldDateEditor editor) {
+            editor.setEditable(false);
+            editor.setBackground(WHITE);
+            editor.setFont(new Font("SansSerif", Font.PLAIN, 13));
+            editor.setBorder(new EmptyBorder(0, 10, 0, 2));
+        }
+        chooser.getCalendarButton().setFocusable(false);
+        chooser.getCalendarButton().setPreferredSize(new Dimension(32, 34));
+        chooser.setBorder(new RoundedBorder(new Color(0xC9D5E5), 10));
+        return chooser;
     }
 
     private static JSpinner dateSpinner(Date value) {

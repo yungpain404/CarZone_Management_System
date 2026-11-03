@@ -169,6 +169,7 @@ public class MainFrame extends JFrame {
         setMinimumSize(new Dimension(1024, 700));
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         getContentPane().setBackground(C_BG);
 
@@ -596,6 +597,12 @@ public class MainFrame extends JFrame {
                 ThongKeSuaChuaUI thongKeUI = new ThongKeSuaChuaUI();
                 thongKeUI.setOnMoYeuCauLinhKien(() -> moPageTheoNavigation("NAV_YC_LINH_KIEN"));
                 pnlContentPanel.add(thongKeUI, item.getId());
+            } else if ("NAV_QUAN_LY_DICH_VU".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
+                pnlContentPanel.add(new QuanLyDichVuUI(), item.getId());
+            } else if ("NAV_LINH_KIEN_KHO".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
+                pnlContentPanel.add(new QuanLyLinhKienUI(), item.getId());
+            } else if ("NAV_YC_LINH_KIEN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
+                pnlContentPanel.add(new XuLyYeuCauLinhKienUI(), item.getId());
             } else if ("NAV_PHIEU_PHAN_CONG".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.KY_THUAT_VIEN) {
                 pnlContentPanel.add(new PhieuPhanCongUI(maPhieu -> {
                     moPageTheoNavigation("NAV_CAP_NHAT_SUA_CHUA");
