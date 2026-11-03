@@ -216,6 +216,7 @@ public class AuthController {
                     new NavigationItem("NAV_PHIEU_TIEP_NHAN", "📝", "Lập phiếu tiếp nhận – sửa chữa", "Nghiệp vụ / Tiếp nhận xe"),
                     new NavigationItem("NAV_HOA_DON", "🧾", "Lập hóa đơn thanh toán", "Thu ngân / Hóa đơn thanh toán"),
                     new NavigationItem("NAV_DOI_TRA", "🔄", "Tạo phiếu đổi trả", "Nghiệp vụ / Đổi trả linh kiện"),
+                    new NavigationItem("NAV_THONG_KE_TIEP_NHAN", "📈", "Thống kê tiếp nhận", "Báo cáo / Thống kê tiếp nhận xe"),
                     new NavigationItem("NAV_TRA_CUU", "🔍", "Tra cứu", "Tra cứu / Tìm kiếm tổng hợp"),
                     new NavigationItem("NAV_THONG_TIN_CA_NHAN", "👤", "Thông tin cá nhân", "Tài khoản / Hồ sơ cá nhân")
             );

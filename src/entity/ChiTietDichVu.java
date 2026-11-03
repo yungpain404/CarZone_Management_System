@@ -89,4 +89,11 @@ public class ChiTietDichVu {
     @Override public String toString() {
     	return "ChiTietDichVu [" + "phieuSuaChua=" + (phieuSuaChua == null ? null : phieuSuaChua.getMaPhieu()) + ", " + "dichVu=" + dichVu + ", " + "soLuong=" + soLuong + ", " + "donGiaThucHien=" + donGiaThucHien + ", " + "ghiChu=" + ghiChu + "]";
     }
+
+    public double getDonGia() { return donGiaThucHien; }
+    public void setDichVuRaw(DichVu dv) { this.dichVu = dv; }
+    public void setSoLuongRaw(int sl) { this.soLuong = sl; }
+    public void setDonGiaThucHienRaw(double dg) { this.donGiaThucHien = dg; }
+    public void setGhiChuRaw(String gc) { this.ghiChu = gc; }
+    public void setSttRaw(int stt) {}
 }

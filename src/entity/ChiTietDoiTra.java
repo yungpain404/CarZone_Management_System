@@ -32,10 +32,12 @@ public class ChiTietDoiTra {
     public ChiTietDoiTra() {
         soLuong = 1;
     }
+
     public ChiTietDoiTra(PhieuDoiTra phieuDT) {
-    	this();
-    	setPhieuDT(phieuDT);
+        this();
+        setPhieuDT(phieuDT);
     }
+
     public ChiTietDoiTra(PhieuDoiTra phieuDT, int stt, int soLuong, double donGia, HuongXuLyDoiTra huongXuLy) {
         setPhieuDT(phieuDT);
         setStt(stt);
@@ -45,64 +47,78 @@ public class ChiTietDoiTra {
     }
 
     public PhieuDoiTra getPhieuDT() {
-    	return phieuDT;
+        return phieuDT;
     }
+
     public void setPhieuDT(PhieuDoiTra phieuDT) {
         if (phieuDT == null) throw new IllegalArgumentException("Chi tiết đổi trả phải gắn với một phiếu đổi trả.");
-    	this.phieuDT = phieuDT;
-    	this.id.setMaPhieuDT(phieuDT.getMaPhieuDT());
+        this.phieuDT = phieuDT;
+        this.id.setMaPhieuDT(phieuDT.getMaPhieuDT());
     }
+
     /** Số thứ tự dòng trong phiếu, từ 1. */
     public int getStt() {
-    	return id.getStt();
+        return id.getStt();
     }
+
     public void setStt(int stt) {
         if (stt <= 0 || stt > Short.MAX_VALUE) throw new IllegalArgumentException("Số thứ tự dòng đổi trả không hợp lệ.");
-    	this.id.setStt((short) stt);
+        this.id.setStt((short) stt);
     }
+
     public String getMaPhieu() {
-    	return maPhieu;
+        return maPhieu;
     }
+
     public String getMaDV() {
-    	return maDV;
+        return maDV;
     }
+
     public String getMaLK() {
-    	return maLK;
+        return maLK;
     }
+
     /** Chọn dòng dịch vụ của phiếu sửa chữa gốc; tự bỏ chọn linh kiện. */
     public void chonDichVu(String maPhieu, String maDV) {
         if (maPhieu == null || maPhieu.isBlank() || maDV == null || maDV.isBlank()) throw new IllegalArgumentException("Phải chọn dịch vụ cần đổi trả.");
-    	this.maPhieu = maPhieu;
-    	this.maDV = maDV;
-    	this.maLK = null;
+        this.maPhieu = maPhieu;
+        this.maDV = maDV;
+        this.maLK = null;
     }
+
     /** Chọn dòng linh kiện của phiếu sửa chữa gốc; tự bỏ chọn dịch vụ. */
     public void chonLinhKien(String maPhieu, String maLK) {
         if (maPhieu == null || maPhieu.isBlank() || maLK == null || maLK.isBlank()) throw new IllegalArgumentException("Phải chọn linh kiện cần đổi trả.");
-    	this.maPhieu = maPhieu;
-    	this.maLK = maLK;
-    	this.maDV = null;
+        this.maPhieu = maPhieu;
+        this.maLK = maLK;
+        this.maDV = null;
     }
+
     public int getSoLuong() {
-    	return soLuong;
+        return soLuong;
     }
+
     public void setSoLuong(int soLuong) {
         if (soLuong <= 0) throw new IllegalArgumentException("Số lượng đổi trả phải lớn hơn 0.");
-    	this.soLuong = soLuong;
+        this.soLuong = soLuong;
     }
+
     public double getDonGia() {
-    	return donGia;
+        return donGia;
     }
+
     public void setDonGia(double donGia) {
         if (!Double.isFinite(donGia) || donGia < 0) throw new IllegalArgumentException("Đơn giá không hợp lệ.");
-    	this.donGia = donGia;
+        this.donGia = donGia;
     }
+
     public HuongXuLyDoiTra getHuongXuLy() {
-    	return huongXuLy;
+        return huongXuLy;
     }
+
     public void setHuongXuLy(HuongXuLyDoiTra huongXuLy) {
         if (huongXuLy == null) throw new IllegalArgumentException("Hướng xử lý đổi trả không hợp lệ.");
-    	this.huongXuLy = huongXuLy;
+        this.huongXuLy = huongXuLy;
     }
 
     /** Thuộc tính suy diễn: chỉ tính tiền khi hoàn tiền (trùng cột tính toán thanhTien trong DB). */
@@ -110,16 +126,27 @@ public class ChiTietDoiTra {
         return huongXuLy == HuongXuLyDoiTra.HOAN_TIEN ? soLuong * donGia : 0;
     }
 
+    // ── Raw setters dùng trong DAO khi map từ ResultSet ───────────────────────
+    public void setSttRaw(int stt) { this.id.setStt((short) stt); }
+    public void setMaPhieuRaw(String maPhieu) { this.maPhieu = maPhieu; }
+    public void setMaDVRaw(String maDV) { this.maDV = maDV; }
+    public void setMaLKRaw(String maLK) { this.maLK = maLK; }
+    public void setSoLuongRaw(int soLuong) { this.soLuong = soLuong; }
+    public void setDonGiaRaw(double donGia) { this.donGia = donGia; }
+    public void setHuongXuLyRaw(HuongXuLyDoiTra huongXuLy) { this.huongXuLy = huongXuLy; }
+
     @Override public int hashCode() {
-    	return Objects.hash(phieuDT, id.getStt());
+        return Objects.hash(phieuDT, id.getStt());
     }
+
     @Override public boolean equals(Object obj) {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
         ChiTietDoiTra o = (ChiTietDoiTra) obj;
         return id.getStt() == o.id.getStt() && Objects.equals(phieuDT, o.phieuDT);
     }
+
     @Override public String toString() {
-    	return "ChiTietDoiTra [" + "phieuDT=" + (phieuDT == null ? null : phieuDT.getMaPhieuDT()) + ", " + "stt=" + id.getStt() + ", " + "maPhieu=" + maPhieu + ", " + "maDV=" + maDV + ", " + "maLK=" + maLK + ", " + "soLuong=" + soLuong + ", " + "donGia=" + donGia + ", " + "huongXuLy=" + huongXuLy + "]";
+        return "ChiTietDoiTra [" + "phieuDT=" + (phieuDT == null ? null : phieuDT.getMaPhieuDT()) + ", " + "stt=" + id.getStt() + ", " + "maPhieu=" + maPhieu + ", " + "maDV=" + maDV + ", " + "maLK=" + maLK + ", " + "soLuong=" + soLuong + ", " + "donGia=" + donGia + ", " + "huongXuLy=" + huongXuLy + "]";
     }
 }

@@ -2,18 +2,11 @@ package dao.impl;
 
 import connectDB.DbUtil;
 import dao.HoaDonDao;
-import entity.HoaDon;
-import entity.KhuyenMai;
-import entity.NhanVien;
-import entity.PhieuTiepNhanSuaChua;
+import entity.*;
 import enums.PhuongThucThanhToan;
 import enums.TrangThaiThanhToan;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,9 +18,13 @@ public class HoaDonDaoImpl implements HoaDonDao {
     private static final String SELECT_BASE =
             "SELECT h.maHoaDon, h.maPhieu, h.maNV, h.maKM, h.ngayLap, h.phuongThucTT, " +
             "       h.trangThaiThanhToan, h.thoiGianThanhToan, h.maGiaoDich, " +
-            "       v.tongTienDichVu, v.tongTienLinhKien, v.tienGiam, v.thue, v.tongThanhToan " +
+            "       v.tongTienDichVu, v.tongTienLinhKien, v.tienGiam, v.thue, v.tongThanhToan, " +
+            "       p.bienSoXe, x.hangXe, x.model, kh.maKH, kh.hoTen AS tenKhachHang, kh.soDienThoai " +
             "FROM HoaDon h " +
-            "LEFT JOIN vw_HoaDon_TongTien v ON h.maHoaDon = v.maHoaDon ";
+            "LEFT JOIN vw_HoaDon_TongTien v ON h.maHoaDon = v.maHoaDon " +
+            "LEFT JOIN PhieuTiepNhanSuaChua p ON h.maPhieu = p.maPhieu " +
+            "LEFT JOIN Xe x ON p.bienSoXe = x.bienSoXe " +
+            "LEFT JOIN KhachHang kh ON x.maKH = kh.maKH ";
 
     @Override
     public HoaDon timTheoMa(String maHoaDon) {
@@ -41,6 +38,21 @@ public class HoaDonDaoImpl implements HoaDonDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi tìm hóa đơn theo mã: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public HoaDon timTheoPhieu(String maPhieu) {
+        String sql = SELECT_BASE + "WHERE h.maPhieu = ?";
+        try (Connection con = DbUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, maPhieu);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return null;
+                return mapRow(rs);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tìm hóa đơn theo phiếu: " + e.getMessage(), e);
         }
     }
 
@@ -79,6 +91,111 @@ public class HoaDonDaoImpl implements HoaDonDao {
     }
 
     @Override
+    public List<HoaDon> layHoaDonDuDieuKienDoiTra() {
+        // Hóa đơn đã thanh toán và trong vòng 7 ngày kể từ ngayLap
+        String sql = SELECT_BASE +
+                     "WHERE h.trangThaiThanhToan = 'DA_THANH_TOAN' " +
+                     "  AND DATEDIFF(day, h.ngayLap, SYSDATETIME()) <= 7 " +
+                     "ORDER BY h.ngayLap DESC";
+        List<HoaDon> list = new ArrayList<>();
+        try (Connection con = DbUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                list.add(mapRow(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi lấy hóa đơn đủ điều kiện đổi trả: " + e.getMessage(), e);
+        }
+        return list;
+    }
+
+    @Override
+    public String lapHoaDon(String maPhieu, String maNV, String maKM) {
+        String sql = "{call sp_LapHoaDon(?, ?, ?, ?)}";
+        try (Connection con = DbUtil.getConnection();
+             CallableStatement cs = con.prepareCall(sql)) {
+            cs.setString(1, maPhieu);
+            cs.setString(2, maNV);
+            if (maKM != null && !maKM.isBlank()) {
+                cs.setString(3, maKM);
+            } else {
+                cs.setNull(3, Types.VARCHAR);
+            }
+            cs.registerOutParameter(4, Types.CHAR);
+            cs.execute();
+            return cs.getString(4).trim();
+        } catch (SQLException e) {
+            if (e.getErrorCode() == 50131) {
+                throw new RuntimeException("Chỉ tiếp nhận viên mới có quyền lập hóa đơn.");
+            } else if (e.getErrorCode() == 50132) {
+                throw new RuntimeException("Chỉ phiếu sửa chữa đã hoàn tất mới được phép lập hóa đơn.");
+            } else if (e.getErrorCode() == 50133) {
+                throw new RuntimeException("Chương trình khuyến mãi không còn hiệu lực tại ngày lập.");
+            }
+            throw new RuntimeException("Lỗi lập hóa đơn: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public boolean thanhToanHoaDon(String maHoaDon, PhuongThucThanhToan phuongThucTT, String maGiaoDich) {
+        String sql = "{call sp_ThanhToanHoaDon(?, ?, ?)}";
+        try (Connection con = DbUtil.getConnection();
+             CallableStatement cs = con.prepareCall(sql)) {
+            cs.setString(1, maHoaDon);
+            cs.setString(2, phuongThucTT.name());
+            if (phuongThucTT == PhuongThucThanhToan.CHUYEN_KHOAN) {
+                if (maGiaoDich == null || maGiaoDich.isBlank()) {
+                    throw new RuntimeException("Thanh toán chuyển khoản bắt buộc phải có mã giao dịch.");
+                }
+                cs.setString(3, maGiaoDich.trim());
+            } else {
+                cs.setNull(3, Types.VARCHAR);
+            }
+            cs.execute();
+            return true;
+        } catch (SQLException e) {
+            if (e.getErrorCode() == 50211) {
+                throw new RuntimeException("Hóa đơn không tồn tại hoặc đã được thanh toán trước đó.");
+            }
+            throw new RuntimeException("Lỗi thanh toán hóa đơn: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public List<HoaDon> timKiem(String tuKhoa, TrangThaiThanhToan trangThai) {
+        StringBuilder sql = new StringBuilder(SELECT_BASE).append("WHERE 1=1 ");
+        List<Object> params = new ArrayList<>();
+
+        if (trangThai != null) {
+            sql.append("AND h.trangThaiThanhToan = ? ");
+            params.add(trangThai.name());
+        }
+        if (tuKhoa != null && !tuKhoa.isBlank()) {
+            sql.append("AND (h.maHoaDon LIKE ? OR h.maPhieu LIKE ? OR p.bienSoXe LIKE ? OR kh.hoTen LIKE ? OR kh.soDienThoai LIKE ?) ");
+            String p = "%" + tuKhoa.trim() + "%";
+            for (int i = 0; i < 5; i++) params.add(p);
+        }
+        sql.append("ORDER BY h.ngayLap DESC");
+
+        List<HoaDon> list = new ArrayList<>();
+        try (Connection con = DbUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tìm kiếm hóa đơn: " + e.getMessage(), e);
+        }
+        return list;
+    }
+
+    @Override
     public boolean them(HoaDon hd) {
         String sql = "INSERT INTO HoaDon (maHoaDon, maPhieu, maNV, maKM, ngayLap, phuongThucTT, trangThaiThanhToan, thoiGianThanhToan, maGiaoDich) " +
                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -100,10 +217,29 @@ public class HoaDonDaoImpl implements HoaDonDao {
     }
 
     private HoaDon mapRow(ResultSet rs) throws SQLException {
-        HoaDon hd = new HoaDon(rs.getString("maHoaDon"));
+        HoaDon hd = new HoaDon(rs.getString("maHoaDon").trim());
 
         String maPhieu = rs.getString("maPhieu");
-        if (maPhieu != null) hd.setPhieuSuaChua(new PhieuTiepNhanSuaChua(maPhieu));
+        if (maPhieu != null) {
+            PhieuTiepNhanSuaChua p = new PhieuTiepNhanSuaChua(maPhieu);
+            String bienSo = rs.getString("bienSoXe");
+            if (bienSo != null) {
+                Xe xe = new Xe(bienSo);
+                xe.setHangXeRaw(rs.getString("hangXe"));
+                xe.setModelRaw(rs.getString("model"));
+
+                String maKH = rs.getString("maKH");
+                if (maKH != null) {
+                    KhachHang kh = new KhachHang();
+                    kh.setMaKHRaw(maKH);
+                    kh.setHoTenRaw(rs.getString("tenKhachHang"));
+                    kh.setSoDienThoaiRaw(rs.getString("soDienThoai"));
+                    xe.setChuXeRaw(kh);
+                }
+                p.setXeRaw(xe);
+            }
+            hd.setPhieuSuaChua(p);
+        }
 
         String maNV = rs.getString("maNV");
         if (maNV != null) hd.setNhanVien(new NhanVien(maNV));

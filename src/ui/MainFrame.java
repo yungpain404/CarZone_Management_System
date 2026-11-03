@@ -465,11 +465,25 @@ public class MainFrame extends JFrame {
                 pnlContentPanel.add(buildRoleDashboardPage(), item.getId());
             } else if ("NAV_THONG_TIN_CA_NHAN".equals(item.getId())) {
                 pnlContentPanel.add(buildProfilePage(item), item.getId());
+            } else if ("NAV_KHACH_HANG_XE".equals(item.getId())) {
+                pnlContentPanel.add(new QuanLyKhachHangVaXeUI(), item.getId());
+            } else if ("NAV_PHIEU_TIEP_NHAN".equals(item.getId())) {
+                pnlContentPanel.add(new LapPhieuTiepNhanUI(), item.getId());
+            } else if ("NAV_HOA_DON".equals(item.getId())) {
+                pnlContentPanel.add(new LapHoaDonThanhToanUI(), item.getId());
+            } else if ("NAV_DOI_TRA".equals(item.getId())) {
+                pnlContentPanel.add(new TaoPhieuDoiTraUI(), item.getId());
+            } else if ("NAV_TRA_CUU".equals(item.getId())) {
+                pnlContentPanel.add(new TraCuuUI(), item.getId());
+            } else if ("NAV_THONG_KE_TIEP_NHAN".equals(item.getId())) {
+                pnlContentPanel.add(new ThongKeTiepNhanUI(), item.getId());
             } else {
                 pnlContentPanel.add(buildModulePage(item), item.getId());
             }
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     // ─────────────────────────────────────────────────────────────────────────
     // 3A. TRANG DASHBOARD THEO VAI TRÒ (Bám sát 100% Figma image45.png)

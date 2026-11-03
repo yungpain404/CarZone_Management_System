@@ -43,5 +43,18 @@
   + Chuyển đổi [DashboardController](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/controller/DashboardController.java), [AuthController](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/controller/AuthController.java), [DashboardUI](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/DashboardUI.java), [MainFrame](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/MainFrame.java), [KhoiDongUI](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/KhoiDongUI.java) sang JDBC thuần qua `DbUtil`.
   + Kiểm thử biên dịch toàn dự án: `mvn clean compile` thành công 100% (46 source files, 0 error).
 
+
+## Mới làm (03/11/2026 - Hoàn thiện toàn bộ phân hệ Tiếp nhận viên TNV)
+- **DAO & Controllers**: Hoàn tất 10 DAO interface & impl JDBC thuần (KhachHangDao, XeDao, DichVuDao, LinhKienDao, ChiTietDichVuDao, ChiTietLinhKienDao, PhieuTiepNhanSuaChuaDao, KhuyenMaiDao, PhieuDoiTraDao, ThongKeTiepNhanDao). Hoàn tất 6 Controllers: KhachHangVaXeController, LapPhieuTiepNhanController, LapHoaDonThanhToanController, TaoPhieuDoiTraController, TraCuuController, ThongKeTiepNhanController.
+- **Giao diện UI (Figma 100%)**:
+  + QuanLyKhachHangVaXeUI (UC016): Quản lý 2 cột Khách hàng & Xe, tìm kiếm, thêm/sửa, nạp xe theo KH.
+  + LapPhieuTiepNhanUI (UC010): Lập phiếu tiếp nhận, phân công KTV, thêm dịch vụ đề nghị, tính tiền tạm tính.
+  + LapHoaDonThanhToanUI (UC014, UC015): Lập hóa đơn từ phiếu HOAN_TAT, áp dụng khuyến mãi, popup thanh toán tiền mặt/chuyển khoản có mã giao dịch.
+  + TaoPhieuDoiTraUI (UC012): Đổi trả hóa đơn trong 7 ngày, chọn dịch vụ/linh kiện, chọn hướng xử lý (HOAN_TIEN, DOI_MOI, SUA_LAI_MIEN_PHI).
+  + TraCuuUI (UC007): 4 tab Dịch vụ, Linh kiện, Khách hàng, Lịch sử tiếp nhận xe.
+  + ThongKeTiepNhanUI (UC013): KPI card, biểu đồ cột xu hướng theo ngày & biểu đồ tròn donut phân bố trạng thái (Graphics2D), bảng chi tiết.
+- **Tích hợp MainFrame**: Đăng ký toàn bộ các trang TNV vào MainFrame.java, gắn navigation item NAV_THONG_KE_TIEP_NHAN, fix lỗi SQL join/where trong DashboardController.
+- **Biên dịch**: mvn compile thành công 100% (77 source files, 0 error).
+
 ## Việc kế tiếp (gợi ý, chờ người dùng chốt thứ tự)
 - Phát triển màn hình chức năng chuyên sâu: Tiếp nhận xe / Lập phiếu tiếp nhận sửa chữa (TNV) hoặc Quản lý linh kiện và kho (CCH).
