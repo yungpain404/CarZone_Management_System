@@ -754,7 +754,8 @@ public class DangNhapUI extends JFrame {
             if (url != null) {
                 rawLogoImage = javax.imageio.ImageIO.read(url);
             } else {
-                java.io.File file = new java.io.File("src/resources/images/carzone_logo.png");
+                java.io.File file = new java.io.File("img/carzone_logo.png");
+                if (!file.exists()) file = new java.io.File("src/resources/images/carzone_logo.png");
                 if (!file.exists()) file = new java.io.File("src/ui/carzone_logo.png");
                 if (file.exists()) {
                     rawLogoImage = javax.imageio.ImageIO.read(file);

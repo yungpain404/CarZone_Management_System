@@ -138,10 +138,15 @@ public class MainFrame extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         getContentPane().setBackground(C_BG);
 
-        // Icon ứng dụng
-        ImageIcon appIcon = loadLogoImage(32, 32);
-        if (appIcon != null) {
-            setIconImage(appIcon.getImage());
+        // Icon ứng dụng cho Title bar và Windows Taskbar
+        ImageIcon appIcon32 = loadSquareAppIcon(32);
+        ImageIcon appIcon64 = loadSquareAppIcon(64);
+        ImageIcon appIcon16 = loadSquareAppIcon(16);
+        if (appIcon32 != null) {
+            setIconImage(appIcon32.getImage());
+            if (appIcon16 != null && appIcon64 != null) {
+                setIconImages(List.of(appIcon16.getImage(), appIcon32.getImage(), appIcon64.getImage()));
+            }
         }
 
         addWindowListener(new WindowAdapter() {
@@ -367,6 +372,69 @@ public class MainFrame extends JFrame {
         return text;
     }
 
+        private static final Map<String, Image> CACHE_ICON_SIDEBAR = new HashMap<>();
+
+    /** Đọc icon từ classpath (/img/ten_file.png hoặc /ten_file.png) hoặc file img/ten_file.png */
+    private static Image docIconSidebar(String fileName) {
+        if (CACHE_ICON_SIDEBAR.containsKey(fileName)) return CACHE_ICON_SIDEBAR.get(fileName);
+        Image img = null;
+        try {
+            URL url = MainFrame.class.getResource("/" + fileName);
+            if (url == null) url = MainFrame.class.getResource("/img/" + fileName);
+            if (url == null) url = MainFrame.class.getResource("/resources/images/" + fileName);
+            if (url != null) {
+                img = ImageIO.read(url);
+            } else {
+                File f = new File("img/" + fileName);
+                if (!f.exists()) f = new File("src/resources/images/" + fileName);
+                if (f.exists()) img = ImageIO.read(f);
+            }
+        } catch (Exception ignored) {
+        }
+        CACHE_ICON_SIDEBAR.put(fileName, img);
+        return img;
+    }
+
+    /** Ánh xạ navId → file icon màu theo chuẩn Figma (img/nav_*.png) */
+    private static String iconTheoNavId(String navId) {
+        return switch (navId) {
+            case "NAV_DASHBOARD"                                -> "nav_dashboard.png";
+            case "NAV_THONG_KE", "NAV_THONG_KE_TIEP_NHAN"       -> "nav_thong_ke.png";
+            case "NAV_QUAN_LY_DICH_VU", "NAV_CAP_NHAT_SUA_CHUA" -> "nav_dich_vu.png";
+            case "NAV_LINH_KIEN_KHO"                            -> "nav_kho.png";
+            case "NAV_YC_LINH_KIEN"                             -> "nav_yeu_cau.png";
+            case "NAV_KHUYEN_MAI", "NAV_DOI_TRA"               -> "nav_khuyen_mai.png";
+            case "NAV_NHAN_VIEN", "NAV_KHACH_HANG_XE"           -> "nav_nhan_vien.png";
+            case "NAV_TAI_KHOAN"                                -> "nav_tai_khoan.png";
+            case "NAV_TRA_CUU"                                  -> "nav_tra_cuu.png";
+            case "NAV_THONG_TIN_CA_NHAN"                        -> "nav_ho_so.png";
+            case "NAV_PHIEU_TIEP_NHAN", "NAV_PHIEU_PHAN_CONG"   -> "nav_yeu_cau.png";
+            case "NAV_HOA_DON"                                  -> "nav_thong_ke.png";
+            default -> null;
+        };
+    }
+
+    private JLabel taoIconSidebar(NavigationItem item) {
+        String fileName = iconTheoNavId(item.getId());
+        Image raw = fileName != null ? docIconSidebar(fileName) : null;
+
+        if (raw != null) {
+            Image scaled = raw.getScaledInstance(22, 22, Image.SCALE_SMOOTH);
+            JLabel lbl = new JLabel(new ImageIcon(scaled));
+            lbl.setPreferredSize(new Dimension(28, 24));
+            lbl.setHorizontalAlignment(SwingConstants.CENTER);
+            lbl.setOpaque(false);
+            return lbl;
+        }
+
+        // Fallback: emoji
+        JLabel lbl = new JLabel(item.getIcon(), SwingConstants.CENTER);
+        lbl.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 15));
+        lbl.setPreferredSize(new Dimension(28, 24));
+        lbl.setOpaque(false);
+        return lbl;
+    }
+
     private JButton createSidebarButton(NavigationItem item) {
         String wrapped = formatSidebarLabel(item.getTieuDe());
         boolean isMultiLine = wrapped.contains("<br>");
@@ -411,14 +479,12 @@ public class MainFrame extends JFrame {
         btn.setMaximumSize(new Dimension(220, btnH));
         btn.setPreferredSize(new Dimension(220, btnH));
 
-        JLabel lblIcon = new JLabel(item.getIcon(), SwingConstants.CENTER);
-        lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 15));
-        lblIcon.setPreferredSize(new Dimension(24, 24));
-        btn.add(lblIcon, BorderLayout.WEST);
+        btn.add(taoIconSidebar(item), BorderLayout.WEST);
 
         boolean isInitialActive = item.getId().equals(activeNavId);
         JLabel lblText = new JLabel(htmlText);
-        lblText.setFont(f(isInitialActive ? Font.BOLD : Font.PLAIN, 11));
+        lblText.putClientProperty("navText", Boolean.TRUE);
+        lblText.setFont(f(isInitialActive ? Font.BOLD : Font.PLAIN, 12));
         lblText.setForeground(isInitialActive ? C_PRIMARY : C_TEXT_MAIN);
         btn.add(lblText, BorderLayout.CENTER);
 
@@ -445,8 +511,8 @@ public class MainFrame extends JFrame {
             boolean isCur = entry.getKey().equals(activeNavId);
             JButton b = entry.getValue();
             for (Component c : b.getComponents()) {
-                if (c instanceof JLabel lbl && !lbl.getText().matches("^[\\p{So}\\p{Sm}].*")) {
-                    lbl.setFont(f(isCur ? Font.BOLD : Font.PLAIN, 11));
+                if (c instanceof JLabel lbl && Boolean.TRUE.equals(lbl.getClientProperty("navText"))) {
+                    lbl.setFont(f(isCur ? Font.BOLD : Font.PLAIN, 12));
                     lbl.setForeground(isCur ? C_PRIMARY : C_TEXT_MAIN);
                 }
             }
@@ -1570,14 +1636,14 @@ public class MainFrame extends JFrame {
     private static Image loadRawLogoImage() {
         if (rawLogoImage != null) return rawLogoImage;
         try {
-            java.net.URL url = MainFrame.class.getResource("/resources/images/carzone_logo.png");
-            if (url == null) {
-                url = MainFrame.class.getResource("carzone_logo.png");
-            }
+            java.net.URL url = MainFrame.class.getResource("/img/carzone_logo.png");
+            if (url == null) url = MainFrame.class.getResource("/carzone_logo.png");
+            if (url == null) url = MainFrame.class.getResource("/resources/images/carzone_logo.png");
             if (url != null) {
                 rawLogoImage = javax.imageio.ImageIO.read(url);
             } else {
-                java.io.File file = new java.io.File("src/resources/images/carzone_logo.png");
+                java.io.File file = new java.io.File("img/carzone_logo.png");
+                if (!file.exists()) file = new java.io.File("src/resources/images/carzone_logo.png");
                 if (!file.exists()) file = new java.io.File("src/ui/carzone_logo.png");
                 if (file.exists()) {
                     rawLogoImage = javax.imageio.ImageIO.read(file);
@@ -1586,6 +1652,31 @@ public class MainFrame extends JFrame {
         } catch (Exception ignored) {
         }
         return rawLogoImage;
+    }
+
+    private static ImageIcon loadSquareAppIcon(int size) {
+        try {
+            Image raw = loadRawLogoImage();
+            if (raw == null) return null;
+            java.awt.image.BufferedImage bi = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2 = bi.createGraphics();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            int iw = raw.getWidth(null);
+            int ih = raw.getHeight(null);
+            if (iw > 0 && ih > 0) {
+                double scale = Math.min((double) size / iw, (double) size / ih);
+                int sw = (int) Math.round(iw * scale);
+                int sh = (int) Math.round(ih * scale);
+                int sx = (size - sw) / 2;
+                int sy = (size - sh) / 2;
+                g2.drawImage(raw, sx, sy, sw, sh, null);
+            }
+            g2.dispose();
+            return new ImageIcon(bi);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static ImageIcon loadLogoImage(int targetW, int targetH) {
