@@ -54,12 +54,12 @@ description: Dùng khi tạo hoặc sửa một màn hình/form Java Swing trong
 
 ---
 
-## 3. Quy chuẩn Bo góc cho Nút bấm (Rounded Buttons)
+## 3. Quy chuẩn Bo góc cho Nút bấm (Rounded Buttons) & Chống cắt chữ (Anti-clipping)
 
 - Không dùng `BorderFactory.createLineBorder(..., true)` của Swing vì góc bo rất thô (chỉ 1–2px) và làm hỏng bo góc của FlatLaf.
-- Triển khai lớp nút bo tròn chuẩn `RoundedButton` (hoặc FlatLaf client property `"JButton.arc"`):
+- Triển khai lớp nút bo tròn chuẩn `RoundedButton` (hoặc FlatLaf client property `"JButton.arc"`) có cơ chế **đo đạc kích thước động (dynamic width calculation)** để bảo đảm không bao giờ bị cắt chữ:
   ```java
-  private static class RoundedButton extends JButton {
+  public static class RoundedButton extends JButton {
       private final int arc;
       private final Color normalBg, hoverBg, strokeColor;
 
@@ -74,6 +74,24 @@ description: Dùng khi tạo hoặc sửa một màn hình/form Java Swing trong
           setBorderPainted(false);
           setOpaque(false);
           setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+      }
+
+      @Override
+      public Dimension getPreferredSize() {
+          Dimension pref = super.getPreferredSize();
+          Font f = getFont() != null ? getFont() : new Font("SansSerif", Font.BOLD, 13);
+          FontMetrics fm = getFontMetrics(f);
+          int textW = getText() != null ? fm.stringWidth(getText()) : 0;
+          int iconW = getIcon() != null ? getIcon().getIconWidth() + getIconTextGap() : 0;
+          int neededW = textW + iconW + 34; // 17px padding mỗi bên để không bao giờ bị cắt chữ
+          int neededH = Math.max(pref != null ? pref.height : 38, 38);
+          int finalW = pref != null ? Math.max(pref.width, neededW) : neededW;
+          return new Dimension(finalW, neededH);
+      }
+
+      @Override
+      public Dimension getMinimumSize() {
+          return getPreferredSize();
       }
 
       @Override
@@ -95,8 +113,24 @@ description: Dùng khi tạo hoặc sửa một màn hình/form Java Swing trong
       }
   }
   ```
-- **Không để chữ bị tràn / cụt**:
-  - Tính toán padding (`EmptyBorder`) và `preferredSize` rộng rãi cho các nút có icon + text như `Help` (tối thiểu `86px`), `About` (tối thiểu `92px`).
+- **Quy chuẩn kích thước nút bấm tránh mất chữ / hiện dấu `...`**:
+  - Nút ngắn (Lưu, Hủy, Sửa, Xóa): tối thiểu `90px – 95px`.
+  - Nút trung bình (Tìm kiếm, Làm mới, Tạo mới, Đổi mật khẩu, Xuất báo cáo): tối thiểu `100px – 140px`.
+  - Nút văn bản dài ("Cập nhật phiếu sửa chữa"): tối thiểu **`220px`**.
+  - Nút điều hướng quay lại ("Quay lại danh sách"): tối thiểu **`180px`**.
+  - Nút chi tiết ("Xem chi tiết yêu cầu"): tối thiểu **`180px`**.
+  - Nút `Help`: tối thiểu `96px`; `About`: tối thiểu `96px`.
+- **Quy chuẩn Sidebar Navigation (Figma 83:7716)**:
+  - Bề rộng Sidebar: **`256px`** (tránh co hẹp gây ép dòng text menu).
+  - Nút menu Sidebar: **`236px × 48px`** (chiều cao 48–52px).
+  - Nhãn HTML menu: tối thiểu **`width: 172px`** với `line-height: 1.2` để các tiêu đề phân hệ dài ("Yêu cầu cập nhật linh kiện", "Lập phiếu tiếp nhận – sửa chữa", "Hồ sơ khách hàng và xe") hiển thị hoàn hảo, không bị ngắt thành "Yêu cầu cậ...", "Yêu cầu sử...".
+- **Quy chuẩn Hiển thị Trạng thái (Status Badge)**:
+  - Bảng dữ liệu có cột Trạng thái phải dùng `StatusBadgeRenderer` căn giữa, bo góc tròn dạng pill:
+    + `Hoàn tất` / `Đã duyệt`: nền `#ECFDF5`, chữ xanh lá `#059669`.
+    + `Đang sửa` / `Đã nhập kho`: nền `#EFF6FF`, chữ xanh dương `#2563EB`.
+    + `Chờ linh kiện` / `Chờ duyệt`: nền `#FFFBEB`, chữ cam `#D97706`.
+    + `Mới phân công` / `Chờ sửa`: nền `#F1F5F9`, chữ xám `#64748B`.
+    + `Từ chối`: nền `#FEF2F2`, chữ đỏ `#DC2626`.
 
 ---
 
@@ -142,14 +176,152 @@ Mỗi màn hình/form tương tác phải triển khai đầy đủ các bước
 
 ---
 
-## 6. Quy trình triển khai một Màn hình UI mới
+---
+
+## 7. Quy chuẩn Ô chọn ngày `JDateChooser` (Anti-clipping & Lock keyboard)
+
+- **Cấm nhập bàn phím, bắt buộc chọn từ lịch**:
+  ```java
+  if (chooser.getDateEditor() instanceof JTextFieldDateEditor editor) {
+      editor.setEditable(false); // Bắt buộc chọn từ lịch
+      editor.setBackground(Color.WHITE);
+      editor.setFont(new Font("SansSerif", Font.PLAIN, 13));
+      // BẮT BUỘC padding trái 10px để tránh góc bo 10px của RoundedLineBorder che mất ký tự đầu
+      editor.setBorder(new EmptyBorder(0, 10, 0, 2));
+      editor.setMargin(new Insets(0, 0, 0, 0));
+  }
+  ```
+- **Kích thước chuẩn**:
+  - Chiều rộng `JDateChooser`: tối thiểu **`170px`** (để chứa đủ chuỗi `dd/MM/yyyy`, nút lịch 28px và lề trong mà không bị cuộn ngang).
+  - Chiều cao: chuẩn **`38px` – `42px`** khớp với các ComboBox và Input lân cận.
+
+---
+
+## 8. Quy chuẩn Kiểm soát Nhập số nguyên (`DocumentFilter` - Chặn gõ chữ tức thì)
+
+- Không để người dùng nhập chữ tự do rồi mới báo lỗi khi bấm nút; BẮT BUỘC gắn `DocumentFilter` chặn trực tiếp các ký tự không phải số:
+  ```java
+  public static void chiChoPhepNhapSo(JTextField field) {
+      ((javax.swing.text.AbstractDocument) field.getDocument()).setDocumentFilter(new javax.swing.text.DocumentFilter() {
+          @Override
+          public void insertString(FilterBypass fb, int offset, String string, javax.swing.text.AttributeSet attr)
+                  throws javax.swing.text.BadLocationException {
+              if (string != null && string.matches("\\d+")) {
+                  super.insertString(fb, offset, string, attr);
+              }
+          }
+
+          @Override
+          public void replace(FilterBypass fb, int offset, int length, String text, javax.swing.text.AttributeSet attrs)
+                  throws javax.swing.text.BadLocationException {
+              if (text == null || text.isEmpty() || text.matches("\\d+")) {
+                  super.replace(fb, offset, length, text, attrs);
+              }
+          }
+      });
+  }
+  ```
+- Áp dụng bắt buộc cho: ô số lượng dịch vụ, ô số lượng linh kiện, ô số lượng nhập kho, ô số lượng yêu cầu.
+
+---
+
+## 9. Cạm bẫy Bóp méo Bảng trong `BoxLayout` & Kỹ thuật Cố định Số dòng (Anti-squeeze JTable)
+
+### ⚠️ Cạm bẫy ép bẹp JTable / JScrollPane xuống 1 dòng
+- Trong `BoxLayout(Y_AXIS)`, nếu panel cha bị giới hạn không gian, Swing sẽ tự động bóp méo các component con xuống kích thước tối thiểu (`minimumSize`).
+- Mặc định, `JScrollPane` có `minimumSize` rất nhỏ (~60px), khiến bảng bị co dúm lại chỉ thấy được đúng **1 dòng** hoặc bị che mất header!
+- Ngoài ra, nếu đặt `maximumSize` cho `JTabbedPane` hoặc container chứa bảng bằng `child.getPreferredSize().height` lúc khởi tạo (khi chưa có dữ liệu), tab sẽ bị khóa trần chiều cao và không bao giờ nở ra được khi nạp kết quả tìm kiếm!
+
+### 🛡️ Giải pháp chuẩn mực (BẮT BUỘC)
+1. **Giải phóng trần chiều cao cho `tabs`**:
+   ```java
+   tabs.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+   ```
+2. **Cố định số dòng hiển thị của JTable bằng cặp `setPreferredSize` + `setMinimumSize`**:
+   - Công thức tính chiều cao: `H = headerHeight (42px) + (numRows * rowHeight (42px)) + đệm (10-12px)`.
+   - **Bảng kết quả tìm kiếm (cần thấy 4 dòng)**:
+     ```java
+     int tblH = 220; // 42 + 4 * 42 + 10 = 220px
+     resultScroll.setPreferredSize(new Dimension(980, tblH));
+     resultScroll.setMinimumSize(new Dimension(0, tblH));
+     resultCard.setPreferredSize(new Dimension(980, tblH + 16));
+     resultCard.setMinimumSize(new Dimension(0, tblH + 16));
+     resultCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, tblH + 16));
+     ```
+   - **Bảng chi tiết hạng mục (cần thấy 3 dòng)**:
+     ```java
+     int itemH = 180; // 42 + 3 * 42 + 12 = 180px
+     itemScroll.setPreferredSize(new Dimension(Integer.MAX_VALUE, itemH));
+     itemScroll.setMinimumSize(new Dimension(0, itemH));
+     itemScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, itemH));
+     ```
+   - Muốn xem thêm các dòng vượt quá số dòng hiển thị chuẩn, người dùng tự cuộn thanh cuộn của bảng.
+3. **Cập nhật lại layout khi dữ liệu thay đổi**:
+   Khi nạp chi tiết động (`setDetail`), gọi đồng thời:
+   ```java
+   builtComponent.revalidate();
+   tabs.revalidate();
+   root.revalidate();
+   root.repaint();
+   ```
+
+---
+
+## 10. Xử lý Cuộc đua Bất đồng bộ khi Điều hướng Chọn phiếu (`maPhieuChoSua`)
+
+- **Vấn đề**: Khi bấm "Cập nhật phiếu" từ Dashboard hoặc màn hình ngoài, sự kiện chuyển trang và gọi `capNhatPhieuUI.datMaPhieuCanSua(maPhieu)` diễn ra ngay lập tức, nhưng danh sách `listPhieu` của form đích đang được nạp bất đồng bộ bởi `SwingWorker`. Nếu `listPhieu` chưa tải xong, việc tìm phiếu sẽ thất bại và form bị trống ("Chưa chọn phiếu").
+- **Giải pháp hàng đợi (Queue Target ID)**:
+  ```java
+  private String maPhieuChoSua = null;
+
+  public void datMaPhieuCanSua(String maPhieu) {
+      if (maPhieu == null) return;
+      this.maPhieuChoSua = maPhieu;
+      if (listPhieu != null && !listPhieu.isEmpty()) {
+          for (int i = 0; i < listPhieu.size(); i++) {
+              if (maPhieu.equalsIgnoreCase(listPhieu.get(i).maPhieu())) {
+                  cboChonPhieu.setSelectedIndex(i + 1);
+                  this.maPhieuChoSua = null;
+                  break;
+              }
+          }
+      }
+  }
+
+  // Trong done() của SwingWorker nạp danh sách phiếu:
+  if (maPhieuChoSua != null) {
+      for (int i = 0; i < listPhieu.size(); i++) {
+          if (maPhieuChoSua.equalsIgnoreCase(listPhieu.get(i).maPhieu())) {
+              cboChonPhieu.setSelectedIndex(i + 1);
+              maPhieuChoSua = null;
+              break;
+          }
+      }
+  }
+  ```
+
+---
+
+## 11. Pattern Hộp thoại "Xem chi tiết" theo Ngữ cảnh Trạng thái
+
+- Nút "Xem chi tiết" trong các bảng tóm tắt (ví dụ Dashboard) không nhảy thẳng vào form Sửa (tránh làm người dùng bối rối khi phiếu đã Hoàn tất).
+- Mở modal dialog chi tiết (`JDialog`) với các thông tin cốt lõi (Mã phiếu, Trạng thái, Biển số xe & Hãng, Ngày tiếp nhận, Khách hàng & SĐT, KTV, Nội dung yêu cầu).
+- **Nút hành động theo ngữ cảnh trạng thái**:
+  - Phiếu chưa hoàn tất (`CHO_SUA`, `DANG_SUA`, `CHO_LINH_KIEN`): Nút chính là **`"Cập nhật phiếu này ↗"`** chuyển sang form sửa chữa.
+  - Phiếu đã hoàn tất (`HOAN_TAT`): Nút chính là **`"Xem lịch sử sửa chữa ↗"`** chuyển sang tab tra cứu lịch sử (vì phiếu hoàn tất không được sửa đổi).
+  - Nút phụ: **`"Đóng"`** giữ nguyên màn hình hiện tại.
+
+---
+
+## 12. Quy trình triển khai một Màn hình UI mới
 
 1. **Mở Figma**, xác định Page, Frame và inspect mã màu HEX, kích thước, font size.
-2. Tạo file trong package `ui`, hậu tố `UI` (ví dụ `DangNhapUI.java`, `QuanLyKhachHangUI.java`).
-3. Khai báo bảng màu `Color` tĩnh bám sát Figma.
-4. Lắp ráp khung lớn bằng `BorderLayout` (Header NORTH, Content CENTER, Status Bar SOUTH).
-5. Sử dụng cấu trúc `INNER_WIDTH` và `BoxLayout` hoặc `GridBagLayout` đã chuẩn hóa ở trên.
-6. Gắn kết nối sự kiện `bindActions()`, hỗ trợ phím `Enter`, DocumentListener và `SwingWorker`.
-7. Biên dịch kiểm tra: `mvn compile`.
-8. Chạy thử nghiệm và kiểm tra bằng mắt: `mvn exec:java`.
+2. Không thêm breadcrumb/path (ví dụ `Dashboard / Tên trang`) vào màn hình; điều hướng hiện tại được thể hiện bằng Side Navigation và tiêu đề.
+3. Tạo file trong package `ui`, hậu tố `UI` (ví dụ `DangNhapUI.java`, `QuanLyKhachHangUI.java`).
+4. Khai báo bảng màu `Color` tĩnh bám sát Figma.
+5. Lắp ráp khung lớn bằng `BorderLayout` (Header NORTH, Content CENTER, Status Bar SOUTH).
+6. Sử dụng cấu trúc `INNER_WIDTH` và `BoxLayout` hoặc `GridBagLayout` đã chuẩn hóa ở trên.
+7. Gắn kết nối sự kiện `bindActions()`, hỗ trợ phím `Enter`, DocumentListener và `SwingWorker`.
+8. Biên dịch kiểm tra: `mvn compile`.
+9. Chạy thử nghiệm và kiểm tra bằng mắt: `mvn exec:java`.
 9. **Trước khi báo xong, kiểm tra conflict**: `git status` — file nào đang `UU` thì báo người dùng, không tự chọn bên, không tự `git add`; khi sửa màn hình nhiều người sửa (`MainFrame`, `DashboardUI`, `DangNhapUI`) chỉ đổi đúng đoạn cần, không format lại toàn file.

@@ -10,7 +10,7 @@ import java.sql.SQLException;
 /**
  * DAO phụ trách chức năng quên mật khẩu / đặt lại mật khẩu - JDBC thuần.
  */
-public class PasswordResetDao {
+public class PasswordResetDAO {
 
     /**
      * Xác thực thông tin người dùng khi yêu cầu đặt lại mật khẩu bằng CCCD.

@@ -67,6 +67,11 @@ public final class DatabaseConfig {
                 + ";encrypt=true;trustServerCertificate=true;loginTimeout=3;connectRetryCount=0";
     }
 
+    /** Tên database SQL Server đọc từ cấu hình. */
+    public static String layTenDatabase() {
+        return lay(docEnv(), "SQLSERVER_DATABASE");
+    }
+
     /** Mật khẩu SA – đọc từ .env, không bao giờ hard-code. */
     public static String layMatKhau() {
         return lay(docEnv(), "SQLSERVER_SA_PASSWORD");

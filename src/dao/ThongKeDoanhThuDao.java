@@ -17,7 +17,7 @@ import java.util.List;
  * Toàn bộ là SELECT chỉ đọc trên view {@code vw_HoaDon_TongTien} và {@code vw_PhieuDoiTra_HoanTien};
  * không tính lại thuế/khuyến mãi ở Java.
  */
-public class ThongKeDoanhThuDao {
+public class ThongKeDoanhThuDAO {
 
     /** Tổng hợp doanh thu kỳ: [soHoaDon, tongThu, tienMat, chuyenKhoan]. */
     public List<Object[]> layTongHopDoanhThu(LocalDate tuNgay, LocalDate denNgay) {
@@ -65,6 +65,27 @@ public class ThongKeDoanhThuDao {
                 + "OR (DATEPART(HOUR,h.thoiGianThanhToan)>=13 AND DATEPART(HOUR,h.thoiGianThanhToan)<18)) GROUP BY CASE "
                 + "WHEN DATEPART(HOUR,h.thoiGianThanhToan)<10 THEN 0 WHEN DATEPART(HOUR,h.thoiGianThanhToan)<12 THEN 1 "
                 + "WHEN DATEPART(HOUR,h.thoiGianThanhToan)<15 THEN 2 ELSE 3 END";
+        return query(sql, ngay(tuNgay), ngay(denNgay));
+    }
+
+    /** Doanh thu theo ngày: [ngay, soHoaDon, tienMat, chuyenKhoan]. */
+    public List<Object[]> layDoanhThuTheoNgay(LocalDate tuNgay, LocalDate denNgay) {
+        String sql = "SELECT CAST(h.thoiGianThanhToan AS DATE), COUNT(*), "
+                + "COALESCE(SUM(CASE WHEN h.phuongThucTT='TIEN_MAT' THEN v.tongThanhToan ELSE 0 END),0), "
+                + "COALESCE(SUM(CASE WHEN h.phuongThucTT='CHUYEN_KHOAN' THEN v.tongThanhToan ELSE 0 END),0) "
+                + "FROM HoaDon h JOIN vw_HoaDon_TongTien v ON v.maHoaDon=h.maHoaDon "
+                + "WHERE h.trangThaiThanhToan='DA_THANH_TOAN' AND h.thoiGianThanhToan>=? "
+                + "AND h.thoiGianThanhToan<DATEADD(DAY,1,?) "
+                + "GROUP BY CAST(h.thoiGianThanhToan AS DATE) ORDER BY CAST(h.thoiGianThanhToan AS DATE)";
+        return query(sql, ngay(tuNgay), ngay(denNgay));
+    }
+
+    /** Tiền hoàn theo ngày: [ngay, soTien]. */
+    public List<Object[]> layHoanTienTheoNgay(LocalDate tuNgay, LocalDate denNgay) {
+        String sql = "SELECT CAST(r.ngayLap AS DATE), COALESCE(SUM(r.soTienHoanTra),0) "
+                + "FROM vw_PhieuDoiTra_HoanTien r WHERE r.ngayLap>=? "
+                + "AND r.ngayLap<DATEADD(DAY,1,?) "
+                + "GROUP BY CAST(r.ngayLap AS DATE) ORDER BY CAST(r.ngayLap AS DATE)";
         return query(sql, ngay(tuNgay), ngay(denNgay));
     }
 

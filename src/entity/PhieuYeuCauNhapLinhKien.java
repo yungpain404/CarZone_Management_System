@@ -19,6 +19,8 @@ public class PhieuYeuCauNhapLinhKien {
     private Date ngayTao;
     private Date ngayXuLy;
     private int soLuongYeuCau;
+    /** Số lượng Chủ cửa hàng xác nhận đã nhận; null trước khi nhập kho. */
+    private Integer soLuongNhapThucTe;
     private TrangThaiYeuCau trangThai;
     /** Lý do yêu cầu của kỹ thuật viên (DB: NOT NULL). */
     private String ghiChu;
@@ -93,6 +95,16 @@ public class PhieuYeuCauNhapLinhKien {
         if (soLuongYeuCau <= 0) throw new IllegalArgumentException("Số lượng yêu cầu phải lớn hơn 0.");
     	this.soLuongYeuCau = soLuongYeuCau;
     }
+    public Integer getSoLuongNhapThucTe() {
+        return soLuongNhapThucTe;
+    }
+    public void setSoLuongNhapThucTe(Integer soLuongNhapThucTe) {
+        if (soLuongNhapThucTe != null && soLuongNhapThucTe <= 0) throw new IllegalArgumentException("Số lượng thực nhận phải lớn hơn 0.");
+        this.soLuongNhapThucTe = soLuongNhapThucTe;
+    }
+    public void setSoLuongNhapThucTeRaw(Integer soLuongNhapThucTe) {
+        this.soLuongNhapThucTe = soLuongNhapThucTe;
+    }
     public TrangThaiYeuCau getTrangThai() {
     	return trangThai;
     }
@@ -131,6 +143,6 @@ public class PhieuYeuCauNhapLinhKien {
         return Objects.equals(maYeuCau, ((PhieuYeuCauNhapLinhKien) obj).maYeuCau);
     }
     @Override public String toString() {
-    	return "PhieuYeuCauNhapLinhKien [" + "maYeuCau=" + maYeuCau + ", " + "linhKien=" + linhKien + ", " + "nhanVienLap=" + nhanVienLap + ", " + "nhanVienXuLy=" + nhanVienXuLy + ", " + "ngayTao=" + ngayTao + ", " + "ngayXuLy=" + ngayXuLy + ", " + "soLuongYeuCau=" + soLuongYeuCau + ", " + "trangThai=" + trangThai + ", " + "ghiChu=" + ghiChu + ", " + "ghiChuXuLy=" + ghiChuXuLy + "]";
+        return "PhieuYeuCauNhapLinhKien [" + "maYeuCau=" + maYeuCau + ", " + "linhKien=" + linhKien + ", " + "nhanVienLap=" + nhanVienLap + ", " + "nhanVienXuLy=" + nhanVienXuLy + ", " + "ngayTao=" + ngayTao + ", " + "ngayXuLy=" + ngayXuLy + ", " + "soLuongYeuCau=" + soLuongYeuCau + ", " + "soLuongNhapThucTe=" + soLuongNhapThucTe + ", " + "trangThai=" + trangThai + ", " + "ghiChu=" + ghiChu + ", " + "ghiChuXuLy=" + ghiChuXuLy + "]";
     }
 }

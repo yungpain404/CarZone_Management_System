@@ -44,5 +44,8 @@ Làm theo skill `tranh-conflict` (đọc đầu phiên, đặc biệt khi `git s
 - Cho người dùng nhập mã tự sinh hoặc tổng tiền.
 - Sửa các file migration cũ (V1, V2).
 - Thêm thư viện vào `pom.xml` khi chưa được đồng ý.
+- Xóa tệp `.classpath` hoặc thêm `<classpathentry kind="lib" path="pom.xml"/>` vào `.classpath` (làm hỏng build path của IDE).
+- Chạy lệnh `javac` đơn lẻ thiếu cờ `-d target/classes` làm sinh file `.class` rác vào trong `src/` (mọi biên dịch phải qua `mvn compile`).
+- Đặt phạm vi package-private cho các lớp tiện ích dùng chung như `UIInputRules` (bắt buộc phải là `public final class` với phương thức `public static`).
 - Tạo lại cấu trúc đã gỡ ngày 30/10/2026: package `service`, thư mục `src/dao/impl/`, interface `I*Dao`, lớp `*Id.java` khóa ghép trong `entity`, thư mục `src/resources/images/`, `.png` trong `src/ui/`, hay `src/app/Main.java`.
 - Format lại toàn file/thư mục không thuộc phạm vi việc đang làm.
