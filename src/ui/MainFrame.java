@@ -1,6 +1,7 @@
 package ui;
 
 import connectDB.DbUtil;
+import backup.AppShutdownManager;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -167,7 +168,7 @@ public class MainFrame extends JFrame {
         setSize(1170, 800);
         setMinimumSize(new Dimension(1024, 700));
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         getContentPane().setBackground(C_BG);
 
         // Icon ứng dụng
@@ -179,7 +180,7 @@ public class MainFrame extends JFrame {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                DbUtil.close();
+                AppShutdownManager.handleExit(MainFrame.this);
             }
         });
 
@@ -1692,10 +1693,10 @@ public class MainFrame extends JFrame {
                     dao.PhieuTiepNhanSuaChuaDAO.ThongKeKTVData d = get();
                     int tong = d.tongPhieu(), hoanTat = d.phieuHoanTat(), dangSua = d.phieuDangSua(),
                             choLK = d.phieuChoLinhKien();
-                    int moi = Math.max(0, tong - hoanTat - dangSua - choLK);
+                    int choSua = Math.max(0, tong - hoanTat - dangSua - choLK);
                     int canHoanThanh = Math.max(0, tong - hoanTat);
                     lblKpi1Num.setText(String.valueOf(canHoanThanh));
-                    lblKpi1Sub.setText(moi + " mới · " + dangSua + " đang sửa · " + choLK + " chờ linh kiện");
+                    lblKpi1Sub.setText(choSua + " chờ sửa · " + dangSua + " đang sửa · " + choLK + " chờ linh kiện");
                     lblKpi2Num.setText(String.valueOf(dangSua));
                     lblKpi2Sub.setText(dangSua + " phiếu đang được xử lý");
                     lblKpi4Num.setText(String.valueOf(hoanTat));
@@ -1747,7 +1748,7 @@ public class MainFrame extends JFrame {
                     for (int i = 0; i < limit; i++) {
                         dao.PhieuTiepNhanSuaChuaDAO.PhieuSuaChuaItem p = list.get(i);
                         String trangThai = switch (p.trangThai() == null ? "" : p.trangThai()) {
-                            case "CHO_SUA" -> "Mới phân công";
+                            case "CHO_SUA" -> "Chờ sửa";
                             case "DANG_SUA" -> "Đang sửa";
                             case "CHO_LINH_KIEN" -> "Chờ linh kiện";
                             case "HOAN_TAT" -> "Hoàn tất";
@@ -1771,8 +1772,8 @@ public class MainFrame extends JFrame {
         }.execute();
 
         // 4. Section: Hai biểu đồ hàng ngang
-        JProgressBar pbMoi = new JProgressBar(0, 10);
-        JLabel lblMoiVal = taoNhan("0", Font.BOLD, 12, F_TITLE);
+        JProgressBar pbChoSua = new JProgressBar(0, 10);
+        JLabel lblChoSuaVal = taoNhan("0", Font.BOLD, 12, F_TITLE);
         JProgressBar pbDangSua = new JProgressBar(0, 10);
         JLabel lblDangSuaVal = taoNhan("0", Font.BOLD, 12, F_TITLE);
         JProgressBar pbChoLK = new JProgressBar(0, 10);
@@ -1782,7 +1783,7 @@ public class MainFrame extends JFrame {
 
         JLabel lblDonutCenter = taoNhan("0%", Font.BOLD, 15, F_TITLE);
         JLabel lblLegendHT = taoNhan("0%", Font.BOLD, 11, F_TITLE);
-        JLabel lblLegendMoiDS = taoNhan("0%", Font.BOLD, 11, F_TITLE);
+        JLabel lblLegendChoDS = taoNhan("0%", Font.BOLD, 11, F_TITLE);
         JLabel lblLegendCLK = taoNhan("0%", Font.BOLD, 11, F_TITLE);
         int[] donutAngles = new int[] { 0, 0, 0 };
         JPanel[] donutRef = new JPanel[1];
@@ -1792,8 +1793,8 @@ public class MainFrame extends JFrame {
         pnlCharts.setAlignmentX(Component.CENTER_ALIGNMENT);
         pnlCharts.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
-        pnlCharts.add(taoChartPhieuTheoTrangThaiDynamic(pbMoi, lblMoiVal, pbDangSua, lblDangSuaVal, pbChoLK, lblChoLKVal, pbHoanThanh, lblHoanThanhVal));
-        pnlCharts.add(taoChartTyLeHoanThanhDynamic(lblDonutCenter, lblLegendHT, lblLegendMoiDS, lblLegendCLK, donutAngles, donutRef));
+        pnlCharts.add(taoChartPhieuTheoTrangThaiDynamic(pbChoSua, lblChoSuaVal, pbDangSua, lblDangSuaVal, pbChoLK, lblChoLKVal, pbHoanThanh, lblHoanThanhVal));
+        pnlCharts.add(taoChartTyLeHoanThanhDynamic(lblDonutCenter, lblLegendHT, lblLegendChoDS, lblLegendCLK, donutAngles, donutRef));
 
         // Load số liệu 7 ngày gần nhất cho 2 biểu đồ
         new SwingWorker<dao.PhieuTiepNhanSuaChuaDAO.ThongKeKTVData, Void>() {
@@ -1811,25 +1812,25 @@ public class MainFrame extends JFrame {
                 try {
                     dao.PhieuTiepNhanSuaChuaDAO.ThongKeKTVData d = get();
                     int tong = d.tongPhieu(), hoanTat = d.phieuHoanTat(), dangSua = d.phieuDangSua(), choLK = d.phieuChoLinhKien();
-                    int moi = Math.max(0, tong - hoanTat - dangSua - choLK);
-                    int max = Math.max(1, Math.max(Math.max(moi, dangSua), Math.max(choLK, hoanTat)));
+                    int choSua = Math.max(0, tong - hoanTat - dangSua - choLK);
+                    int max = Math.max(1, Math.max(Math.max(choSua, dangSua), Math.max(choLK, hoanTat)));
 
-                    pbMoi.setMaximum(max); pbMoi.setValue(moi); lblMoiVal.setText(String.valueOf(moi));
+                    pbChoSua.setMaximum(max); pbChoSua.setValue(choSua); lblChoSuaVal.setText(String.valueOf(choSua));
                     pbDangSua.setMaximum(max); pbDangSua.setValue(dangSua); lblDangSuaVal.setText(String.valueOf(dangSua));
                     pbChoLK.setMaximum(max); pbChoLK.setValue(choLK); lblChoLKVal.setText(String.valueOf(choLK));
                     pbHoanThanh.setMaximum(max); pbHoanThanh.setValue(hoanTat); lblHoanThanhVal.setText(String.valueOf(hoanTat));
 
                     int pctHT = tong > 0 ? (int) Math.round(hoanTat * 100.0 / tong) : 0;
-                    int pctMoiDS = tong > 0 ? (int) Math.round((moi + dangSua) * 100.0 / tong) : 0;
-                    int pctCLK = tong > 0 ? Math.max(0, 100 - pctHT - pctMoiDS) : 0;
+                    int pctChoDS = tong > 0 ? (int) Math.round((choSua + dangSua) * 100.0 / tong) : 0;
+                    int pctCLK = tong > 0 ? Math.max(0, 100 - pctHT - pctChoDS) : 0;
 
                     lblDonutCenter.setText(pctHT + "%");
                     lblLegendHT.setText(pctHT + "%");
-                    lblLegendMoiDS.setText(pctMoiDS + "%");
+                    lblLegendChoDS.setText(pctChoDS + "%");
                     lblLegendCLK.setText(pctCLK + "%");
 
                     donutAngles[0] = (int) Math.round(pctHT * 3.6);
-                    donutAngles[1] = (int) Math.round(pctMoiDS * 3.6);
+                    donutAngles[1] = (int) Math.round(pctChoDS * 3.6);
                     donutAngles[2] = Math.max(0, 360 - donutAngles[0] - donutAngles[1]);
                     if (donutRef[0] != null) {
                         donutRef[0].repaint();
@@ -1891,7 +1892,7 @@ public class MainFrame extends JFrame {
         grid.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         String stTen = switch (p.trangThai() == null ? "" : p.trangThai()) {
-            case "CHO_SUA" -> "Mới phân công / Chờ sửa";
+            case "CHO_SUA" -> "Chờ sửa";
             case "DANG_SUA" -> "Đang sửa";
             case "CHO_LINH_KIEN" -> "Chờ linh kiện";
             case "HOAN_TAT" -> "Hoàn tất";
@@ -2051,7 +2052,7 @@ public class MainFrame extends JFrame {
     }
 
     private JPanel taoChartPhieuTheoTrangThaiDynamic(
-            JProgressBar pbMoi, JLabel lblMoiVal,
+            JProgressBar pbChoSua, JLabel lblChoSuaVal,
             JProgressBar pbDangSua, JLabel lblDangSuaVal,
             JProgressBar pbChoLK, JLabel lblChoLKVal,
             JProgressBar pbHoanThanh, JLabel lblHoanThanhVal) {
@@ -2065,7 +2066,7 @@ public class MainFrame extends JFrame {
         addFull(card, top);
         card.add(Box.createVerticalStrut(14));
 
-        card.add(taoProgressBarRowDynamic("Mới", pbMoi, lblMoiVal, new Color(0x94A3B8)));
+        card.add(taoProgressBarRowDynamic("Chờ sửa", pbChoSua, lblChoSuaVal, new Color(0x94A3B8)));
         card.add(Box.createVerticalStrut(8));
         card.add(taoProgressBarRowDynamic("Đang sửa", pbDangSua, lblDangSuaVal, C_PRIMARY));
         card.add(Box.createVerticalStrut(8));
@@ -2105,7 +2106,7 @@ public class MainFrame extends JFrame {
     }
 
     private JPanel taoChartTyLeHoanThanhDynamic(
-            JLabel lblDonutCenter, JLabel lblLegendHT, JLabel lblLegendMoiDS, JLabel lblLegendCLK,
+            JLabel lblDonutCenter, JLabel lblLegendHT, JLabel lblLegendChoDS, JLabel lblLegendCLK,
             int[] donutAngles, JPanel[] outDonutPanel) {
         RoundedPanel card = new RoundedPanel(C_WHITE, 12, F_LINE, new Insets(16, 18, 14, 18));
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
@@ -2174,7 +2175,7 @@ public class MainFrame extends JFrame {
         legend.setLayout(new BoxLayout(legend, BoxLayout.Y_AXIS));
         legend.add(taoLegendRowDynamic(C_PRIMARY, "Hoàn thành", lblLegendHT));
         legend.add(Box.createVerticalStrut(6));
-        legend.add(taoLegendRowDynamic(new Color(0x38BDF8), "Mới / Đang sửa", lblLegendMoiDS));
+        legend.add(taoLegendRowDynamic(new Color(0x38BDF8), "Chờ sửa / Đang sửa", lblLegendChoDS));
         legend.add(Box.createVerticalStrut(6));
         legend.add(taoLegendRowDynamic(C_WARN, "Chờ linh kiện", lblLegendCLK));
         chartContent.add(legend, BorderLayout.CENTER);

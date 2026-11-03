@@ -66,7 +66,7 @@ public class ThongKeSuaChuaUI extends JPanel {
     private final JDateChooser dcTuNgay = createDateChooser(170);
     private final JDateChooser dcDenNgay = createDateChooser(170);
     private final JComboBox<String> cboTrangThai = new JComboBox<>(
-            new String[] { "Tất cả", "Hoàn tất", "Đang sửa", "Chờ linh kiện", "Mới phân công" });
+            new String[] { "Tất cả", "Hoàn tất", "Đang sửa", "Chờ linh kiện", "Chờ sửa" });
     private final JButton btnXem = button("Xem thống kê", true, 140);
     private final JButton btnLamMoi = button("Làm mới", false, 100);
     private final JButton btnXuatCsv = button("Xuất báo cáo", false, 130);
@@ -443,7 +443,7 @@ public class ThongKeSuaChuaUI extends JPanel {
             case "Hoàn tất" -> "HOAN_TAT";
             case "Đang sửa" -> "DANG_SUA";
             case "Chờ linh kiện" -> "CHO_LINH_KIEN";
-            case "Mới phân công" -> "CHO_SUA";
+            case "Chờ sửa" -> "CHO_SUA";
             default -> null;
         };
 
@@ -657,7 +657,7 @@ public class ThongKeSuaChuaUI extends JPanel {
             } else if (s.contains("Chờ linh kiện")) {
                 bg = new Color(0xFFFBEB);
                 fg = new Color(0xD97706);
-            } else if (s.contains("Mới")) {
+            } else if (s.contains("Chờ sửa") || s.contains("Mới")) {
                 bg = new Color(0xF1F5F9);
                 fg = new Color(0x64748B);
             }
@@ -672,7 +672,7 @@ public class ThongKeSuaChuaUI extends JPanel {
 
     private static String tenTrangThai(String status) {
         return switch (status == null ? "" : status) {
-            case "CHO_SUA" -> "Mới phân công";
+            case "CHO_SUA" -> "Chờ sửa";
             case "DANG_SUA" -> "Đang sửa";
             case "CHO_LINH_KIEN" -> "Chờ linh kiện";
             case "HOAN_TAT" -> "Hoàn tất";
@@ -917,7 +917,7 @@ public class ThongKeSuaChuaUI extends JPanel {
 
             // Legend bên phải
             int lx = 205, ly = 80;
-            drawLegendItem(g2, lx, ly, new Color(0x94A3B8), "Mới phân công", moi);
+            drawLegendItem(g2, lx, ly, new Color(0x94A3B8), "Chờ sửa", moi);
             drawLegendItem(g2, lx, ly + 28, PRIMARY, "Đang sửa", dangSua);
             drawLegendItem(g2, lx, ly + 56, SUCCESS, "Hoàn tất", hoanTat);
             drawLegendItem(g2, lx, ly + 84, WARN, "Chờ linh kiện", choLK);

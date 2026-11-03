@@ -46,6 +46,20 @@
             <version>1.4</version>
         </dependency>
 
+        <!-- Quartz Scheduler cho tự động sao lưu dữ liệu -->
+        <dependency>
+            <groupId>org.quartz-scheduler</groupId>
+            <artifactId>quartz</artifactId>
+            <version>2.3.2</version>
+        </dependency>
+
+        <!-- SLF4J + Logback cho nhật ký hệ thống & audit log -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.6</version>
+        </dependency>
+
         <!-- JUnit 5 cho unit test -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -66,6 +80,13 @@
                 <directory>img</directory>
                 <includes>
                     <include>**/*.png</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src</directory>
+                <includes>
+                    <include>*.xml</include>
+                    <include>*.properties</include>
                 </includes>
             </resource>
         </resources>

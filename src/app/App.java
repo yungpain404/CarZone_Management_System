@@ -1,5 +1,7 @@
 package app;
 
+import backup.AppShutdownManager;
+import backup.BackupScheduler;
 import com.formdev.flatlaf.FlatLightLaf;
 import entity.NhanVien;
 import ui.DangNhapUI;
@@ -29,7 +31,19 @@ public class App {
         UIManager.put("TextComponent.arc", 12);
         UIManager.put("defaultFont", new Font("SansSerif", Font.PLAIN, 13));
 
-        // 2. Chạy trên Event Dispatch Thread: Mở Splash Screen (KhoiDongUI) trước
+        // 2. Khởi tạo Shutdown Hook và Backup Scheduler (chạy nền, không chặn EDT)
+        AppShutdownManager.khoiTaoShutdownHook();
+        Thread backupInitThread = new Thread(() -> {
+            try {
+                BackupScheduler.getInstance().start();
+            } catch (Throwable t) {
+                // Đã được log bên trong BackupScheduler
+            }
+        }, "carzone-backup-init");
+        backupInitThread.setDaemon(true);
+        backupInitThread.start();
+
+        // 3. Chạy trên Event Dispatch Thread: Mở Splash Screen (KhoiDongUI) trước
         SwingUtilities.invokeLater(() -> {
             KhoiDongUI splashFrame = new KhoiDongUI();
 

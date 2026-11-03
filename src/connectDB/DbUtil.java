@@ -49,9 +49,16 @@ public final class DbUtil {
     // ── Mở Connection ─────────────────────────────────────────────────────────
 
     /**
-     * Mở và trả về một Connection JDBC mới. Ném {@link RuntimeException} nếu DB offline hoặc lỗi.
+     * Mở và trả về một Connection JDBC mới được bọc Audit Proxy tự động ghi nhật ký.
      */
     public static Connection getConnection() {
+        return audit.AuditConnectionProxy.wrap(getRawConnection());
+    }
+
+    /**
+     * Mở và trả về Connection thuần không bọc proxy (dùng cho nội bộ backup/kiểm tra hệ thống).
+     */
+    public static Connection getRawConnection() {
         if (!isDatabaseOnline()) {
             throw new RuntimeException("Cơ sở dữ liệu đang ngoại tuyến.");
         }

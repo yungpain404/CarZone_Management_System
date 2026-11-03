@@ -1,6 +1,7 @@
 package ui;
 
 import com.formdev.flatlaf.FlatClientProperties;
+import backup.AppShutdownManager;
 import entity.NhanVien;
 import controller.DangNhapController;
 import controller.DangNhapController.KetQuaDangNhap;
@@ -998,7 +999,7 @@ public class DangNhapUI extends JFrame {
                 "Bạn có chắc muốn thoát ứng dụng CarZone không?", "Xác nhận thoát",
                 JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (c == JOptionPane.YES_OPTION) {
-            System.exit(0);
+            AppShutdownManager.handleExit(this);
         }
     }
 

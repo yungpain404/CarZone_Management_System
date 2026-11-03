@@ -26,6 +26,18 @@
 - **Tra cứu Chủ cửa hàng**: thay trang tra cứu chung bằng ba tab chỉ đọc Linh kiện, Khách hàng và Lịch sử sửa chữa; bỏ Dịch vụ. Không tải danh sách ban đầu, chỉ tìm khi có từ khóa; chi tiết khách tải xe theo lựa chọn, chi tiết phiếu lấy dịch vụ/linh kiện và tổng tiền từ view lịch sử. Nối `NAV_TRA_CUU` riêng cho CCH; `mvn -q compile` đạt.
 - **Thông tin cá nhân**: cập nhật trang trong `MainFrame` theo ảnh; tab Hồ sơ cá nhân đứng trước, hiển thị họ tên, mã nhân viên, username từ session, điện thoại, CCCD, ngày sinh, ngày vào làm, tuổi và địa chỉ từ hồ sơ hiện tại. Tab Thông tin vai trò đứng sau với bảng chức năng/phạm vi theo navigation role, không dùng breadcrumb; `mvn -q compile` đạt.
 
+## Mới làm (03/11/2026)
+- **Tự động sao lưu CSDL SQL Server (Quartz) & Audit Log (SLF4J/Logback)**:
+  + Cấu hình Quartz lập lịch 3 Job (FULL 00:00/12:00, DIFF 04:00/08:00/16:00/20:00, LOG mỗi 15 phút), dùng chung `ReentrantLock(fair=true)` phân quyền ưu tiên FULL > DIFF > LOG (LOG skip ghi WARN nếu lock bận).
+  + **Hỗ trợ Đa máy trạm (Multi-Client) chống đè dữ liệu:** 
+    * Triển khai Khóa phân tán trên SQL Server qua `sp_getapplock` (`CarZone_Backup_Distributed_Lock`) kết hợp khóa cục bộ.
+    * Cơ chế "Ai backup đầu tiên thì lấy kết quả người đó": Kiểm tra lịch sử `msdb.dbo.backupset` trước và sau khi nhận khóa; nếu máy khác đã hoàn thành mốc này (FULL < 60p, DIFF < 30p, LOG < 10p, Thoát < 5p), máy sau tự động bỏ qua để tránh ghi đè file trên server.
+    * Ghi vết định danh máy trạm và nhân viên thực hiện (`UserSession` + Hostname) vào metadata bản sao lưu trên SQL Server.
+  + Intercept tập trung qua dynamic proxy `AuditConnectionProxy`/`AuditStatementProxy` bọc `DbUtil.getConnection()`, ghi audit log DML kèm thời gian, người dùng (UserSession), số dòng affected, tham số (tự mask mật khẩu/chuỗi nhạy cảm). Tách file `app.log` và `audit.log` qua `AsyncAppender` Logback rolling 30 ngày.
+  + Modal `ShutdownDialog` + `AppShutdownManager`: Bắt toàn bộ thao tác thoát trên mọi JFrame (`MainFrame`, `DangNhapUI`, `KhoiDongUI`), chạy DIFF + LOG ca làm việc, hiển thị tiến độ, timeout bảo vệ, chống tắt ngang.
+  + Chuẩn hóa trạng thái phiếu sửa chữa KTV: xóa bỏ toàn bộ nhãn sai lệch "Mới phân công" / "Mới", đồng bộ chuẩn 4 trạng thái theo enum (`CHO_SUA` -> "Chờ sửa", `DANG_SUA` -> "Đang sửa", `CHO_LINH_KIEN` -> "Chờ linh kiện", `HOAN_TAT` -> "Hoàn tất") trên KPI card, bảng công việc gần đây, dialog chi tiết phiếu, biểu đồ tiến độ và donut tỷ lệ hoàn thành (`MainFrame.java`, `ThongKeSuaChuaUI.java`).
+  + `mvn -q compile` đạt 100%, không sinh file `.class` rác.
+
 ## Mới làm (02/11/2026)
 - **Hoàn thiện UI/UX và logic nghiệp vụ phân hệ Kỹ thuật viên & Tra cứu:**
   + KPI "Phiếu cần hoàn thành" Dashboard KTV: tính chuẩn `tong - hoanTat` (trừ đi số phiếu đã hoàn tất).

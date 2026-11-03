@@ -1,6 +1,7 @@
 package ui;
 
 import connectDB.DbUtil;
+import backup.AppShutdownManager;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -74,7 +75,7 @@ public class KhoiDongUI extends JFrame {
         setTitle("CarZone – Khởi động hệ thống");
         setSize(1280, 840);
         setMinimumSize(new Dimension(1024, 720));
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setLocationRelativeTo(null);
         getContentPane().setBackground(C_BG);
 
@@ -97,6 +98,7 @@ public class KhoiDongUI extends JFrame {
                 if (progressTimer != null && progressTimer.isRunning()) {
                     progressTimer.stop();
                 }
+                AppShutdownManager.handleExit(KhoiDongUI.this);
             }
         });
     }
