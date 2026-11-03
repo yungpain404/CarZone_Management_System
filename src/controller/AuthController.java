@@ -158,6 +158,11 @@ public class AuthController {
                 JOptionPane.QUESTION_MESSAGE);
 
         if (opt == JOptionPane.YES_OPTION) {
+            // Dừng scheduler sao lưu nếu tài khoản vừa đăng xuất là Chủ cửa hàng
+            try {
+                backup.BackupScheduler.getInstance().shutdown();
+            } catch (Throwable ignored) {}
+
             // Hủy phiên làm việc
             UserSession.getInstance().huyPhien();
 

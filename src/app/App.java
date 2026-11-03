@@ -4,6 +4,7 @@ import backup.AppShutdownManager;
 import backup.BackupScheduler;
 import com.formdev.flatlaf.FlatLightLaf;
 import entity.NhanVien;
+import enums.VaiTro;
 import ui.DangNhapUI;
 import ui.KhoiDongUI;
 import ui.MainFrame;
@@ -31,17 +32,8 @@ public class App {
         UIManager.put("TextComponent.arc", 12);
         UIManager.put("defaultFont", new Font("SansSerif", Font.PLAIN, 13));
 
-        // 2. Khởi tạo Shutdown Hook và Backup Scheduler (chạy nền, không chặn EDT)
+        // 2. Khởi tạo Shutdown Hook dọn dẹp hệ thống
         AppShutdownManager.khoiTaoShutdownHook();
-        Thread backupInitThread = new Thread(() -> {
-            try {
-                BackupScheduler.getInstance().start();
-            } catch (Throwable t) {
-                // Đã được log bên trong BackupScheduler
-            }
-        }, "carzone-backup-init");
-        backupInitThread.setDaemon(true);
-        backupInitThread.start();
 
         // 3. Chạy trên Event Dispatch Thread: Mở Splash Screen (KhoiDongUI) trước
         SwingUtilities.invokeLater(() -> {
@@ -64,6 +56,22 @@ public class App {
 
     /** Mở màn hình chính MainFrame theo vai trò sau khi đăng nhập thành công. */
     public static void moManHinhChinh(NhanVien nhanVien) {
+        // Chỉ khởi chạy hệ thống sao lưu tự động Quartz trên máy của Chủ cửa hàng
+        if (nhanVien != null && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
+            Thread backupInitThread = new Thread(() -> {
+                try {
+                    BackupScheduler.getInstance().start();
+                } catch (Throwable t) {
+                    // Đã được log bên trong BackupScheduler
+                }
+            }, "carzone-cch-backup-scheduler");
+            backupInitThread.setDaemon(true);
+            backupInitThread.start();
+        } else {
+            // Các role khác (Tiếp nhận viên, Kỹ thuật viên) không chạy backup tự động
+            BackupScheduler.getInstance().shutdown();
+        }
+
         SwingUtilities.invokeLater(() -> {
             MainFrame mainFrame = new MainFrame(nhanVien);
             mainFrame.setVisible(true);

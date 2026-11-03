@@ -20,6 +20,12 @@ public class DiffBackupJob implements Job {
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
+        // Chỉ chạy trên máy của Chủ cửa hàng
+        if (!session.UserSession.getInstance().coVaiTro(enums.VaiTro.CHU_CUA_HANG)) {
+            log.info("[DiffBackupJob] Bỏ qua: Phiên làm việc hiện tại không phải Chủ cửa hàng.");
+            return;
+        }
+
         log.info("[DiffBackupJob] Trigger kích hoạt – bắt đầu DIFFERENTIAL backup");
         BackupResult result = BackupService.getInstance().thucHienBackup(BackupType.DIFF);
         if (!result.thanhCong()) {

@@ -20,6 +20,12 @@ public class FullBackupJob implements Job {
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
+        // Chỉ chạy trên máy của Chủ cửa hàng
+        if (!session.UserSession.getInstance().coVaiTro(enums.VaiTro.CHU_CUA_HANG)) {
+            log.info("[FullBackupJob] Bỏ qua: Phiên làm việc hiện tại không phải Chủ cửa hàng.");
+            return;
+        }
+
         log.info("[FullBackupJob] Trigger kích hoạt – bắt đầu FULL backup");
         BackupResult result = BackupService.getInstance().thucHienBackup(BackupType.FULL);
         if (!result.thanhCong()) {

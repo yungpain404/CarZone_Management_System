@@ -20,6 +20,12 @@ public class LogBackupJob implements Job {
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
+        // Chỉ chạy trên máy của Chủ cửa hàng
+        if (!session.UserSession.getInstance().coVaiTro(enums.VaiTro.CHU_CUA_HANG)) {
+            log.debug("[LogBackupJob] Bỏ qua: Phiên làm việc hiện tại không phải Chủ cửa hàng.");
+            return;
+        }
+
         log.debug("[LogBackupJob] Trigger kích hoạt – thử TRANSACTION LOG backup");
         BackupResult result = BackupService.getInstance().thucHienBackup(BackupType.LOG);
         // Nếu bị skip (lock bận) → BackupService đã ghi WARN, không ném exception

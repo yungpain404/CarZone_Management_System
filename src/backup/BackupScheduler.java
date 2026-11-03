@@ -46,7 +46,19 @@ public class BackupScheduler {
      * Gọi từ thread nền khi app startup – KHÔNG gọi trên EDT.
      */
     public void start() {
+        // Chỉ chạy scheduler sao lưu tự động khi người dùng là Chủ cửa hàng
+        if (!session.UserSession.getInstance().coVaiTro(enums.VaiTro.CHU_CUA_HANG)) {
+            log.info("[BackupScheduler] Bỏ qua khởi động scheduler: Chỉ chạy sao lưu tự động trên máy Chủ cửa hàng (vai trò hiện tại: {}).",
+                    session.UserSession.getInstance().getVaiTro());
+            return;
+        }
+
         try {
+            if (scheduler != null && scheduler.isStarted() && !scheduler.isShutdown()) {
+                log.info("[BackupScheduler] Quartz Scheduler đã đang chạy.");
+                return;
+            }
+
             // 1. Kiểm tra môi trường backup (recovery model, first full, v.v.)
             BackupService.getInstance().khoiTaoStartup();
 

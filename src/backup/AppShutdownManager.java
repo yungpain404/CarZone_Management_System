@@ -56,6 +56,15 @@ public class AppShutdownManager {
      * @param owner JFrame chính (dùng để định vị dialog)
      */
     public static void handleExit(JFrame owner) {
+        // 0. Chỉ thực hiện quy trình sao lưu khi người thoát là Chủ cửa hàng
+        boolean laChuCuaHang = session.UserSession.getInstance().coVaiTro(enums.VaiTro.CHU_CUA_HANG);
+        if (!laChuCuaHang) {
+            log.info("[AppShutdownManager] Người dùng hiện tại không phải Chủ cửa hàng (vai trò: {}) -> Thoát ứng dụng trực tiếp.",
+                    session.UserSession.getInstance().getVaiTro());
+            System.exit(0);
+            return;
+        }
+
         // 1. Kiểm tra backup gần đây – thoát nhanh
         if (BackupService.getInstance().vuaCoBackupGanDay()) {
             log.info("[AppShutdownManager] Có backup gần đây – thoát nhanh không cần sao lưu thêm.");

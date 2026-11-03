@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "App",
+            "request": "launch",
+            "mainClass": "app.App",
+            "projectName": "carzone"
+        },
+        {
+            "type": "java",
+            "name": "Chạy CarZone (app.Main)",
+            "request": "launch",
+            "mainClass": "app.Main",
+            "projectName": "carzone"
+        }
+    ]
+}
