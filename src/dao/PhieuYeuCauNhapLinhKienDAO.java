@@ -13,6 +13,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -98,6 +99,146 @@ public class PhieuYeuCauNhapLinhKienDAO {
             if (ps.executeUpdate() == 0) throw new IllegalStateException("Yêu cầu đã được xử lý hoặc trạng thái vừa thay đổi. Hãy tìm lại dữ liệu.");
         } catch (SQLException e) {
             throw new RuntimeException("Không thể cập nhật yêu cầu: " + e.getMessage(), e);
+        }
+    }
+
+    /** Dự đoán trước mã yêu cầu tiếp theo sẽ được sinh bởi sp_TaoYeuCauNhapLinhKien. */
+    public String sinhMaYeuCauTiepTheo() {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("ddMMyyyy");
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        String shift = cal.get(java.util.Calendar.HOUR_OF_DAY) < 12 ? "A" : "P";
+        String prefix = "PYC" + sdf.format(cal.getTime()) + shift;
+        String sql = "SELECT ISNULL(MAX(CAST(RIGHT(maYeuCau, 2) AS INT)), 0) + 1 FROM PhieuYeuCauNhapLinhKien WHERE LEFT(maYeuCau, 12) = ?";
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, prefix);
+            try (ResultSet rs = ps.executeQuery()) {
+                int stt = rs.next() ? rs.getInt(1) : 1;
+                return prefix + String.format("%02d", stt);
+            }
+        } catch (SQLException e) {
+            return prefix + "01";
+        }
+    }
+
+    /** Tạo yêu cầu nhập linh kiện mới (dành cho Kỹ thuật viên) qua stored procedure. */
+    public String taoYeuCau(String maLK, String maNVLap, int soLuong, String ghiChu) {
+        String sql = "{call sp_TaoYeuCauNhapLinhKien(?, ?, ?, ?, ?)}";
+        try (Connection con = DbUtil.getConnection();
+             java.sql.CallableStatement cs = con.prepareCall(sql)) {
+            cs.setString(1, maLK);
+            cs.setString(2, maNVLap);
+            cs.setInt(3, soLuong);
+            cs.setNString(4, ghiChu);
+            cs.registerOutParameter(5, java.sql.Types.VARCHAR);
+            cs.execute();
+            return cs.getString(5);
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tạo yêu cầu nhập linh kiện: " + e.getMessage(), e);
+        }
+    }
+
+    /** Tìm danh sách yêu cầu do một Kỹ thuật viên cụ thể lập. */
+    public List<PhieuYeuCauNhapLinhKien> timTheoKTV(String maNVLap, String tuKhoa, TrangThaiYeuCau trangThai) {
+        return timTheoKTV(maNVLap, tuKhoa, trangThai, null, null);
+    }
+
+    /** Tìm danh sách yêu cầu do một Kỹ thuật viên cụ thể lập kèm khoảng ngày. */
+    public List<PhieuYeuCauNhapLinhKien> timTheoKTV(String maNVLap, String tuKhoa, TrangThaiYeuCau trangThai, Date tuNgay, Date denNgay) {
+        StringBuilder sql = new StringBuilder(SELECT_COLUMNS);
+        sql.append("WHERE p.maNVLap = ? ");
+        if (tuKhoa != null && !tuKhoa.isBlank()) {
+            sql.append("AND (p.maYeuCau LIKE ? OR p.maLK LIKE ? OR lk.tenLK LIKE ?) ");
+        }
+        if (trangThai != null) {
+            sql.append("AND p.trangThai = ? ");
+        }
+        if (tuNgay != null) {
+            sql.append("AND p.ngayTao >= ? ");
+        }
+        if (denNgay != null) {
+            sql.append("AND p.ngayTao <= ? ");
+        }
+        sql.append("ORDER BY p.ngayTao DESC, p.maYeuCau DESC");
+
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql.toString())) {
+            int idx = 1;
+            ps.setString(idx++, maNVLap);
+            if (tuKhoa != null && !tuKhoa.isBlank()) {
+                String pattern = "%" + tuKhoa.trim() + "%";
+                ps.setString(idx++, pattern);
+                ps.setString(idx++, pattern);
+                ps.setNString(idx++, pattern);
+            }
+            if (trangThai != null) {
+                ps.setString(idx++, trangThai.name());
+            }
+            if (tuNgay != null) {
+                ps.setTimestamp(idx++, new Timestamp(tuNgay.getTime()));
+            }
+            if (denNgay != null) {
+                Calendar c = Calendar.getInstance();
+                c.setTime(denNgay);
+                c.set(Calendar.HOUR_OF_DAY, 23);
+                c.set(Calendar.MINUTE, 59);
+                c.set(Calendar.SECOND, 59);
+                ps.setTimestamp(idx++, new Timestamp(c.getTimeInMillis()));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                List<PhieuYeuCauNhapLinhKien> result = new ArrayList<>();
+                while (rs.next()) result.add(mapRow(rs));
+                return result;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi đọc yêu cầu nhập linh kiện của KTV: " + e.getMessage(), e);
+        }
+    }
+
+    /** Đếm số lượng yêu cầu của KTV theo trạng thái và khoảng thời gian. */
+    public int demYeuCauKTV(String maNVLap, TrangThaiYeuCau trangThai, Date tuNgay, Date denNgay) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM PhieuYeuCauNhapLinhKien WHERE maNVLap = ? ");
+        if (trangThai != null) {
+            sql.append("AND trangThai = ? ");
+        }
+        if (tuNgay != null) {
+            sql.append("AND ngayTao >= ? ");
+        }
+        if (denNgay != null) {
+            sql.append("AND ngayTao <= ? ");
+        }
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql.toString())) {
+            int idx = 1;
+            ps.setString(idx++, maNVLap);
+            if (trangThai != null) {
+                ps.setString(idx++, trangThai.name());
+            }
+            if (tuNgay != null) {
+                ps.setTimestamp(idx++, new Timestamp(tuNgay.getTime()));
+            }
+            if (denNgay != null) {
+                Calendar c = Calendar.getInstance();
+                c.setTime(denNgay);
+                c.set(Calendar.HOUR_OF_DAY, 23);
+                c.set(Calendar.MINUTE, 59);
+                c.set(Calendar.SECOND, 59);
+                ps.setTimestamp(idx++, new Timestamp(c.getTimeInMillis()));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        } catch (SQLException e) {
+            return 0;
+        }
+    }
+
+    /** Hủy yêu cầu còn đang chờ duyệt của Kỹ thuật viên. */
+    public boolean huyYeuCau(String maYeuCau, String maNVLap) {
+        String sql = "DELETE FROM PhieuYeuCauNhapLinhKien WHERE maYeuCau = ? AND maNVLap = ? AND trangThai = 'CHO_DUYET'";
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, maYeuCau);
+            ps.setString(2, maNVLap);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi hủy yêu cầu nhập linh kiện: " + e.getMessage(), e);
         }
     }
 

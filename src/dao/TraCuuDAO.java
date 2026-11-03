@@ -20,6 +20,9 @@ public class TraCuuDAO {
                                String maKH, String tenKhachHang, String soDienThoai, String yeuCau,
                                String trangThai, String tiepNhanVien, String kyThuatVien,
                                double tienDichVu, double tienLinhKien, double tongTien) { }
+    public record LichSuTiepNhanResult(String maPhieu, Timestamp ngayTiepNhan, String bienSo, String xe,
+                                       String maKH, String tenKhachHang, String soDienThoai, String yeuCau,
+                                       String trangThai, String tiepNhanVien) { }
     public record HangMucResult(String loai, String ma, String ten, int soLuong, double donGia, double thanhTien) { }
 
     /** Tìm hồ sơ khách theo mã, tên, điện thoại hoặc CCCD; không gọi với từ khóa rỗng. */
@@ -77,6 +80,42 @@ public class TraCuuDAO {
                         rs.getDouble("tongTienDichVu"), rs.getDouble("tongTienLinhKien"), rs.getDouble("tongTien")));
             }
         } catch (SQLException e) { throw new RuntimeException("Lỗi tra cứu lịch sử sửa chữa: " + e.getMessage(), e); }
+        return result;
+    }
+
+    /** Tra cứu lịch sử tiếp nhận theo mã phiếu, biển số, mã/tên/số điện thoại khách hàng. */
+    public List<LichSuTiepNhanResult> timLichSuTiepNhan(String tuKhoa) {
+        String sql = "SELECT TOP 200 p.maPhieu, p.ngayGioTiepNhan, p.bienSoXe, x.hangXe, x.model, kh.maKH, "
+                + "kh.hoTen AS tenKhachHang, kh.soDienThoai, p.yeuCauBanDau, p.trangThai, nv.hoTen AS tiepNhanVien "
+                + "FROM PhieuTiepNhanSuaChua p "
+                + "JOIN Xe x ON x.bienSoXe = p.bienSoXe "
+                + "JOIN KhachHang kh ON kh.maKH = x.maKH "
+                + "JOIN NhanVien nv ON nv.maNV = p.maNVTiepNhan "
+                + "WHERE p.maPhieu LIKE ? OR p.bienSoXe LIKE ? OR kh.maKH LIKE ? OR kh.hoTen LIKE ? OR kh.soDienThoai LIKE ? "
+                + "ORDER BY p.ngayGioTiepNhan DESC, p.maPhieu DESC";
+        String pattern = pattern(tuKhoa);
+        List<LichSuTiepNhanResult> result = new ArrayList<>();
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
+            for (int i = 1; i <= 5; i++) ps.setString(i, pattern);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new LichSuTiepNhanResult(
+                            rs.getString("maPhieu"),
+                            rs.getTimestamp("ngayGioTiepNhan"),
+                            rs.getString("bienSoXe"),
+                            joinXe(rs.getString("hangXe"), rs.getString("model")),
+                            rs.getString("maKH"),
+                            rs.getString("tenKhachHang"),
+                            rs.getString("soDienThoai"),
+                            rs.getString("yeuCauBanDau"),
+                            rs.getString("trangThai"),
+                            rs.getString("tiepNhanVien")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tra cứu lịch sử tiếp nhận: " + e.getMessage(), e);
+        }
         return result;
     }
 

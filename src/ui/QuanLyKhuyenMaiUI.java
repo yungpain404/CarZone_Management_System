@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -767,10 +768,14 @@ public class QuanLyKhuyenMaiUI extends JPanel {
                 txtCode.putClientProperty("JTextField.placeholderText", services ? "Ví dụ: DV00001" : "Ví dụ: LK00001");
                 inputCell.add(txtCode, BorderLayout.CENTER);
                 search.add(inputCell, BorderLayout.CENTER);
-                JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 18));
+                JPanel controls = new JPanel(new BorderLayout(0, 5));
                 controls.setOpaque(false);
-                controls.add(btnFind);
-                controls.add(btnAddSelected);
+                controls.add(label(" ", 12, BODY, Font.PLAIN), BorderLayout.NORTH);
+                JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+                btnRow.setOpaque(false);
+                btnRow.add(btnFind);
+                btnRow.add(btnAddSelected);
+                controls.add(btnRow, BorderLayout.CENTER);
                 search.add(controls, BorderLayout.EAST);
                 add(search, BorderLayout.NORTH);
 

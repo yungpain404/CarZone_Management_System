@@ -12,7 +12,8 @@ import java.awt.*;
 /**
  * Entry point của ứng dụng CarZone.
  * Khởi động Look & Feel FlatLightLaf, chạy Splash Screen khởi động hệ thống.
- * Sau khi đăng nhập thành công, mở màn hình chính MainFrame theo phân quyền vai trò.
+ * Sau khi đăng nhập thành công, mở màn hình chính MainFrame theo phân quyền vai
+ * trò.
  *
  * pom.xml trỏ main.class = app.App
  */

@@ -48,6 +48,30 @@ Mục đích là tránh hai bên làm trùng hoặc mâu thuẫn:
 - Mật khẩu: băm SHA-256, hex in hoa, trong `TaiKhoan.setMatKhau`.
 
 ## Quy chuẩn Giao diện UI (Figma)
-- Màn hình Java Swing dùng hậu tố `UI` (ví dụ `DangNhapUI`, `DashboardUI`, `KhoiDongUI`).
+- Màn hình Java Swing dùng hậu tố `UI` (ví dụ `DangNhapUI`, `DashboardUI`, `KhoiDongUI`, `CapNhatPhieuSuaChuaUI`, `TraCuuUI`).
 - Khung giao diện chính điều phối: [MainFrame.java](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/MainFrame.java) (Header + Sidebar điều hướng theo vai trò + ContentPanel `CardLayout`).
-- Giao diện Sáng (`FlatLightLaf`), bo góc nút 12px bằng `RoundedButton`, không dùng mockup dữ liệu.
+- Giao diện Sáng (`FlatLightLaf`), bo góc nút 10–12px bằng `RoundedButton`, không dùng mockup dữ liệu.
+- **Chống cắt chữ tuyệt đối (Anti-clipping - 02/11/2026)**:
+  + Sidebar Navigation rộng `256px`, nút `236×48px`, nhãn HTML `width: 172px` để không cắt cụt các tiêu đề dài ("Yêu cầu cập nhật linh kiện", "Cập nhật phiếu sửa chữa").
+  + `RoundedButton` override `getPreferredSize()` và `getMinimumSize()` tính toán động theo `FontMetrics.stringWidth(text) + iconWidth + 34px padding`.
+  + Nút thao tác dài ("Cập nhật phiếu sửa chữa" ≥ 220px, "Quay lại danh sách" ≥ 180px, "Xem chi tiết yêu cầu" ≥ 180px).
+- **Phân quyền chức năng Tra Cứu 3 vai trò (RBAC - 02/11/2026, Figma 57:246)**:
+  + CCH: 5 tab (Dịch vụ, Linh kiện, Khách hàng, Lịch sử sửa chữa, Lịch sử tiếp nhận).
+  + TNV: 3 tab (Dịch vụ, Khách hàng, Lịch sử tiếp nhận).
+  + KTV: 3 tab (Dịch vụ, Linh kiện, Lịch sử sửa chữa).
+- **Phân hệ Kỹ thuật viên (KTV - 02/11/2026)**: Hoàn thiện đủ 5 màn hình bám sát Figma: Dashboard KTV (50:589), Thống kê sửa chữa (172:5247), Phiếu phân công (50:701), Cập nhật phiếu (50:787), Yêu cầu linh kiện KTV (50:922).
+- **Quy chuẩn Nhập liệu & Bảng Swing (02/11/2026)**:
+  + Cấm nhập bàn phím vào ô ngày, bắt buộc chọn qua lịch; editor JDateChooser lề trái tối thiểu 10px, bề rộng ≥ 170px chống che lấp số ngày do góc bo tròn.
+  + Chặn gõ chữ vào các ô số lượng bằng `DocumentFilter` (`chiChoPhepNhapSo`).
+  + Bảng kết quả tìm kiếm lịch sử hiển thị đúng 4 dòng (`220px`), bảng chi tiết hạng mục hiển thị đúng 3 dòng (`180px`); đặt đồng thời `setPreferredSize` và `setMinimumSize` để chống bị `BoxLayout` bóp méo thành 1 dòng; `tabs` đặt `maximumSize = MAX_VALUE`.
+  + Nút "Xem chi tiết" mở modal dialog theo ngữ cảnh trạng thái (chưa xong: Cập nhật; đã xong: Xem lịch sử).
+  + Cơ chế hàng đợi `maPhieuChoSua` chống lỗi race condition khi chuyển trang bất đồng bộ.
+  + Combobox chọn phiếu form Cập nhật phiếu sửa chữa loại bỏ hoàn toàn phiếu `HOAN_TAT`.
+  + KPI "Phiếu cần hoàn thành" = `Tổng phiếu - Phiếu đã hoàn tất`. Biểu đồ cột 7 ngày gom nhóm theo ngày tiếp nhận từ dữ liệu thực tế DB.
+
+## Quy chuẩn Build Path & Tệp cấu hình IDE (02/11/2026)
+- TUYỆT ĐỐI KHÔNG XÓA `.classpath`.
+- TUYỆT ĐỐI KHÔNG thêm `<classpathentry kind="lib" path="pom.xml"/>` vào `.classpath` (pom.xml không phải tệp ZIP/JAR, gây lỗi fatal `cannot be read or is not a valid ZIP file`).
+- TUYỆT ĐỐI KHÔNG chạy `javac` đơn lẻ thiếu cờ `-d target/classes` làm sinh `.class` rác vào trong `src/` (mọi build qua `mvn compile`).
+- Lớp tiện ích UI dùng chung (`UIInputRules`) bắt buộc là `public final class` với `public static` methods.
+- Định dạng Locale: Dùng `Locale.forLanguageTag("vi-VN")` thay vì constructor deprecated `new Locale(...)`.

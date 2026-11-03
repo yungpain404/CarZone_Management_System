@@ -17,13 +17,13 @@
 src/
 ├── app/          # Entry point chính (App.java)
 ├── connectDB/    # Kết nối JDBC thuần (DatabaseConfig.java, DbUtil.java)
-├── controller/   # Điều phối nghiệp vụ (AuthController, DangNhapController, DashboardController)
-├── dao/          # Lớp DAO JDBC thuần, mỗi bảng/nhóm 1 class (TaiKhoanDao, NhanVienDao, HoaDonDao, ChiTietHoaDonDao, ThongKeDoanhThuDao, ...)
+├── controller/   # Điều phối nghiệp vụ (AuthController, DangNhapController, DashboardController, PhieuTiepNhanSuaChuaController, PhieuYeuCauNhapLinhKienController, TraCuuController, ...)
+├── dao/          # Lớp DAO JDBC thuần, mỗi bảng/nhóm 1 class (TaiKhoanDao, NhanVienDao, HoaDonDao, ChiTietHoaDonDao, PhieuTiepNhanSuaChuaDAO, PhieuYeuCauNhapLinhKienDAO, TraCuuDAO, ...)
 ├── entity/       # Thực thể POJO (validate trong setter, raw setters cho DAO map DB)
 ├── enums/        # Các enum trạng thái và vai trò
 ├── session/      # Quản lý phiên làm việc người dùng (UserSession Singleton)
-└── ui/           # Giao diện Swing FlatLaf bám sát Figma (MainFrame, DashboardUI, DangNhapUI, KhoiDongUI)
-img/              # Ảnh dùng chung (carzone_logo.png, revenue_illustration.png); pom copy vào gốc classpath
+└── ui/           # Giao diện Swing FlatLaf bám sát Figma (MainFrame, DashboardUI, DangNhapUI, KhoiDongUI, PhieuPhanCongUI, CapNhatPhieuSuaChuaUI, YeuCauLinhKienKTVUI, ThongKeSuaChuaUI, TraCuuUI, ThongTinCaNhanUI, ...)
+img/              # Ảnh dùng chung (carzone_logo.png, revenue_illustration.png, nav_*.png); pom copy vào gốc classpath
 infra/docker/compose.yml, infra/docker/.env
 infra/database/fly_way_migrations/V*.sql   # migration Flyway (tên thư mục có dấu gạch dưới)
 infra/database/seed/CarZone_Demo.sql       # kịch bản chạy thử, KHÔNG phải migration
@@ -57,11 +57,14 @@ Làm việc trên nhánh `develop`; chủ repo tự merge sau, agent KHÔNG merg
 - Mã dịch vụ/linh kiện: `DV00001`/`LK00001` (≥ 5 số, mở rộng được). Mã hóa đơn có tiền tố `HD`.
 - Không hard-code mật khẩu/chuỗi kết nối trong code; đọc từ `.env`. `.env` được cố ý đẩy lên git cho cả nhóm dùng chung (dữ liệu chỉ lưu local), đừng "sửa" việc này. Không chép nội dung `.env` vào tài liệu hay câu trả lời.
 - Mật khẩu tài khoản lưu dạng băm SHA-256 hex in hoa (cùng dạng dữ liệu mẫu trong DB); việc băm nằm trong `TaiKhoan.setMatKhau`.
+- Lớp `UIInputRules`: Bắt buộc là `public final class UIInputRules` với toàn bộ static methods là `public static` để đảm bảo trình biên dịch và Language Server luôn phân giải được xuyên suốt các file trong package `ui`.
+- Tệp `.classpath`: Là tệp sống còn của Eclipse JDT / VS Code Java Extension. TUYỆT ĐỐI KHÔNG XÓA `.classpath` và KHÔNG THÊM `<classpathentry kind="lib" path="pom.xml"/>` (pom.xml là XML, không phải thư viện ZIP/JAR, thêm vào sẽ gây lỗi build path fatal).
+- Định dạng tiền tệ và Locale: Luôn dùng `Locale.forLanguageTag("vi-VN")` thay cho constructor deprecated `new Locale("vi", "VN")`.
 
 ## Lệnh
 - Khởi động DB + migrate: `docker compose -f infra/docker/compose.yml up -d`
 - Dựng lại DB sạch: `docker compose -f infra/docker/compose.yml down -v` rồi `up -d`
-- Biên dịch: `mvn -q compile` (Maven tải được thư viện trên máy nhóm).
+- Biên dịch: `mvn -q compile` (Maven tải được thư viện trên máy nhóm). Tuyệt đối KHÔNG chạy lệnh `javac` đơn lẻ mà thiếu cờ `-d target/classes`, tránh tạo các file `.class` rác vào trong thư mục nguồn `src/`.
 - Chưa cần viết test ở giai đoạn này (nhóm quyết định tạm hoãn).
 
 ## Ngữ cảnh và skill cho AI (đọc theo nhu cầu, đừng đọc hết)
@@ -96,7 +99,43 @@ Mỗi skill là một tệp Markdown thường (có phần đầu `name`/`descri
 - **Quy tắc Layout chống lệch (BẮT BUỘC)**:
   - Trong `BoxLayout(Y_AXIS)`, mọi component con trực tiếp PHẢI CÙNG `alignmentX` (khuyến nghị `0.5f` với chiều rộng chuẩn `INNER_WIDTH`). Tuyệt đối không trộn `0.5f` và `0.0f` gây lệch toàn bộ form sang phải.
   - Hàng nút ngang dùng `BoxLayout(X_AXIS)` với `RigidArea(gap, 0)` để tránh bị `FlowLayout` đẩy rớt dòng.
-- **Bo góc nút bấm (Rounded Buttons)**: Nút bấm bo góc 12px theo Figma phải dùng custom `RoundedButton` (khử răng cưa bằng `Graphics2D`) hoặc token chuẩn FlatLaf. Không dùng `LineBorder` của Swing vì sẽ bị vuông góc. Tính toán padding đủ rộng để chữ không bị tràn/cắt cụt (ví dụ Help, About).
+- **Bo góc nút bấm & Khung giao diện mềm mại (Rounded & Soft Look)**:
+  - Nút bấm bo góc 10–12px theo Figma phải dùng custom `RoundedButton` (khử răng cưa bằng `Graphics2D`) hoặc token chuẩn FlatLaf. Không dùng `LineBorder` của Swing vì sẽ bị vuông góc.
+  - Các card, khung chứa bảng, vùng bộ lọc dùng `RoundedPanel` (arc 12–14px, viền `#E3E9F2`).
+  - Các ô input, combobox, info cell dùng `RoundedLineBorder` (arc 10px) kết hợp padding trong để giao diện mềm mại, không vuông vức thô cứng.
+  - Trạng thái công việc/yêu cầu hiển thị bằng `StatusBadgeRenderer` dạng pill bo góc mềm (Hoàn tất: xanh lá `#ECFDF5`, Đang sửa: xanh dương `#EFF6FF`, Chờ linh kiện: cam nhạt `#FFFBEB`, Mới: xám `#F1F5F9`).
+- **Quy tắc Chống cắt chữ / mất chữ (Anti-clipping - BẮT BUỘC)**:
+  - **Sidebar Navigation**: Bề rộng Sidebar tối thiểu **`256px`** (Figma 83:7716). Nút điều hướng kích thước **`236×48px`** (chiều cao 48–52px). Vùng văn bản HTML tối thiểu **`width: 172px`** với `line-height: 1.2` để tiêu đề dài (ví dụ: *"Yêu cầu cập nhật linh kiện"*, *"Cập nhật phiếu sửa chữa"*, *"Lập phiếu tiếp nhận – sửa chữa"*, *"Hồ sơ khách hàng và xe"*) hiển thị trọn vẹn, tuyệt đối không bị ngắt thành *"Yêu cầu cậ..."*, *"Yêu cầu sử..."*, v.v.
+  - **Nút bấm (`RoundedButton`)**: Lớp `RoundedButton` BẮT BUỘC override `getPreferredSize()` và `getMinimumSize()` tự động đo đạc độ dài chữ thực tế bằng `FontMetrics.stringWidth(getText()) + iconWidth + 34px padding`. Tuyệt đối không đặt `setPreferredSize` quá hẹp khiến chữ bị cắt cụt thành dấu `...` (ví dụ: nút *"Cập nhật phiếu sửa chữa"* tối thiểu `220px`, *"Quay lại danh sách"* tối thiểu `180px`, *"Xem chi tiết yêu cầu"* tối thiểu `180px`, *"Xem thống kê"* tối thiểu `140px`).
+  - **Tab tiêu đề (`JTabbedPane`)**: Để tự động co giãn theo text Tiếng Việt có dấu, không fix cứng kích thước tab.
+  - **Ô chọn ngày (`JDateChooser`)**: Tuyệt đối không cho nhập tay từ bàn phím (`editor.setEditable(false)`), bắt buộc người dùng chọn trên popup lịch. Editor bên trong BẮT BUỘC có `EmptyBorder(0, 10, 0, 2)` (lề trái tối thiểu 10px) và bề rộng chooser tối thiểu **`170px`** để góc bo tròn (arc 10px) không bao giờ che khuất chữ số đầu tiên (ví dụ `26/10/2026`).
+- **Quy tắc Kiểm soát nhập liệu số lượng (Numeric Input Filter - BẮT BUỘC)**:
+  - Mọi ô nhập số lượng (số lượng dịch vụ, số lượng linh kiện sử dụng, số lượng linh kiện yêu cầu) BẮT BUỘC gắn `DocumentFilter` (`chiChoPhepNhapSo`) chặn đứng ký tự chữ ngay khi người dùng gõ phím; không để lọt text rồi mới kiểm tra lúc submit.
+- **Quy tắc Chống bóp méo bảng trong BoxLayout (Anti-squeeze Table Rules - BẮT BUỘC)**:
+  - Trong `BoxLayout(Y_AXIS)`, `JScrollPane` chứa `JTable` nếu không đặt `minimumSize` sẽ bị Swing tự động bóp nghẹt xuống còn 1 dòng cụt ngủn khi khung chứa bị thu hẹp. BẮT BUỘC đặt đồng thời cả `setPreferredSize` và `setMinimumSize`:
+    + Bảng danh sách/kết quả tìm kiếm (yêu cầu thấy 4 dòng): chiều cao tối thiểu **`220px`** (Header 42px + 4 dòng x 42px = 210px + 10px viền đệm).
+    + Bảng chi tiết hạng mục (yêu cầu thấy 3 dòng): chiều cao tối thiểu **`180px`** (Header 42px + 3 dòng x 42px = 168px + 12px viền đệm).
+    + Muốn xem thêm các dòng vượt quá số dòng chuẩn thì người dùng tự cuộn thanh cuộn của bảng.
+  - Các component chứa linh hoạt như `JTabbedPane` bên trong `ScrollableContentPanel` BẮT BUỘC đặt `maximumSize = Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE)` để cho phép co giãn tự do theo nội dung dữ liệu nạp vào, không dùng `addFull` làm khóa cứng chiều cao khởi tạo ban đầu.
+- **Quy tắc Nút "Xem chi tiết" & Điều hướng chọn phiếu bất đồng bộ**:
+  - Nút "Xem chi tiết" trong bảng dữ liệu (ví dụ Dashboard KTV) không được điều hướng trùng lặp với link "Mở danh sách ↗". Nút này mở modal dialog hiển thị đầy đủ thông tin chi tiết của phiếu, kèm nút hành động phù hợp: phiếu chưa xong có nút *"Cập nhật phiếu này ↗"*, phiếu đã xong có nút *"Xem lịch sử sửa chữa ↗"*.
+  - Khi điều hướng sang form cập nhật phiếu (`CapNhatPhieuSuaChuaUI`), BẮT BUỘC hỗ trợ biến hàng đợi `maPhieuChoSua` để tự động chọn đúng phiếu kể cả khi danh sách phiếu đang nạp bất đồng bộ qua `SwingWorker`.
+- **Ràng buộc nghiệp vụ phiếu hoàn tất**:
+  - Phiếu `HOAN_TAT` là bất biến; combobox chọn phiếu của `CapNhatPhieuSuaChuaUI` BẮT BUỘC lọc bỏ phiếu `HOAN_TAT`, chỉ hiển thị `CHO_SUA`, `DANG_SUA`, `CHO_LINH_KIEN`.
+  - KPI "Phiếu cần hoàn thành" = `Tổng phiếu được giao - Phiếu đã hoàn tất`.
+  - Biểu đồ thống kê hiệu suất theo ngày phải gom nhóm và đếm từ ngày tiếp nhận thực tế của các phiếu trong database, không dùng số liệu giả lập.
+- **Phân quyền Tra cứu 3 vai trò (RBAC) & Màn hình dùng chung**:
+  - `TraCuuUI` (Figma `57-246`): Dùng chung 3 vai trò với phân quyền tab:
+    + **Chủ cửa hàng (CCH)**: 5 tab toàn quyền (*Dịch vụ*, *Linh kiện*, *Khách hàng*, *Lịch sử sửa chữa*, *Lịch sử tiếp nhận*).
+    + **Tiếp nhận viên (TNV)**: 3 tab (*Dịch vụ*, *Khách hàng*, *Lịch sử tiếp nhận*). Bị ẩn tab Linh kiện và Lịch sử sửa chữa.
+    + **Kỹ thuật viên (KTV)**: 3 tab (*Dịch vụ*, *Linh kiện*, *Lịch sử sửa chữa*). Bị ẩn tab Khách hàng và Lịch sử tiếp nhận.
+  - `ThongTinCaNhanUI` (Figma `57:454`): Dùng chung 3 vai trò, trích xuất dữ liệu từ `UserSession` (Hồ sơ cá nhân, bảng phân quyền vai trò hệ thống, đổi mật khẩu băm SHA-256).
+- **Phân hệ chức năng Kỹ thuật viên (KTV)**:
+  - Dashboard KTV (Figma `50-589`): 4 thẻ KPI ưu tiên, bảng công việc gần đây, biểu đồ tiến độ & tỷ lệ hoàn tất, khối truy cập nhanh.
+  - Thống kê sửa chữa (Figma `172-5247`): 4 thẻ KPI năng suất, 2 thẻ phụ, biểu đồ cột 7 ngày, biểu đồ donut trạng thái, bảng chi tiết phiếu kèm badge và xuất CSV UTF-8 BOM.
+  - Phiếu được phân công (Figma `50-701`): Lọc phiếu, toolbar tác vụ, bảng phiếu phân công, khối chi tiết chỉ đọc footer.
+  - Cập nhật phiếu sửa chữa (Figma `50-787`): Chọn phiếu, 6 ô chỉ đọc, khối cập nhật dịch vụ, khối cập nhật linh kiện (kho tự động trừ/cộng tồn qua trigger DB), chuyển trạng thái công việc (`CHO_SUA` -> `DANG_SUA` ⇄ `CHO_LINH_KIEN` -> `HOAN_TAT`).
+  - Yêu cầu cập nhật linh kiện (Figma `50-922`): Lịch sử yêu cầu kèm 4 chip bộ lọc nhanh, form tạo yêu cầu gọi `sp_TaoYeuCauNhapLinhKien`, chi tiết phản hồi chỉ đọc.
 - **Luồng Use Case hoàn chỉnh**:
   - Tự động focus ô nhập đầu tiên khi mở màn hình.
   - Hỗ trợ phím `Enter` (chuyển ô tiếp theo, Enter ô cuối để submit).

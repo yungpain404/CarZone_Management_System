@@ -26,6 +26,20 @@
 - **Tra cứu Chủ cửa hàng**: thay trang tra cứu chung bằng ba tab chỉ đọc Linh kiện, Khách hàng và Lịch sử sửa chữa; bỏ Dịch vụ. Không tải danh sách ban đầu, chỉ tìm khi có từ khóa; chi tiết khách tải xe theo lựa chọn, chi tiết phiếu lấy dịch vụ/linh kiện và tổng tiền từ view lịch sử. Nối `NAV_TRA_CUU` riêng cho CCH; `mvn -q compile` đạt.
 - **Thông tin cá nhân**: cập nhật trang trong `MainFrame` theo ảnh; tab Hồ sơ cá nhân đứng trước, hiển thị họ tên, mã nhân viên, username từ session, điện thoại, CCCD, ngày sinh, ngày vào làm, tuổi và địa chỉ từ hồ sơ hiện tại. Tab Thông tin vai trò đứng sau với bảng chức năng/phạm vi theo navigation role, không dùng breadcrumb; `mvn -q compile` đạt.
 
+## Mới làm (02/11/2026)
+- **Hoàn thiện UI/UX và logic nghiệp vụ phân hệ Kỹ thuật viên & Tra cứu:**
+  + KPI "Phiếu cần hoàn thành" Dashboard KTV: tính chuẩn `tong - hoanTat` (trừ đi số phiếu đã hoàn tất).
+  + Bảng "Phiếu được phân công gần đây" Dashboard KTV: bỏ cột Thao tác, hỗ trợ click đúp mở phiếu sửa chữa; nút footer đổi thành "Xem chi tiết" (mở trực tiếp phiếu được chọn vào form Cập nhật phiếu).
+  + Biểu đồ Dashboard KTV: kết nối 100% số liệu thực 7 ngày gần nhất & tuần này từ DB (`layThongKeKTV`), vẽ động thanh tiến độ và donut tỷ lệ hoàn thành.
+  + `ThongKeSuaChuaUI`: biểu đồ cột kết nối dữ liệu thực DB theo ngày tiếp nhận; tính toán động thời gian xử lý từng phiếu từ `ngayGioTiepNhan` và `ngayHoanTat`; tính thời gian xử lý trung bình cho thẻ phụ.
+  + `CapNhatPhieuSuaChuaUI` & `YeuCauLinhKienKTVUI`: thêm `DocumentFilter` chỉ cho phép nhập số nguyên dương cho các ô số lượng (chặn hoàn toàn việc nhập ký tự chữ).
+  + Combobox chọn phiếu trong `CapNhatPhieuSuaChuaUI`: chỉ hiển thị phiếu chưa hoàn tất (chờ sửa / đang sửa / chờ linh kiện).
+  + `TraCuuUI`: điều chỉnh chiều cao table kết quả tab "Lịch sử sửa chữa" hiển thị đúng 4 dòng (212px), table chi tiết dịch vụ/linh kiện hiển thị đúng 3 dòng (172px) kèm thanh cuộn mượt mà; hỗ trợ tự cuộn khi có nhiều dòng hơn.
+  + Dashboard KTV: sửa nút "Xem chi tiết" và sự kiện click đúp trong bảng "Phiếu được phân công gần đây" hiển thị modal dialog chi tiết phiếu với đầy đủ trường thông tin; hỗ trợ nút hành động "Cập nhật phiếu này ↗" (với phiếu chưa hoàn tất) và "Xem lịch sử sửa chữa ↗" (với phiếu hoàn tất).
+  + `CapNhatPhieuSuaChuaUI`: bổ sung biến hàng đợi `maPhieuChoSua` để tự động chọn đúng phiếu kể cả khi dữ liệu phiếu đang được nạp bất đồng bộ.
+  + Chuẩn hóa JDateChooser: tăng lề trong lên 10px và chiều rộng 170px, triệt tiêu hoàn toàn lỗi góc bo cắt chữ số ngày.
+  + `mvn -q compile` đạt 100%, không còn file `.class` rác.
+
 ## Mới làm (01/11/2026)
 - **Căn lại Thông tin cá nhân**: thống nhất alignmentX cho tiêu đề, tab và các thành phần BoxLayout để hồ sơ kéo về mép nội dung chuẩn, tránh tab/hồ sơ bị thụt sang phải.
 - **Validate định dạng input ở UI**: thêm `UIInputRules` dùng regex cho từ khóa tìm kiếm, tên dịch vụ/linh kiện/khuyến mãi, họ tên, số điện thoại, CCCD, địa chỉ và ghi chú; validate ngày dd/MM/yyyy nghiêm ngặt ở thống kê, hồ sơ nhân viên và lọc/form khuyến mãi. Hiển thị thông báo trước khi gọi controller/DB; select enum/trạng thái/danh mục giữ giới hạn bằng option có sẵn.

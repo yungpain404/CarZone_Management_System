@@ -52,6 +52,68 @@ public class PhieuYeuCauNhapLinhKienController {
         chuyenTrangThai(maYeuCau, TrangThaiYeuCau.DA_NHAP_KHO, ghiChu, false, soLuongNhapThucTe);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // NGHIỆP VỤ CỦA KỸ THUẬT VIÊN
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Dự đoán trước mã yêu cầu tiếp theo sẽ được sinh. */
+    public String layMaYeuCauTiepTheo() {
+        yeuCauKyThuatVien();
+        return dao.sinhMaYeuCauTiepTheo();
+    }
+
+    /** Tạo yêu cầu nhập linh kiện mới (dành riêng cho Kỹ thuật viên). */
+    public String taoYeuCau(String maLK, int soLuong, String ghiChu) {
+        yeuCauKyThuatVien();
+        if (maLK == null || maLK.isBlank()) {
+            throw new IllegalArgumentException("Vui lòng chọn linh kiện cần yêu cầu.");
+        }
+        if (soLuong <= 0) {
+            throw new IllegalArgumentException("Số lượng yêu cầu phải lớn hơn 0.");
+        }
+        if (ghiChu == null || ghiChu.isBlank()) {
+            throw new IllegalArgumentException("Lý do/ghi chú yêu cầu không được để trống.");
+        }
+        if (ghiChu.trim().length() > 300) {
+            throw new IllegalArgumentException("Lý do yêu cầu tối đa 300 ký tự.");
+        }
+        String maKTV = UserSession.getInstance().getMaNV();
+        return dao.taoYeuCau(maLK.trim(), maKTV, soLuong, ghiChu.trim());
+    }
+
+    /** Danh sách yêu cầu do chính Kỹ thuật viên đăng nhập lập. */
+    public List<PhieuYeuCauNhapLinhKien> timKiemCuaKTV(String tuKhoa, TrangThaiYeuCau trangThai) {
+        return timKiemCuaKTV(tuKhoa, trangThai, null, null);
+    }
+
+    /** Danh sách yêu cầu do chính Kỹ thuật viên đăng nhập lập có lọc khoảng ngày. */
+    public List<PhieuYeuCauNhapLinhKien> timKiemCuaKTV(String tuKhoa, TrangThaiYeuCau trangThai, Date tuNgay, Date denNgay) {
+        yeuCauKyThuatVien();
+        String maKTV = UserSession.getInstance().getMaNV();
+        return dao.timTheoKTV(maKTV, tuKhoa, trangThai, tuNgay, denNgay);
+    }
+
+    /** Đếm số lượng yêu cầu theo từng trạng thái của KTV đăng nhập. */
+    public int demYeuCauKTV(TrangThaiYeuCau trangThai, Date tuNgay, Date denNgay) {
+        yeuCauKyThuatVien();
+        String maKTV = UserSession.getInstance().getMaNV();
+        return dao.demYeuCauKTV(maKTV, trangThai, tuNgay, denNgay);
+    }
+
+    /** Hủy yêu cầu còn đang chờ duyệt của Kỹ thuật viên. */
+    public boolean huyYeuCauCuaKTV(String maYeuCau) {
+        yeuCauKyThuatVien();
+        if (maYeuCau == null || maYeuCau.isBlank()) return false;
+        String maKTV = UserSession.getInstance().getMaNV();
+        return dao.huyYeuCau(maYeuCau.trim(), maKTV);
+    }
+
+    private static void yeuCauKyThuatVien() {
+        if (UserSession.getInstance().getVaiTro() != VaiTro.KY_THUAT_VIEN) {
+            throw new SecurityException("Chức năng chỉ dành cho Kỹ thuật viên.");
+        }
+    }
+
     private void chuyenTrangThai(String maYeuCau, TrangThaiYeuCau trangThaiMoi, String ghiChu,
                                  boolean batBuocGhiChu, Integer soLuongNhapThucTe) {
         yeuCauChuCuaHang();
