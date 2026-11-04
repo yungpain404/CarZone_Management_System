@@ -52,7 +52,7 @@
   + LapHoaDonThanhToanUI (UC014, UC015): Lập hóa đơn từ phiếu HOAN_TAT, áp dụng khuyến mãi, popup thanh toán tiền mặt/chuyển khoản có mã giao dịch.
   + TaoPhieuDoiTraUI (UC012): Đổi trả hóa đơn trong 7 ngày, chọn dịch vụ/linh kiện, chọn hướng xử lý (HOAN_TIEN, DOI_MOI, SUA_LAI_MIEN_PHI).
   + TraCuuUI (UC007): 4 tab Dịch vụ, Linh kiện, Khách hàng, Lịch sử tiếp nhận xe.
-  + ThongKeTiepNhanUI (UC013): KPI card, biểu đồ cột xu hướng theo ngày & biểu đồ tròn donut phân bố trạng thái (Graphics2D), bảng chi tiết.
+  + ThongKeTiepNhanUI (UC013): Nâng cấp 3 phần dashboard, bộ chọn ngày DatePickerField popup lịch, lọc khi bấm nút, reset chuẩn.
 - **Tích hợp MainFrame**: Đăng ký toàn bộ các trang TNV vào MainFrame.java, gắn navigation item NAV_THONG_KE_TIEP_NHAN, fix lỗi SQL join/where trong DashboardController.
 - **Biên dịch**: mvn compile thành công 100% (77 source files, 0 error).
 

@@ -1,14 +1,18 @@
 package dao;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Interface DAO phục vụ nghiệp vụ Thống kê tiếp nhận (UC013 - Tiếp nhận viên).
+ * Interface DAO phục vụ nghiệp vụ Thống kê tiếp nhận (UC013 - Tiếp nhận viên và Quản lý).
  */
 public interface ThongKeTiepNhanDao {
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // DTO PHẦN 1: THỐNG KÊ TỔNG QUAN
+    // ─────────────────────────────────────────────────────────────────────────
     class ThongKeData {
         public int tongPhieu;
         public int soXe;
@@ -41,9 +45,101 @@ public interface ThongKeTiepNhanDao {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // DTO PHẦN 2: SO SÁNH THEO THỜI GIAN
+    // ─────────────────────────────────────────────────────────────────────────
+    class SoSanhThangData {
+        public int thangNay;
+        public int namNay;
+        public int thangTruoc;
+        public int namTruoc;
+
+        public int phieuThangNay;
+        public int phieuThangTruoc;
+        public int chenhLechPhieu;
+        public double tyLeTangTruong; // % (dương = tăng, âm = giảm)
+        public boolean coDuLieuKyTruoc; // false nếu tháng trước = 0
+
+        public int luotKhachHaiThang;
+        public int soXeHaiThang;
+        public int khachThangNay;
+        public int khachThangTruoc;
+        public int xeThangNay;
+        public int xeThangTruoc;
+    }
+
+    class SoSanhNamData {
+        public int namNay;
+        public int namTruoc;
+
+        public int phieuNamNay;
+        public int phieuNamTruoc;
+        public int chenhLechPhieu;
+        public double tyLeTangTruong; // % (dương = tăng, âm = giảm)
+        public boolean coDuLieuKyTruoc;
+
+        public int luotKhachHaiNam;
+        public int soXeHaiNam;
+        public int khachNamNay;
+        public int khachNamTruoc;
+        public int xeNamNay;
+        public int xeNamTruoc;
+
+        // Phân bố số lượng phiếu theo 12 tháng (index 0 = Tháng 1, ... 11 = Tháng 12)
+        public int[] phieuTheoThangNamNay = new int[12];
+        public int[] phieuTheoThangNamTruoc = new int[12];
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DTO PHẦN 3: TÌNH HÌNH XỬ LÝ VÀ TỒN ĐỌNG PHIẾU
+    // ─────────────────────────────────────────────────────────────────────────
+    class TinhHinhXuLyData {
+        public int choSua;
+        public int dangSua;
+        public int choLinhKien;
+        public int hoanTat;
+        public int tongCong;
+
+        public List<PhieuTonDongRow> danhSachTonDong = new ArrayList<>();
+    }
+
+    class PhieuTonDongRow {
+        public String maPhieu;
+        public String ngayTiepNhan;
+        public String bienSo;
+        public String khachHang;
+        public String trangThai;
+        public String ktv;
+        public String thoiGianTonDong; // "3 ngày 5 giờ", "18 giờ"...
+
+        public PhieuTonDongRow(String maPhieu, String ngayTiepNhan, String bienSo, String khachHang, String trangThai, String ktv, String thoiGianTonDong) {
+            this.maPhieu = maPhieu;
+            this.ngayTiepNhan = ngayTiepNhan;
+            this.bienSo = bienSo;
+            this.khachHang = khachHang;
+            this.trangThai = trangThai;
+            this.ktv = ktv;
+            this.thoiGianTonDong = thoiGianTonDong;
+        }
+    }
+
     /**
      * Lấy dữ liệu thống kê tiếp nhận theo nhân viên tiếp nhận, khoảng ngày và trạng thái.
-     * TNV chỉ xem dữ liệu trong phạm vi của mình (maNVTiepNhan).
      */
     ThongKeData layThongKe(String maNVTiepNhan, Date tuNgay, Date denNgay, String trangThai);
+
+    /**
+     * Lấy dữ liệu so sánh tiếp nhận giữa tháng này và tháng trước.
+     */
+    SoSanhThangData laySoSanhThang(String maNVTiepNhan);
+
+    /**
+     * Lấy dữ liệu so sánh tiếp nhận giữa năm nay và năm trước (kèm phân bố 12 tháng).
+     */
+    SoSanhNamData laySoSanhNam(String maNVTiepNhan);
+
+    /**
+     * Lấy dữ liệu tình hình xử lý phiếu (4 trạng thái) và danh sách phiếu tồn đọng lâu.
+     */
+    TinhHinhXuLyData layTinhHinhXuLy(String maNVTiepNhan);
 }
