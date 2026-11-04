@@ -8,6 +8,8 @@ import entity.LinhKien;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import com.toedter.calendar.JDateChooser;
+import com.toedter.calendar.JTextFieldDateEditor;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -42,8 +44,8 @@ public class QuanLyKhuyenMaiUI extends JPanel {
 
     private final KhuyenMaiController controller = new KhuyenMaiController();
     private final JTextField txtQuery = new JTextField();
-    private final JSpinner spnTuNgay = dateSpinner(Date.from(LocalDate.now().withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
-    private final JSpinner spnDenNgay = dateSpinner(new Date());
+    private final JDateChooser spnTuNgay = dateSpinner(Date.from(LocalDate.now().withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+    private final JDateChooser spnDenNgay = dateSpinner(new Date());
     private final JButton btnSearch = button("Tìm kiếm", true);
     private final JButton btnReset = button("Làm mới", false);
     private final JButton btnAdd = button("Thêm chương trình", true);
@@ -243,8 +245,8 @@ public class QuanLyKhuyenMaiUI extends JPanel {
 
     private void reset() {
         txtQuery.setText("");
-        spnTuNgay.setValue(Date.from(LocalDate.now().withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
-        spnDenNgay.setValue(normalizedDate(new Date()));
+        spnTuNgay.setDate(Date.from(LocalDate.now().withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        spnDenNgay.setDate(normalizedDate(new Date()));
         results = new ArrayList<>();
         selectedDetails = null;
         searched = false;
@@ -397,8 +399,8 @@ public class QuanLyKhuyenMaiUI extends JPanel {
         dialog.setVisible(true);
         if (dialog.saved != null) {
             txtQuery.setText(dialog.saved.getMaKM());
-            spnTuNgay.setValue(normalizedDate(dialog.saved.getNgayBatDau()));
-            spnDenNgay.setValue(normalizedDate(dialog.saved.getNgayKetThuc()));
+            spnTuNgay.setDate(normalizedDate(dialog.saved.getNgayBatDau()));
+            spnDenNgay.setDate(normalizedDate(dialog.saved.getNgayKetThuc()));
             search();
         }
     }
@@ -473,12 +475,26 @@ public class QuanLyKhuyenMaiUI extends JPanel {
         };
     }
 
-    private static JSpinner dateSpinner(Date value) {
-        JSpinner spinner = new JSpinner(new SpinnerDateModel(value, null, null, java.util.Calendar.DAY_OF_MONTH));
-        JSpinner.DateEditor editor = new JSpinner.DateEditor(spinner, "dd/MM/yyyy");
-        editor.getFormat().setLenient(false);
-        spinner.setEditor(editor);
-        return spinner;
+    private static JDateChooser createDateChooser(Date value, int width) {
+        JDateChooser chooser = new JDateChooser();
+        chooser.setDateFormatString("dd/MM/yyyy");
+        chooser.setDate(normalizedDate(value));
+        chooser.setPreferredSize(new Dimension(width, 44));
+        chooser.setBackground(WHITE);
+        if (chooser.getDateEditor() instanceof JTextFieldDateEditor editor) {
+            editor.setEditable(false);
+            editor.setBackground(WHITE);
+            editor.setFont(new Font("SansSerif", Font.PLAIN, 13));
+            editor.setBorder(new EmptyBorder(0, 10, 0, 2));
+        }
+        chooser.getCalendarButton().setFocusable(false);
+        chooser.getCalendarButton().setPreferredSize(new Dimension(32, 34));
+        chooser.setBorder(new RoundedBorder(new Color(0xC9D5E5), 10));
+        return chooser;
+    }
+
+    private static JDateChooser dateSpinner(Date value) {
+        return createDateChooser(value, 165);
     }
 
     private static Date normalizedDate(Date date) {
@@ -526,8 +542,8 @@ public class QuanLyKhuyenMaiUI extends JPanel {
         private final boolean readOnlyRules;
         private final JTextField txtName = new JTextField();
         private final JSpinner spnPercent = new JSpinner(new SpinnerNumberModel(10.0, 0.01, 100.0, 1.0));
-        private final JSpinner spnStart = dateSpinner(new Date());
-        private final JSpinner spnEnd = dateSpinner(new Date());
+        private final JDateChooser spnStart = dateSpinner(new Date());
+        private final JDateChooser spnEnd = dateSpinner(new Date());
         private final JTextArea txtNote = new JTextArea(3, 30);
         private final JLabel lblError = label("", 12, RED, Font.PLAIN);
         private final JLabel lblRule = label("", 12, SUBTLE, Font.PLAIN);
@@ -547,6 +563,7 @@ public class QuanLyKhuyenMaiUI extends JPanel {
             this.readOnlyRules = used;
             servicePanel = new CatalogPanel(true);
             partPanel = new CatalogPanel(false);
+            UIInputRules.restrictDecimalSpinner(spnPercent, 2);
             if (existing != null) {
                 for (DichVu dv : existing.getDichVuApDung()) selectedServices.put(dv.getMaDV(), dv);
                 for (LinhKien lk : existing.getLinhKienApDung()) selectedParts.put(lk.getMaLK(), lk);
@@ -640,7 +657,7 @@ public class QuanLyKhuyenMaiUI extends JPanel {
             field.setFont(new Font("SansSerif", Font.PLAIN, 13));
             field.setPreferredSize(new Dimension(210, 42));
             field.setBorder(BorderFactory.createCompoundBorder(new RoundedBorder(new Color(0xC9D5E5), 10), new EmptyBorder(0, 10, 0, 10)));
-            if (field instanceof JSpinner spinner && spinner.getEditor() instanceof JSpinner.DateEditor editor) editor.getTextField().setBorder(new EmptyBorder(0, 0, 0, 0));
+            if (field instanceof JDateChooser chooser && chooser.getDateEditor() instanceof JTextFieldDateEditor editor) editor.setBorder(new EmptyBorder(0, 10, 0, 2));
             cell.add(field, BorderLayout.CENTER);
             parent.add(cell);
         }
@@ -648,8 +665,8 @@ public class QuanLyKhuyenMaiUI extends JPanel {
         private void populate() {
             txtName.setText(existing.getTenChuongTrinh());
             spnPercent.setValue(existing.getMucGiamPhanTram());
-            spnStart.setValue(normalizedDate(existing.getNgayBatDau()));
-            spnEnd.setValue(normalizedDate(existing.getNgayKetThuc()));
+            spnStart.setDate(normalizedDate(existing.getNgayBatDau()));
+            spnEnd.setDate(normalizedDate(existing.getNgayKetThuc()));
             txtNote.setText(existing.getGhiChu() == null ? "" : existing.getGhiChu());
             servicePanel.renderSelected();
             partPanel.renderSelected();
@@ -676,8 +693,6 @@ public class QuanLyKhuyenMaiUI extends JPanel {
             if (saving) return;
             try {
                 spnPercent.commitEdit();
-                spnStart.commitEdit();
-                spnEnd.commitEdit();
             } catch (java.text.ParseException e) {
                 showFormError("Mức giảm hoặc ngày không hợp lệ.");
                 return;

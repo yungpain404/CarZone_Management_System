@@ -927,7 +927,12 @@ public class DashboardUI extends JFrame {
     // 3A. DASHBOARD CHỦ CỬA HÀNG (Bám sát image45.png từ Figma)
     // ─────────────────────────────────────────────────────────────────────────
     private JPanel buildChuCuaHangContent() {
-        ChuCuaHangDashboardData data = dashboardController.layDataChuCuaHang();
+        ChuCuaHangDashboardData data;
+        try {
+            data = dashboardController.layDataChuCuaHang();
+        } catch (java.sql.SQLException ex) {
+            throw new IllegalStateException("Không thể tải dashboard từ cơ sở dữ liệu.", ex);
+        }
 
         ScrollableContentPanel main = new ScrollableContentPanel();
         main.setBorder(new EmptyBorder(16, 20, 16, 20));

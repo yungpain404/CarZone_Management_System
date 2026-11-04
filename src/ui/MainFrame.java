@@ -8,7 +8,11 @@ import controller.AuthController;
 import controller.AuthController.NavigationItem;
 import controller.DashboardController;
 import controller.DashboardController.*;
+import controller.DichVuController;
+import controller.TraCuuController;
 import entity.NhanVien;
+import entity.DichVu;
+import entity.LinhKien;
 
 import enums.VaiTro;
 import session.UserSession;
@@ -28,12 +32,15 @@ import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.SimpleDateFormat;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * MainFrame: Khung giao diện chính của toàn bộ hệ thống CarZone.
@@ -119,11 +126,17 @@ public class MainFrame extends JFrame {
     private final NhanVien nhanVien;
     private final AuthController authController = new AuthController();
     private final DashboardController dashboardController = new DashboardController();
+    private final TraCuuController traCuuController = new TraCuuController();
+    private final DichVuController dichVuController = new DichVuController();
 
     private CardLayout contentCardLayout;
     private JPanel pnlContentPanel;
     private final Map<String, JButton> mapNavButtons = new HashMap<>();
     private String activeNavId = "NAV_DASHBOARD";
+    private XuLyYeuCauLinhKienUI xuLyYeuCauCCHUI;
+    private QuanLyDichVuUI quanLyDichVuCCHUI;
+    private QuanLyLinhKienUI quanLyLinhKienCCHUI;
+    private QuanLyTaiKhoanUI quanLyTaiKhoanCCHUI;
 
     // Header dynamic components
     private JLabel lblHeaderUserName;
@@ -251,6 +264,7 @@ public class MainFrame extends JFrame {
         };
 
         searchBox = new HeaderSearchBox(searchPlaceholder);
+        searchBox.setHandlers(this::hienThiGoiYTimKiem, this::chonGoiYTimKiem);
         pnlRight.add(searchBox);
 
         // ── Nhóm link nhanh Help / About (gap 4px) ───────────────────────────
@@ -532,6 +546,28 @@ public class MainFrame extends JFrame {
         }
     }
 
+    private void moDanhSachTheoKpi(int index) {
+        switch (index) {
+            case 0 -> {
+                moPageTheoNavigation("NAV_YC_LINH_KIEN");
+                if (xuLyYeuCauCCHUI != null) xuLyYeuCauCCHUI.locTuDashboard("Chờ duyệt");
+            }
+            case 1 -> {
+                moPageTheoNavigation("NAV_YC_LINH_KIEN");
+                if (xuLyYeuCauCCHUI != null) xuLyYeuCauCCHUI.locTuDashboard("Đã duyệt");
+            }
+            case 2 -> {
+                moPageTheoNavigation("NAV_LINH_KIEN_KHO");
+                if (quanLyLinhKienCCHUI != null) quanLyLinhKienCCHUI.locHetHangTuDashboard();
+            }
+            case 3 -> {
+                moPageTheoNavigation("NAV_TAI_KHOAN");
+                if (quanLyTaiKhoanCCHUI != null) quanLyTaiKhoanCCHUI.locHoSoChuaCoTaiKhoanTuDashboard();
+            }
+            default -> { }
+        }
+    }
+
     /**
      * Mở page từ nút trên Header (Help / About).
      * Không đổi activeNavId của Sidebar – chỉ chuyển card ContentPanel.
@@ -566,17 +602,21 @@ public class MainFrame extends JFrame {
             } else if ("NAV_THONG_KE".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
                 pnlContentPanel.add(new ThongKeDoanhThuUI(nhanVien), item.getId());
             } else if ("NAV_QUAN_LY_DICH_VU".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
-                pnlContentPanel.add(new QuanLyDichVuUI(), item.getId());
+                quanLyDichVuCCHUI = new QuanLyDichVuUI();
+                pnlContentPanel.add(quanLyDichVuCCHUI, item.getId());
             } else if ("NAV_LINH_KIEN_KHO".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
-                pnlContentPanel.add(new QuanLyLinhKienUI(), item.getId());
+                quanLyLinhKienCCHUI = new QuanLyLinhKienUI();
+                pnlContentPanel.add(quanLyLinhKienCCHUI, item.getId());
             } else if ("NAV_YC_LINH_KIEN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
-                pnlContentPanel.add(new XuLyYeuCauLinhKienUI(), item.getId());
+                xuLyYeuCauCCHUI = new XuLyYeuCauLinhKienUI();
+                pnlContentPanel.add(xuLyYeuCauCCHUI, item.getId());
             } else if ("NAV_KHUYEN_MAI".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
                 pnlContentPanel.add(new QuanLyKhuyenMaiUI(), item.getId());
             } else if ("NAV_NHAN_VIEN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
                 pnlContentPanel.add(new QuanLyNhanVienUI(), item.getId());
             } else if ("NAV_TAI_KHOAN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
-                pnlContentPanel.add(new QuanLyTaiKhoanUI(), item.getId());
+                quanLyTaiKhoanCCHUI = new QuanLyTaiKhoanUI();
+                pnlContentPanel.add(quanLyTaiKhoanCCHUI, item.getId());
             } else if ("NAV_TRA_CUU".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
                 pnlContentPanel.add(new TraCuuChuCuaHangUI(), item.getId());
             } else if ("NAV_THONG_TIN_CA_NHAN".equals(item.getId())) {
@@ -617,24 +657,28 @@ public class MainFrame extends JFrame {
      */
     private JComponent buildChuCuaHangDashboardView() {
         ChuCuaHangDashboardPanel panel = new ChuCuaHangDashboardPanel();
+        panel.setOnRefresh(() -> taiDuLieuDashboardChuCuaHang(panel));
+        taiDuLieuDashboardChuCuaHang(panel);
+        return panel;
+    }
 
+    private void taiDuLieuDashboardChuCuaHang(ChuCuaHangDashboardPanel panel) {
+        if (!panel.batDauTaiDuLieu()) return;
         new SwingWorker<ChuCuaHangDashboardData, Void>() {
             @Override
-            protected ChuCuaHangDashboardData doInBackground() {
+            protected ChuCuaHangDashboardData doInBackground() throws Exception {
                 return dashboardController.layDataChuCuaHang();
             }
 
             @Override
             protected void done() {
-                try {
+                if (nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) try {
                     panel.capNhatDuLieu(get());
                 } catch (Exception ex) {
-                    System.err.println("Lỗi tải dữ liệu Dashboard Chủ cửa hàng: " + ex.getMessage());
+                    panel.baoLoiTaiDuLieu();
                 }
             }
         }.execute();
-
-        return panel;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -700,14 +744,13 @@ public class MainFrame extends JFrame {
     public class ChuCuaHangDashboardPanel extends ScrollableContentPanel {
 
         private final JLabel lblNgay = taoNhan(LocalDate.now().format(LOCAL_DATE_FMT), Font.BOLD, 12, F_TITLE);
+        private final JButton btnLamMoiDashboard = new RoundedButton("Làm mới", 10, C_WHITE,
+                new Color(0xF1F5F9), F_LINE);
         private final JLabel[] kpiSo = new JLabel[4];
-        private final JLabel[] kpiMoTa = new JLabel[4];
         private final JLabel lblBadgeYeuCau = taoNhan("0 yêu cầu", Font.BOLD, 11, C_PRIMARY);
         private final JPanel pnlBangYeuCau = new JPanel();
-        private final JLabel[] demTrangThai = new JLabel[4];
         private final JLabel lblBadgeHetHang = taoNhan("0 mã", Font.BOLD, 11, F_DANGER);
         private final JPanel pnlDanhSachHetHang = new JPanel();
-        private final JLabel lblSoHoaDon = taoNhan("", Font.PLAIN, 11, F_DESC);
         private final JLabel lblThuThuan = taoNhan("0", Font.BOLD, 29, F_DEEP);
         private final JLabel lblTongThu = taoNhan("0 VNĐ", Font.BOLD, 11, F_TITLE);
         private final JLabel lblHoanTien = taoNhan("0 VNĐ", Font.BOLD, 11, F_DANGER);
@@ -718,6 +761,8 @@ public class MainFrame extends JFrame {
         private final JLabel lblTyLeTM = taoNhan("0%", Font.PLAIN, 11, F_DESC);
         private final JLabel lblTienCK = taoNhan("0 VNĐ", Font.BOLD, 14, F_TITLE);
         private final JLabel lblTienTM = taoNhan("0 VNĐ", Font.BOLD, 14, F_TITLE);
+        private Runnable onRefresh;
+        private boolean dangTaiDuLieu;
 
         public ChuCuaHangDashboardPanel() {
             setBorder(new EmptyBorder(20, 26, 22, 26));
@@ -731,11 +776,22 @@ public class MainFrame extends JFrame {
             JLabel lblTitle = taoNhan("Dashboard", Font.BOLD, 24, F_TITLE);
             pnlTieuDe.add(lblTitle, BorderLayout.WEST);
 
+            btnLamMoiDashboard.setFont(f(Font.BOLD, 12));
+            btnLamMoiDashboard.setForeground(F_LABEL);
+            btnLamMoiDashboard.setPreferredSize(new Dimension(88, 36));
+            btnLamMoiDashboard.addActionListener(e -> {
+                if (onRefresh != null) onRefresh.run();
+            });
+
             RoundedPanel chipNgay = new RoundedPanel(C_WHITE, 10, F_LINE, new Insets(9, 14, 9, 14));
             chipNgay.setLayout(new BorderLayout(9, 0));
             chipNgay.add(new JLabel(new CalendarIcon(F_DESC, 16)), BorderLayout.WEST);
             chipNgay.add(lblNgay, BorderLayout.CENTER);
-            pnlTieuDe.add(chipNgay, BorderLayout.EAST);
+            JPanel headerRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+            headerRight.setOpaque(false);
+            headerRight.add(btnLamMoiDashboard);
+            headerRight.add(chipNgay);
+            pnlTieuDe.add(headerRight, BorderLayout.EAST);
             add(pnlTieuDe);
             add(Box.createVerticalStrut(16));
 
@@ -745,14 +801,10 @@ public class MainFrame extends JFrame {
             pnlKpi.setAlignmentX(Component.CENTER_ALIGNMENT);
             pnlKpi.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
-            pnlKpi.add(taoTheKpi(0, false, "Yêu cầu chờ phê duyệt", "Chưa có yêu cầu nào",
-                    "Xử lý yêu cầu cập nhật linh kiện", "NAV_YC_LINH_KIEN", "illustration_request.png"));
-            pnlKpi.add(taoTheKpi(1, false, "Chờ xác nhận nhập kho", "Đã duyệt · Chưa nhập kho",
-                    "Xử lý yêu cầu cập nhật linh kiện", "NAV_YC_LINH_KIEN", "illustration_stock.png"));
-            pnlKpi.add(taoTheKpi(2, false, "Linh kiện hết hàng", "Các mã đang kinh doanh",
-                    "Quản lý linh kiện và tồn kho", "NAV_LINH_KIEN_KHO", "illustration_alert.png"));
-            pnlKpi.add(taoTheKpi(3, false, "Hồ sơ chưa có tài khoản", "Trong các hồ sơ đang hiển thị",
-                    "Quản lý nhân viên / Tạo tài khoản", "NAV_NHAN_VIEN", "illustration_staff.png"));
+            pnlKpi.add(taoTheKpi(0, "Yêu cầu chờ phê duyệt", "illustration_request.png"));
+            pnlKpi.add(taoTheKpi(1, "Chờ xác nhận nhập kho", "illustration_stock.png"));
+            pnlKpi.add(taoTheKpi(2, "Linh kiện hết hàng", "illustration_alert.png"));
+            pnlKpi.add(taoTheKpi(3, "Hồ sơ chưa có tài khoản", "illustration_staff.png"));
             add(pnlKpi);
             add(Box.createVerticalStrut(18));
 
@@ -762,8 +814,6 @@ public class MainFrame extends JFrame {
             pnlHeadViec.setAlignmentX(Component.CENTER_ALIGNMENT);
             pnlHeadViec.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
             pnlHeadViec.add(taoNhan("Công việc cần xử lý", Font.BOLD, 18, F_TITLE), BorderLayout.WEST);
-            pnlHeadViec.add(taoNhan("Phạm vi: yêu cầu, linh kiện và hồ sơ đang hiển thị",
-                    Font.PLAIN, 11, F_DESC), BorderLayout.EAST);
             add(pnlHeadViec);
             add(Box.createVerticalStrut(12));
 
@@ -784,66 +834,47 @@ public class MainFrame extends JFrame {
             add(cardKD);
         }
 
-        /** Tạo 1 thẻ KPI; index 0 là thẻ nổi bật nền xanh. */
-        private JPanel taoTheKpi(int viTri, boolean nenXanh, String tieuDe, String moTa,
-                                 String linkText, String navId, String iconTen) {
-            Color clrSo = nenXanh ? Color.WHITE : F_TITLE;
-            Color clrTieuDe = nenXanh ? Color.WHITE : F_TITLE;
-            Color clrMoTa = nenXanh ? F_ON_BLUE : F_DESC;
-            Color clrLink = nenXanh ? Color.WHITE : C_PRIMARY;
-            Color clrViEN = nenXanh ? C_PRIMARY : F_LINE;
-
-            RoundedPanel card = new RoundedPanel(nenXanh ? C_PRIMARY : C_WHITE, 12, clrViEN, new Insets(12, 14, 12, 14));
+        /** Thẻ KPI nền trắng, bấm toàn thẻ để mở danh sách đã lọc. */
+        private JPanel taoTheKpi(int viTri, String tieuDe, String iconTen) {
+            RoundedPanel card = new RoundedPanel(C_WHITE, 12, F_LINE, new Insets(14, 16, 14, 16));
             card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-            card.setMinimumSize(new Dimension(180, 120));
+            card.setMinimumSize(new Dimension(180, 112));
             card.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+            card.setToolTipText("Bấm để mở danh sách đã lọc.");
 
             // Hàng số + minh họa 3D
             JPanel rowSo = new JPanel(new BorderLayout(0, 0));
             rowSo.setOpaque(false);
             rowSo.setAlignmentX(Component.LEFT_ALIGNMENT);
             rowSo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
-            JLabel lblSo = taoNhan("00", Font.BOLD, 30, clrSo);
+            JLabel lblSo = taoNhan("—", Font.BOLD, 30, F_TITLE);
             kpiSo[viTri] = lblSo;
             rowSo.add(lblSo, BorderLayout.WEST);
             rowSo.add(taoAnh(iconTen, 36, 36), BorderLayout.EAST);
             card.add(rowSo);
-            card.add(Box.createVerticalStrut(7));
-
-            // Nhãn tiêu đề + mô tả
-            JPanel moTaPanel = new JPanel();
-            moTaPanel.setLayout(new BoxLayout(moTaPanel, BoxLayout.Y_AXIS));
-            moTaPanel.setOpaque(false);
-            moTaPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-            moTaPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-            JLabel lblTieuDe = taoNhan(tieuDe, Font.BOLD, 14, clrTieuDe);
+            card.add(Box.createVerticalStrut(12));
+            JLabel lblTieuDe = taoNhan(tieuDe, Font.BOLD, 14, F_TITLE);
             lblTieuDe.setAlignmentX(Component.LEFT_ALIGNMENT);
-            moTaPanel.add(lblTieuDe);
-            moTaPanel.add(Box.createVerticalStrut(4));
-            JLabel lblMoTa = taoNhan(moTa, Font.PLAIN, 11, clrMoTa);
-            lblMoTa.setAlignmentX(Component.LEFT_ALIGNMENT);
-            kpiMoTa[viTri] = lblMoTa;
-            moTaPanel.add(lblMoTa);
-            card.add(moTaPanel);
-            card.add(Box.createVerticalStrut(8));
-
-            // Footer điều hướng có viền trên tách
-            JPanel foot = new JPanel(new BorderLayout(6, 0));
-            foot.setOpaque(false);
-            foot.setAlignmentX(Component.LEFT_ALIGNMENT);
-            foot.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-            foot.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(1, 0, 0, 0, nenXanh ? new Color(0x33FFFFFF) : F_LINE),
-                    new EmptyBorder(8, 0, 0, 0)));
-            foot.add(taoNhan(linkText, Font.BOLD, 10, clrLink), BorderLayout.WEST);
-            foot.add(new JLabel(new ArrowUpRightIcon(clrLink, 14)), BorderLayout.EAST);
-            ganDieuHuong(foot, navId);
-            card.add(foot);
-
+            card.add(lblTieuDe);
+            card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            java.awt.event.MouseAdapter click = new java.awt.event.MouseAdapter() {
+                @Override public void mouseClicked(java.awt.event.MouseEvent e) { moDanhSachTheoKpi(viTri); }
+            };
+            ganClickToanThe(card, click);
             return card;
         }
 
-        /** Card "Yêu cầu chờ duyệt" gồm header, bảng tiêu đề, danh sách dòng và footer 4 đếm. */
+        private void ganClickToanThe(Component component, java.awt.event.MouseAdapter click) {
+            component.addMouseListener(click);
+            component.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            if (component instanceof Container container) {
+                for (Component child : container.getComponents()) ganClickToanThe(child, click);
+            }
+        }
+
+        /**
+         * Card "Yêu cầu chờ duyệt" gồm header, bảng tiêu đề và danh sách dòng.
+         */
         private JPanel taoBangYeuCauChoDuyet() {
             RoundedPanel card = new RoundedPanel(C_WHITE, 16, F_LINE, null);
             card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
@@ -876,24 +907,6 @@ public class MainFrame extends JFrame {
             pnlBangYeuCau.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
             card.add(pnlBangYeuCau);
 
-            // Footer: 4 đếm trạng thái
-            Color[] mauDot = {C_PRIMARY, C_SUCCESS, F_DANGER, F_TEAL};
-            String[] nhanDem = {"Chờ duyệt 0", "Đã duyệt 0", "Từ chối 0", "Đã nhập kho 0"};
-            JPanel foot = new JPanel(new FlowLayout(FlowLayout.LEFT, 14, 0));
-            foot.setOpaque(false);
-            foot.setAlignmentX(Component.LEFT_ALIGNMENT);
-            foot.setBorder(new EmptyBorder(6, 16, 6, 16));
-            foot.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
-            for (int i = 0; i < 4; i++) {
-                JPanel muc = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-                muc.setOpaque(false);
-                muc.add(new JLabel(new DotIcon(mauDot[i], 5)));
-                demTrangThai[i] = taoNhan(nhanDem[i], Font.PLAIN, 10, F_LABEL);
-                muc.add(demTrangThai[i]);
-                foot.add(muc);
-            }
-            card.add(foot);
-
             return card;
         }
 
@@ -920,9 +933,6 @@ public class MainFrame extends JFrame {
             row.add(oCoRong(taoNhan("YÊU CẦU", Font.BOLD, 10, F_DESC), 72), gc);
             gc.gridx = 4;
             row.add(oCoRong(taoNhan("TỒN KHO", Font.BOLD, 10, F_DESC), 84), gc);
-            gc.gridx = 5; gc.insets = new Insets(0, 0, 0, 0);
-            row.add(Box.createHorizontalStrut(14), gc);
-
             return row;
         }
 
@@ -981,10 +991,6 @@ public class MainFrame extends JFrame {
             gc.gridx = 4;
             row.add(oCoRong(taoNhan(r.tonKho, Font.BOLD, 12, r.tonKhoHet ? F_DANGER : F_LABEL), 84), gc);
 
-            // Chevron cuối dòng
-            gc.gridx = 5; gc.insets = new Insets(0, 0, 0, 0);
-            row.add(new JLabel(new ChevronRightIcon(F_DESC, 14)), gc);
-
             return row;
         }
 
@@ -1013,11 +1019,6 @@ public class MainFrame extends JFrame {
             headRow.add(badge, BorderLayout.EAST);
             card.add(headRow);
             card.add(Box.createVerticalStrut(8));
-
-            JLabel moTa = taoNhan("Linh kiện đang kinh doanh có tồn kho bằng 0.", Font.PLAIN, 11, F_DESC);
-            moTa.setAlignmentX(Component.LEFT_ALIGNMENT);
-            card.add(moTa);
-            card.add(Box.createVerticalStrut(10));
 
             // Danh sách mã hết hàng (cập nhật lại khi có dữ liệu thật)
             pnlDanhSachHetHang.setLayout(new BoxLayout(pnlDanhSachHetHang, BoxLayout.Y_AXIS));
@@ -1050,12 +1051,6 @@ public class MainFrame extends JFrame {
             top.add(taoNhan(r.tenLinhKien, Font.BOLD, 13, F_TITLE), BorderLayout.WEST);
             top.add(taoNhan("0 " + r.donVi, Font.BOLD, 13, F_DANGER), BorderLayout.EAST);
             item.add(top);
-            item.add(Box.createVerticalStrut(6));
-
-            JLabel sub = taoNhan(r.maLinhKien + " · " + r.ghiChuYeuCau, Font.PLAIN, 10, F_DESC);
-            sub.setAlignmentX(Component.LEFT_ALIGNMENT);
-            item.add(sub);
-
             return item;
         }
 
@@ -1070,7 +1065,6 @@ public class MainFrame extends JFrame {
             JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
             left.setOpaque(false);
             left.add(taoNhan("Kinh doanh trong ngày", Font.BOLD, 16, F_TITLE));
-            left.add(lblSoHoaDon);
             head.add(left, BorderLayout.WEST);
             head.add(taoLink("Thống kê báo cáo", 12, C_PRIMARY, C_PRIMARY, "NAV_THONG_KE"), BorderLayout.EAST);
             card.add(head, BorderLayout.NORTH);
@@ -1109,10 +1103,6 @@ public class MainFrame extends JFrame {
             box.add(Box.createVerticalStrut(5));
             box.add(taoHangTien("Hoàn tiền", lblHoanTien, F_LABEL));
             box.add(Box.createVerticalStrut(5));
-
-            JLabel note = taoNhan("Doanh thu sau hoàn không phải lợi nhuận.", Font.PLAIN, 10, F_DESC);
-            note.setAlignmentX(Component.LEFT_ALIGNMENT);
-            box.add(note);
 
             return box;
         }
@@ -1225,16 +1215,39 @@ public class MainFrame extends JFrame {
             return grp;
         }
 
+        public void setOnRefresh(Runnable callback) {
+            onRefresh = callback;
+        }
+
+        public boolean batDauTaiDuLieu() {
+            if (dangTaiDuLieu) return false;
+            dangTaiDuLieu = true;
+            btnLamMoiDashboard.setEnabled(false);
+            btnLamMoiDashboard.setText("Đang tải…");
+            return true;
+        }
+
+        public void baoLoiTaiDuLieu() {
+            dangTaiDuLieu = false;
+            btnLamMoiDashboard.setEnabled(true);
+            btnLamMoiDashboard.setText("Làm mới");
+            btnLamMoiDashboard.setToolTipText("Không tải được số liệu từ CSDL. Bấm để thử lại.");
+            for (int i = 0; i < kpiSo.length; i++) {
+                kpiSo[i].setText("—");
+            }
+        }
+
         /** Đổ dữ liệu thật (luồng EDT – gọi từ SwingWorker.done()). */
         public void capNhatDuLieu(ChuCuaHangDashboardData data) {
+            dangTaiDuLieu = false;
+            btnLamMoiDashboard.setEnabled(true);
+            btnLamMoiDashboard.setText("Làm mới");
+            btnLamMoiDashboard.setToolTipText("Cập nhật số liệu từ CSDL.");
             lblNgay.setText(data.ngayBaoCao == null || data.ngayBaoCao.isEmpty()
                     ? LocalDate.now().format(LOCAL_DATE_FMT) : data.ngayBaoCao);
 
             // 4 thẻ KPI
             kpiSo[0].setText(String.format("%02d", data.yeuCauChoDuyet));
-            kpiMoTa[0].setText(data.tongYeuCauTheoDoi > 0
-                    ? (data.yeuCauChoDuyet + " / " + data.tongYeuCauTheoDoi + " yêu cầu đang theo dõi")
-                    : "Chưa có yêu cầu nào");
             kpiSo[1].setText(String.format("%02d", data.choXacNhanNhapKho));
             kpiSo[2].setText(String.format("%02d", data.linhKienHetHang));
             kpiSo[3].setText(String.format("%02d", data.hoSoChuaCoTaiKhoan));
@@ -1261,12 +1274,6 @@ public class MainFrame extends JFrame {
             pnlBangYeuCau.revalidate();
             pnlBangYeuCau.repaint();
 
-            // 4 đếm trạng thái
-            demTrangThai[0].setText("Chờ duyệt " + data.yeuCauChoDuyet);
-            demTrangThai[1].setText("Đã duyệt " + data.yeuCauDaDuyet);
-            demTrangThai[2].setText("Từ chối " + data.yeuCauTuChoi);
-            demTrangThai[3].setText("Đã nhập kho " + data.yeuCauDaNhapKho);
-
             // Cảnh báo hết hàng
             lblBadgeHetHang.setText(data.linhKienHetHang + " mã");
             pnlDanhSachHetHang.removeAll();
@@ -1280,12 +1287,18 @@ public class MainFrame extends JFrame {
                     item.setAlignmentX(Component.LEFT_ALIGNMENT);
                     pnlDanhSachHetHang.add(item);
                 }
+                int conLai = data.linhKienHetHang - data.danhSachHetHang.size();
+                if (conLai > 0) {
+                    JLabel more = taoNhan("Còn " + conLai + " mã hết hàng khác", Font.PLAIN, 11, F_DESC);
+                    more.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    pnlDanhSachHetHang.add(Box.createVerticalStrut(8));
+                    pnlDanhSachHetHang.add(more);
+                }
             }
             pnlDanhSachHetHang.revalidate();
             pnlDanhSachHetHang.repaint();
 
             // Kinh doanh trong ngày
-            lblSoHoaDon.setText(data.ngayBaoCao + " · " + data.soHoaDonThanhToan + " hóa đơn đã thanh toán");
             lblThuThuan.setText(MONEY_FMT.format(data.doanhThuSauHoan));
             lblTongThu.setText(MONEY_FMT.format(data.tongThu) + " VNĐ");
             lblHoanTien.setText(MONEY_FMT.format(data.hoanTien) + " VNĐ");
@@ -2374,8 +2387,83 @@ public class MainFrame extends JFrame {
         }
     }
 
+    private record HeaderSuggestion(String icon, String title, String subtitle, String navId,
+            String query, boolean linhKien, boolean navigationOnly) { }
+
+    private void hienThiGoiYTimKiem(String query) {
+        String text = query == null ? "" : query.trim();
+        String key = chuanHoaTimKiem(text);
+        if (key.isBlank()) {
+            searchBox.showSuggestions(List.of());
+            return;
+        }
+        List<HeaderSuggestion> pageMatches = new ArrayList<>();
+        for (NavigationItem item : authController.layDanhSachNavigationTheoRole(nhanVien.getVaiTro())) {
+            String title = chuanHoaTimKiem(item.getTieuDe());
+            if (title.contains(key) || key.contains(title)) {
+                pageMatches.add(new HeaderSuggestion(item.getIcon(), item.getTieuDe(), "Mở màn hình",
+                        item.getId(), "", false, true));
+            }
+        }
+        new SwingWorker<List<HeaderSuggestion>, Void>() {
+            @Override protected List<HeaderSuggestion> doInBackground() {
+                List<HeaderSuggestion> results = new ArrayList<>();
+                results.addAll(pageMatches);
+                java.text.NumberFormat money = java.text.NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN"));
+                try {
+                    for (DichVu dv : dichVuController.timKiem(text, true).stream().limit(5).toList()) {
+                        results.add(new HeaderSuggestion("🔧", dv.getMaDV() + " · " + dv.getTenDV(),
+                                "Dịch vụ · " + money.format(dv.getDonGia()) + " VNĐ / " + dv.getDonViTinh(),
+                                nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG ? "NAV_QUAN_LY_DICH_VU" : "NAV_TRA_CUU",
+                                dv.getMaDV(), false, false));
+                    }
+                } catch (RuntimeException ignored) { }
+                if (nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
+                    try {
+                        for (LinhKien lk : traCuuController.timLinhKien(text, "Tất cả").stream().limit(5).toList()) {
+                            results.add(new HeaderSuggestion("📦", lk.getMaLK() + " · " + lk.getTenLK(),
+                                    "Linh kiện · " + money.format(lk.getDonGia()) + " VNĐ / " + lk.getDonViTinh(),
+                                    nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG ? "NAV_LINH_KIEN_KHO" : "NAV_TRA_CUU",
+                                    lk.getMaLK(), true, false));
+                        }
+                    } catch (RuntimeException ignored) { }
+                }
+                return results;
+            }
+
+            @Override protected void done() {
+                if (!text.equals(searchBox.getQuery())) return;
+                try { searchBox.showSuggestions(get()); }
+                catch (Exception ex) { searchBox.showSuggestions(pageMatches); }
+            }
+        }.execute();
+    }
+
+    private void chonGoiYTimKiem(HeaderSuggestion suggestion) {
+        if (suggestion == null) return;
+        moPageTheoNavigation(suggestion.navId());
+        if (suggestion.navigationOnly()) return;
+        if (nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
+            if (suggestion.linhKien() && quanLyLinhKienCCHUI != null)
+                quanLyLinhKienCCHUI.timKiemTuHeader(suggestion.query());
+            else if (!suggestion.linhKien() && quanLyDichVuCCHUI != null)
+                quanLyDichVuCCHUI.timKiemTuHeader(suggestion.query());
+        }
+    }
+
+    private static String chuanHoaTimKiem(String value) {
+        String normalized = Normalizer.normalize(value == null ? "" : value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "").toLowerCase(Locale.ROOT).trim();
+        return normalized.replace('đ', 'd');
+    }
+
     public static class HeaderSearchBox extends JPanel {
         private final JTextField txtInput;
+        private final JPopupMenu popup = new JPopupMenu();
+        private final DefaultListModel<HeaderSuggestion> suggestionModel = new DefaultListModel<>();
+        private final JList<HeaderSuggestion> suggestionList = new JList<>(suggestionModel);
+        private Consumer<String> onSearch;
+        private Consumer<HeaderSuggestion> onSelect;
 
         public HeaderSearchBox(String placeholder) {
             setLayout(new BorderLayout(8, 0));
@@ -2398,6 +2486,93 @@ public class MainFrame extends JFrame {
             txtInput.setBorder(null);
             txtInput.setOpaque(false);
             add(txtInput, BorderLayout.CENTER);
+
+            suggestionList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            suggestionList.setFixedCellHeight(48);
+            suggestionList.setFont(f(Font.PLAIN, 12));
+            suggestionList.setCellRenderer(new DefaultListCellRenderer() {
+                @Override public Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                        boolean selected, boolean focus) {
+                    JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, selected, focus);
+                    if (value instanceof HeaderSuggestion item) {
+                        label.setText("<html>" + item.icon() + " &nbsp; <b>" + item.title()
+                                + "</b><br><span style='color:#7A889C'>" + item.subtitle() + "</span></html>");
+                    }
+                    label.setBorder(new EmptyBorder(3, 10, 3, 10));
+                    return label;
+                }
+            });
+            JScrollPane listScroll = new JScrollPane(suggestionList);
+            listScroll.setBorder(BorderFactory.createLineBorder(F_LINE));
+            popup.setLayout(new BorderLayout());
+            popup.add(listScroll, BorderLayout.CENTER);
+            suggestionList.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (e.getClickCount() == 1) chonGoiY();
+                }
+            });
+            txtInput.addActionListener(e -> {
+                if (popup.isVisible()) chonGoiY();
+                else if (onSearch != null) onSearch.accept(txtInput.getText());
+            });
+            txtInput.addKeyListener(new java.awt.event.KeyAdapter() {
+                @Override public void keyPressed(java.awt.event.KeyEvent e) {
+                    if (!popup.isVisible()) return;
+                    if (suggestionModel.isEmpty()) {
+                        if (e.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) popup.setVisible(false);
+                        return;
+                    }
+                    if (e.getKeyCode() == java.awt.event.KeyEvent.VK_DOWN) {
+                        suggestionList.setSelectedIndex(Math.min(suggestionList.getSelectedIndex() + 1, suggestionModel.size() - 1));
+                        suggestionList.ensureIndexIsVisible(suggestionList.getSelectedIndex()); e.consume();
+                    } else if (e.getKeyCode() == java.awt.event.KeyEvent.VK_UP) {
+                        suggestionList.setSelectedIndex(Math.max(0, suggestionList.getSelectedIndex() - 1));
+                        suggestionList.ensureIndexIsVisible(suggestionList.getSelectedIndex()); e.consume();
+                    } else if (e.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) {
+                        popup.setVisible(false); e.consume();
+                    }
+                }
+            });
+        }
+
+        public void setHandlers(Consumer<String> onSearch, Consumer<HeaderSuggestion> onSelect) {
+            this.onSearch = onSearch;
+            this.onSelect = onSelect;
+        }
+
+        public String getQuery() { return txtInput.getText().trim(); }
+
+        public void showSuggestions(List<HeaderSuggestion> matches) {
+            suggestionModel.clear();
+            for (HeaderSuggestion item : matches) suggestionModel.addElement(item);
+            if (matches.isEmpty()) {
+                popup.removeAll();
+                JLabel empty = new JLabel(txtInput.getText().isBlank()
+                        ? "Nhập từ khóa để tìm màn hình" : "Không tìm thấy màn hình phù hợp");
+                empty.setBorder(new EmptyBorder(10, 12, 10, 12));
+                popup.add(empty, BorderLayout.CENTER);
+                popup.setPreferredSize(new Dimension(Math.max(getWidth(), 260), 42));
+            } else {
+                if (popup.getComponentCount() == 0 || !(popup.getComponent(0) instanceof JScrollPane)) {
+                    popup.removeAll();
+                    JScrollPane scroll = new JScrollPane(suggestionList);
+                    scroll.setBorder(BorderFactory.createLineBorder(F_LINE));
+                    popup.add(scroll, BorderLayout.CENTER);
+                }
+                suggestionList.setSelectedIndex(0);
+                int height = Math.min(48 * matches.size(), 288) + 2;
+                popup.setPreferredSize(new Dimension(Math.max(getWidth(), 260), height));
+            }
+            popup.show(this, 0, getHeight());
+            txtInput.requestFocusInWindow();
+        }
+
+        private void chonGoiY() {
+            HeaderSuggestion selected = suggestionList.getSelectedValue();
+            if (selected != null && onSelect != null) {
+                popup.setVisible(false);
+                onSelect.accept(selected);
+            }
         }
 
         @Override

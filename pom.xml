@@ -39,6 +39,13 @@
             <version>3.7</version>
         </dependency>
 
+        <!-- Lịch trực quan dùng trong màn hình Chủ cửa hàng -->
+        <dependency>
+            <groupId>com.toedter</groupId>
+            <artifactId>jcalendar</artifactId>
+            <version>1.4</version>
+        </dependency>
+
         <!-- JUnit 5 cho unit test -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

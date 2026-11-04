@@ -6,6 +6,15 @@
 - Nhánh `develop`: 14 entity (`src/entity`) và 6 enum (`src/enums`), biên dịch được bằng `javac`. `pom.xml`, tài liệu trong `ai-context/`.
 - Nhánh `feature/infrastructure`: `infra/docker/compose.yml` (SQL Server → tạo DB → Flyway), `V1__init_CarZone_Database.sql` (bảng, trigger, stored procedure, view, dữ liệu danh mục/nhân sự), `V2__update_KhachHang_Entity.sql`, seed `CarZone_Demo.sql` (kịch bản khách Nguyễn Văn A).
 
+## Mới làm (04/11/2026)
+- **Dashboard Chủ cửa hàng:** truy vấn 4 KPI trực tiếp từ SQL, hiển thị trạng thái đang tải/lỗi và thời điểm cập nhật, thêm nút làm mới; giảm danh sách yêu cầu còn 5 dòng và cảnh báo hết hàng còn 3 mục ưu tiên để dashboard thoáng hơn.
+- **Tinh chỉnh Dashboard Chủ cửa hàng:** đưa cả 4 KPI về thẻ trắng, bỏ các dòng mô tả nhỏ; bấm KPI mở danh sách yêu cầu chờ duyệt/đã duyệt, linh kiện hết hàng hoặc hồ sơ chưa có tài khoản với bộ lọc được chạy sẵn.
+- **Ràng buộc số và chọn ngày CCH:** spinner giá dịch vụ/linh kiện, tồn ban đầu, phần trăm khuyến mãi và số nhập kho chặn ký tự chữ/khoảng trắng khi gõ; ngày sinh/ngày vào làm và ngày bắt đầu/kết thúc khuyến mãi dùng JCalendar popup, không nhập tay.
+- **Sửa ba lỗi UI CCH:** tìm kiếm header Enter hiện gợi ý các màn theo quyền và cho chọn điều hướng; spinner tiền/phần trăm/tồn/số lượng dùng `NumberFormatter` nghiêm ngặt; form thêm nhân viên truy vấn mã kế tiếp để hiển thị, form tạo tài khoản luôn hiện mã hồ sơ nhân viên đã chọn.
+- **Nút Làm mới danh mục dịch vụ/linh kiện:** hạ cờ trạng thái tìm kiếm trước khi reset combobox; tránh listener tự chạy truy vấn toàn bộ danh mục, kết quả trở lại 0 phần tử.
+- **Làm gọn bảng yêu cầu trên Dashboard CCH:** bỏ dấu điều hướng `>` ở cuối từng dòng và bỏ dải đếm bốn trạng thái bên dưới bảng.
+- **Tìm kiếm header dịch vụ/linh kiện:** nối thanh tìm kiếm MainFrame tới TraCuuController, hiển thị gợi ý dữ liệu thật theo mã/tên và điều hướng tới danh mục đã lọc theo vai trò; truy vấn chạy nền.
+
 ## Mới làm (30/10/2026)
 - **Quy tắc UI:** cập nhật `AGENTS.md` và skill `swing-screen`: không thêm breadcrumb/path phân cấp trên bất kỳ trang nào; dùng Side Navigation và tiêu đề hiện tại để định vị.
 - **Căn chỉnh icon header theo ảnh giao diện gửi kèm:** icon tìm kiếm chuyển sang `Icon` Swing để JLabel căn giữa theo chiều dọc; icon Help vẽ lại dấu hỏi (nét cong + chấm) trong vòng tròn, nút căn giữa cụm icon/chữ rõ ràng. Figma MCP chưa khả dụng trong phiên nên đối chiếu ảnh người dùng cung cấp; cần inspect node `83:7716` trực tiếp khi MCP hoạt động.

@@ -41,6 +41,7 @@ public class XacNhanNhapKhoDialog extends JDialog {
         this.request = request;
         this.controller = controller;
         this.spnReceived = new JSpinner(new SpinnerNumberModel(request.getSoLuongYeuCau(), 1, Integer.MAX_VALUE, 1));
+        UIInputRules.restrictIntegerSpinner(this.spnReceived);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setContentPane(buildContent());
         pack();

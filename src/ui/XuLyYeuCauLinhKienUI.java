@@ -205,6 +205,15 @@ public class XuLyYeuCauLinhKienUI extends JPanel {
         }.execute();
     }
 
+    /** Được gọi từ KPI Dashboard; chủ động thực hiện truy vấn với trạng thái tương ứng. */
+    public void locTuDashboard(String statusLabel) {
+        resetting = true;
+        cboTrangThai.setSelectedItem(statusLabel);
+        resetting = false;
+        txtTimKiem.setText("");
+        search();
+    }
+
     private void reset() {
         resetting = true;
         txtTimKiem.setText("");

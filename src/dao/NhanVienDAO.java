@@ -20,6 +20,27 @@ import java.util.List;
  */
 public class NhanVienDAO {
 
+    /** Xem mã kế tiếp theo vai trò để hiển thị trước trên form; mã chính thức vẫn do stored procedure cấp khi lưu. */
+    public String xemMaTiepTheo(VaiTro vaiTro) {
+        String prefix = switch (vaiTro) {
+            case CHU_CUA_HANG -> "CCH";
+            case TIEP_NHAN_VIEN -> "TNV";
+            case KY_THUAT_VIEN -> "KTV";
+        };
+        String sql = "SELECT ISNULL(MAX(TRY_CONVERT(INT, RIGHT(maNV, 3))), 0) + 1 FROM NhanVien WHERE LEFT(maNV, 3) = ?";
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, prefix);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) throw new SQLException("Không lấy được mã nhân viên tiếp theo.");
+                int next = rs.getInt(1);
+                if (next > 999) throw new SQLException("Đã vượt quá 999 nhân viên trong vai trò này.");
+                return prefix + String.format(java.util.Locale.ROOT, "%03d", next);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Không thể lấy mã nhân viên dự kiến: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * Tìm nhân viên theo mã nhân viên.
      *

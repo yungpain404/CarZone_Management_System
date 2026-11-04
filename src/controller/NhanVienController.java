@@ -25,6 +25,12 @@ public class NhanVienController {
         return dao.timKiem(tuKhoa, vaiTro);
     }
 
+    public String xemMaNhanVienTiepTheo(VaiTro vaiTro) {
+        yeuCauChuCuaHang();
+        if (vaiTro == null) throw new IllegalArgumentException("Vui lòng chọn vai trò nhân viên.");
+        return dao.xemMaTiepTheo(vaiTro);
+    }
+
     public NhanVien timTheoMa(String maNV) {
         yeuCauChuCuaHang();
         if (maNV == null || !maNV.matches("^(CCH|TNV|KTV)\\d{3}$")) {
