@@ -124,10 +124,19 @@ public final class PinVerificationManager {
             try {
                 log.info("Đang thực hiện sao lưu CSDL khẩn cấp trước khi cưỡng chế thoát...");
                 BackupService.getInstance().thucHienBackup(BackupType.LOG);
+
+                // 2b. TỰ ĐỘNG KHÔI PHỤC CSDL (AUTO-RESTORE) VỀ BẢN SAO LƯU AN TOÀN TRƯỚC SỰ CỐ NẾU ĐƯỢC CẤU HÌNH
+                if (SecurityConfig.isAutoRestoreEnabled()) {
+                    log.warn("[Auto-Restore] Tiến hành tự động khôi phục CSDL về trạng thái an toàn trước sự cố...");
+                    BackupService.getInstance().thucHienPhucHoiTuDong(
+                            "Tự động Auto-Restore do kẻ tấn công nhập sai mã PIN 3 lần khi thực hiện: " + viPham.chiTiet(),
+                            viPham.thoiDiem()
+                    );
+                }
             } catch (Throwable t) {
-                log.error("Sao lưu khẩn cấp thất bại: {}", t.getMessage());
+                log.error("Sao lưu / Khôi phục khẩn cấp thất bại: {}", t.getMessage());
             }
-        }, "carzone-emergency-backup");
+        }, "carzone-emergency-backup-restore");
         backupThread.setDaemon(true);
         backupThread.start();
 

@@ -26,6 +26,7 @@ public final class SecurityConfig {
     private static String ntfyUrl = "https://ntfy.sh";
     private static String ntfyTopic = "carzone-security-alerts";
     private static long whitelistDurationMs = 60_000L; // 60 giây suppression window
+    private static boolean autoRestoreEnabled = true; // Bật tự động Auto-Restore khi phát hiện phá hoại CSDL
 
     static {
         napCauHinh();
@@ -88,6 +89,11 @@ public final class SecurityConfig {
                 if (wlDur != null && !wlDur.isBlank()) {
                     whitelistDurationMs = Long.parseLong(wlDur.trim());
                 }
+
+                String arStr = p.getProperty("security.auto.restore.enabled");
+                if (arStr != null && !arStr.isBlank()) {
+                    autoRestoreEnabled = Boolean.parseBoolean(arStr.trim());
+                }
             }
         } catch (Throwable t) {
             log.warn("Không thể nạp cấu hình an ninh từ backup.properties, dùng mặc định: {}", t.getMessage());
@@ -148,6 +154,10 @@ public final class SecurityConfig {
 
     public static long getWhitelistDurationMs() {
         return whitelistDurationMs;
+    }
+
+    public static boolean isAutoRestoreEnabled() {
+        return autoRestoreEnabled;
     }
 }
 

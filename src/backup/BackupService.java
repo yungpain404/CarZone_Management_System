@@ -1047,4 +1047,145 @@ public class BackupService {
             }
         }
     }
+
+    /**
+     * Tự động tìm bản sao lưu an toàn gần nhất trước thời điểm sự cố và thực hiện khôi phục CSDL.
+     * Được kích hoạt khi:
+     * 1. Phát hiện vi phạm an ninh nghiêm trọng / kẻ tấn công nhập sai mã PIN quá 3 lần.
+     * 2. Phát hiện dữ liệu bị phá hoại hoặc biến đổi bất thường vượt ngưỡng báo động.
+     *
+     * @param lyDo         Mô tả nguyên nhân kích hoạt phục hồi tự động
+     * @param thoiDiemSuCo Mốc thời gian bắt đầu sự cố để tìm bản sao lưu sạch trước đó
+     * @return RestoreResult kết quả thực thi
+     */
+    public RestoreResult thucHienPhucHoiTuDong(String lyDo, Date thoiDiemSuCo) {
+        long start = System.currentTimeMillis();
+        String dbName = DatabaseConfig.layTenDatabase();
+        log.error(">>> KÍCH HOẠT QUY TRÌNH TỰ ĐỘNG PHỤC HỒI CSDL (AUTO-RESTORE) <<< Lý do: {}", lyDo);
+
+        boolean localLockAcquired = false;
+        try {
+            localLockAcquired = backupLock.tryLock(15, TimeUnit.MINUTES);
+            if (!localLockAcquired) {
+                return RestoreResult.thatBai(null, 0, "Không thể Auto-Restore: Hệ thống đang bận tác vụ khác.");
+            }
+
+            try (Connection masterCon = DbUtil.getMasterConnection()) {
+                // 1. Tìm bản sao lưu an toàn gần nhất trước thời điểm sự cố
+                String targetPath = null;
+                Date mocGio = (thoiDiemSuCo != null) ? thoiDiemSuCo : new Date();
+
+                String sqlFind = "SELECT TOP 1 bmf.physical_device_name "
+                        + "FROM msdb.dbo.backupset bs "
+                        + "JOIN msdb.dbo.backupmediafamily bmf ON bs.media_set_id = bmf.media_set_id "
+                        + "WHERE bs.database_name = ? AND bs.type IN ('D', 'I', 'L') "
+                        + "  AND bs.backup_finish_date <= ? "
+                        + "ORDER BY bs.backup_finish_date DESC";
+
+                try (PreparedStatement ps = masterCon.prepareStatement(sqlFind)) {
+                    ps.setString(1, dbName);
+                    ps.setTimestamp(2, new java.sql.Timestamp(mocGio.getTime()));
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            targetPath = rs.getString(1);
+                        }
+                    }
+                }
+
+                // Nếu không có bản nào trước mốc giờ chỉ định, lấy bản backup gần nhất có sẵn
+                if (targetPath == null) {
+                    String sqlFallback = "SELECT TOP 1 bmf.physical_device_name "
+                            + "FROM msdb.dbo.backupset bs "
+                            + "JOIN msdb.dbo.backupmediafamily bmf ON bs.media_set_id = bmf.media_set_id "
+                            + "WHERE bs.database_name = ? AND bs.type IN ('D', 'I') "
+                            + "ORDER BY bs.backup_finish_date DESC";
+                    try (PreparedStatement ps = masterCon.prepareStatement(sqlFallback)) {
+                        ps.setString(1, dbName);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                targetPath = rs.getString(1);
+                            }
+                        }
+                    }
+                }
+
+                if (targetPath == null) {
+                    String err = "Auto-Restore thất bại: Không tìm thấy bất kỳ bản sao lưu hợp lệ nào trong msdb!";
+                    log.error(err);
+                    return RestoreResult.thatBai(null, 0, err);
+                }
+
+                log.warn("Auto-Restore đã chọn bản sao lưu an toàn: {} để khôi phục CSDL [{}]", targetPath, dbName);
+
+                // 2. Phân tích chuỗi phục hồi thông minh (FULL -> DIFF -> LOGs)
+                List<RestoreStep> steps = xacDinhChuoiPhucHoi(masterCon, dbName, targetPath);
+                if (steps.isEmpty()) {
+                    return RestoreResult.thatBai(targetPath, 0, "Không dựng được chuỗi phục hồi tự động.");
+                }
+
+                // 3. Chuyển database sang SINGLE_USER WITH ROLLBACK IMMEDIATE để ngắt toàn bộ phiên kết nối
+                log.info("[Auto-Restore] Ngắt toàn bộ kết nối khác tới CSDL [{}]...", dbName);
+                try (Statement st = masterCon.createStatement()) {
+                    st.execute("ALTER DATABASE [" + dbName + "] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
+                }
+
+                // 4. Thực thi chuỗi phục hồi
+                for (int i = 0; i < steps.size(); i++) {
+                    RestoreStep step = steps.get(i);
+                    String sql;
+                    if ("FULL".equalsIgnoreCase(step.loai())) {
+                        sql = "RESTORE DATABASE [" + dbName + "] FROM DISK = ? WITH REPLACE, "
+                                + (step.recovery() ? "RECOVERY" : "NORECOVERY");
+                    } else if ("DIFF".equalsIgnoreCase(step.loai())) {
+                        sql = "RESTORE DATABASE [" + dbName + "] FROM DISK = ? WITH "
+                                + (step.recovery() ? "RECOVERY" : "NORECOVERY");
+                    } else { // LOG
+                        sql = "RESTORE LOG [" + dbName + "] FROM DISK = ? WITH "
+                                + (step.recovery() ? "RECOVERY" : "NORECOVERY");
+                    }
+
+                    log.info("[Auto-Restore] Thực thi bước [{}/{}]: {} (File: {})",
+                            i + 1, steps.size(), step.moTa(), step.duongDan());
+                    try (PreparedStatement ps = masterCon.prepareStatement(sql)) {
+                        ps.setString(1, step.duongDan());
+                        ps.setQueryTimeout(600);
+                        ps.execute();
+                    }
+                }
+
+                // 5. Mở lại MULTI_USER
+                log.info("[Auto-Restore] Khôi phục thành công! Chuyển CSDL [{}] về MULTI_USER...", dbName);
+                try (Statement st = masterCon.createStatement()) {
+                    st.execute("ALTER DATABASE [" + dbName + "] SET MULTI_USER");
+                }
+
+                long duration = System.currentTimeMillis() - start;
+                log.warn(">>> AUTO-RESTORE THÀNH CÔNG RỰC RỠ trong {}ms! CSDL đã được đưa về trạng thái an toàn. <<<", duration);
+                AuditLogger.logBackupOperation("AUTO_RESTORE", dbName, targetPath, 0, duration, true, lyDo);
+
+                return RestoreResult.thanhCong(targetPath, duration);
+
+            } catch (Throwable t) {
+                // Đảm bảo cố gắng đưa DB về MULTI_USER nếu có lỗi
+                try (Connection rescueCon = DbUtil.getMasterConnection();
+                     Statement st = rescueCon.createStatement()) {
+                    st.execute("ALTER DATABASE [" + dbName + "] SET MULTI_USER");
+                } catch (Throwable ignored) {}
+
+                long duration = System.currentTimeMillis() - start;
+                String err = "Lỗi khi Auto-Restore: " + t.getMessage();
+                log.error(err, t);
+                AuditLogger.logBackupOperation("AUTO_RESTORE", dbName, null, -1, duration, false, err);
+                return RestoreResult.thatBai(null, duration, err);
+            }
+
+        } catch (Throwable t) {
+            long duration = System.currentTimeMillis() - start;
+            return RestoreResult.thatBai(null, duration, t.getMessage());
+        } finally {
+            if (localLockAcquired) {
+                backupLock.unlock();
+            }
+        }
+    }
 }
