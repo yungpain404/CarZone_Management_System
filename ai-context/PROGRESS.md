@@ -47,7 +47,7 @@
 ## Mới làm (03/11/2026 - Hoàn thiện toàn bộ phân hệ Tiếp nhận viên TNV)
 - **DAO & Controllers**: Hoàn tất 10 DAO interface & impl JDBC thuần (KhachHangDao, XeDao, DichVuDao, LinhKienDao, ChiTietDichVuDao, ChiTietLinhKienDao, PhieuTiepNhanSuaChuaDao, KhuyenMaiDao, PhieuDoiTraDao, ThongKeTiepNhanDao). Hoàn tất 6 Controllers: KhachHangVaXeController, LapPhieuTiepNhanController, LapHoaDonThanhToanController, TaoPhieuDoiTraController, TraCuuController, ThongKeTiepNhanController.
 - **Giao diện UI (Figma 100%)**:
-  + QuanLyKhachHangVaXeUI (UC016): Quản lý 2 cột Khách hàng & Xe, tìm kiếm, thêm/sửa, nạp xe theo KH.
+  + QuanLyKhachHangVaXeUI (UC016): Bố cục 2 cột toàn màn hình, chuyển Form thêm/sửa KH và Xe sang Modal Dialog (Figma 100%), sửa bug click chọn xe, nút Tạo phiếu tiếp nhận (F2) liên kết trực tiếp LapPhieuTiepNhanUI, tìm kiếm đa năng theo SĐT/Biển số xe/Mã KH/Họ tên. Bỏ checkbox thành viên thân thiết trên modal (để hệ thống tự tích điểm/nâng hạng), danh sách chỉ hiện trạng thái thân thiết không hiện điểm.
   + LapPhieuTiepNhanUI (UC010): Lập phiếu tiếp nhận, phân công KTV, thêm dịch vụ đề nghị, tính tiền tạm tính.
   + LapHoaDonThanhToanUI (UC014, UC015): Lập hóa đơn từ phiếu HOAN_TAT, áp dụng khuyến mãi, popup thanh toán tiền mặt/chuyển khoản có mã giao dịch.
   + TaoPhieuDoiTraUI (UC012): Đổi trả hóa đơn trong 7 ngày, chọn dịch vụ/linh kiện, chọn hướng xử lý (HOAN_TIEN, DOI_MOI, SUA_LAI_MIEN_PHI).

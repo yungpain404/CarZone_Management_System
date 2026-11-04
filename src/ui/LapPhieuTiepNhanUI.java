@@ -545,6 +545,31 @@ public class LapPhieuTiepNhanUI extends JPanel {
         lblStatus.setForeground(C_TEXT_SUBTLE);
     }
 
+    public void thietLapKhachHangVaXe(String maKH, String bienSoXe) {
+        if (maKH == null || dsKhachHang == null) return;
+        for (int i = 0; i < dsKhachHang.size(); i++) {
+            if (maKH.equals(dsKhachHang.get(i).getMaKH())) {
+                cboKhachHang.setSelectedIndex(i + 1);
+                final String targetBienSo = bienSoXe;
+                Timer timer = new Timer(350, ev -> {
+                    ((Timer) ev.getSource()).stop();
+                    if (targetBienSo != null && dsXe != null) {
+                        for (int j = 0; j < dsXe.size(); j++) {
+                            if (targetBienSo.equalsIgnoreCase(dsXe.get(j).getBienSoXe())) {
+                                cboXe.setSelectedIndex(j);
+                                break;
+                            }
+                        }
+                    }
+                    txtYeuCauBanDau.requestFocusInWindow();
+                });
+                timer.setRepeats(false);
+                timer.start();
+                break;
+            }
+        }
+    }
+
     // Helper tạo Card trắng bo viền
     private JPanel createWhiteCard(String title) {
         JPanel card = new JPanel(new BorderLayout(0, 10));

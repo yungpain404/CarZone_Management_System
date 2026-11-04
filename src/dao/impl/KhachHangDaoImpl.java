@@ -52,9 +52,12 @@ public class KhachHangDaoImpl implements KhachHangDao {
         if (tuKhoa == null || tuKhoa.isBlank()) {
             return layTatCa();
         }
-        String sql = SELECT_BASE +
-                     "WHERE hoTen LIKE ? OR soDienThoai LIKE ? OR CCCD LIKE ? " +
-                     "ORDER BY hoTen ASC";
+        // Tìm theo Số điện thoại, Biển số xe, Mã khách hàng, Họ tên hoặc CCCD
+        String sql = "SELECT DISTINCT kh.maKH, kh.hoTen, kh.soDienThoai, kh.ghiChu, kh.CCCD, kh.thanhVienThanThiet, kh.diemTichLuy " +
+                     "FROM KhachHang kh " +
+                     "LEFT JOIN Xe x ON kh.maKH = x.maKH " +
+                     "WHERE kh.maKH LIKE ? OR kh.soDienThoai LIKE ? OR kh.hoTen LIKE ? OR kh.CCCD LIKE ? OR x.bienSoXe LIKE ? " +
+                     "ORDER BY kh.maKH DESC";
         String pattern = "%" + tuKhoa.trim() + "%";
         List<KhachHang> list = new ArrayList<>();
         try (Connection con = DbUtil.getConnection();
@@ -62,6 +65,8 @@ public class KhachHangDaoImpl implements KhachHangDao {
             ps.setString(1, pattern);
             ps.setString(2, pattern);
             ps.setString(3, pattern);
+            ps.setString(4, pattern);
+            ps.setString(5, pattern);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(mapRow(rs));

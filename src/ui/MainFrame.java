@@ -523,6 +523,18 @@ public class MainFrame extends JFrame {
     // ─────────────────────────────────────────────────────────────────────────
     // 3. CONTENTPANEL: Nạp các Page tương ứng với Navigation theo Role
     // ─────────────────────────────────────────────────────────────────────────
+    public void moLapPhieuTiepNhanVoiXe(String maKH, String bienSoXe) {
+        moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN");
+        if (pnlContentPanel != null) {
+            for (Component c : pnlContentPanel.getComponents()) {
+                if (c instanceof LapPhieuTiepNhanUI ui) {
+                    ui.thietLapKhachHangVaXe(maKH, bienSoXe);
+                    break;
+                }
+            }
+        }
+    }
+
     private void napCacPageTheoRole() {
         List<NavigationItem> items = authController.layDanhSachNavigationTheoRole(nhanVien.getVaiTro());
 
