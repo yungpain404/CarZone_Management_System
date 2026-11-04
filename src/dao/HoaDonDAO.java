@@ -9,10 +9,12 @@ import enums.PhuongThucThanhToan;
 import enums.TrangThaiThanhToan;
 
 import java.sql.Connection;
+import java.sql.CallableStatement;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,9 +33,6 @@ public class HoaDonDAO {
 
     /**
      * Tìm hóa đơn theo mã hóa đơn.
-     *
-     * @param maHoaDon mã hóa đơn (HDxxxxx)
-     * @return HoaDon hoặc null nếu không tìm thấy
      */
     public HoaDon timTheoMa(String maHoaDon) {
         String sql = SELECT_BASE + "WHERE h.maHoaDon = ?";
@@ -50,9 +49,18 @@ public class HoaDonDAO {
     }
 
     /**
+     * Tìm hóa đơn theo mã phiếu sửa chữa.
+     */
+    public HoaDon timTheoPhieu(String maPhieu) {
+        String sql = SELECT_BASE + "WHERE h.maPhieu = ?";
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, maPhieu);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next() ? mapRow(rs) : null; }
+        } catch (SQLException e) { throw new RuntimeException("Lỗi tìm hóa đơn theo phiếu: " + e.getMessage(), e); }
+    }
+
+    /**
      * Lấy danh sách tất cả hóa đơn.
-     *
-     * @return danh sách hóa đơn
      */
     public List<HoaDon> layTatCa() {
         String sql = SELECT_BASE + "ORDER BY h.ngayLap DESC";
@@ -71,9 +79,6 @@ public class HoaDonDAO {
 
     /**
      * Lấy danh sách hóa đơn theo trạng thái thanh toán.
-     *
-     * @param trangThai trạng thái thanh toán
-     * @return danh sách hóa đơn
      */
     public List<HoaDon> timTheoTrangThai(TrangThaiThanhToan trangThai) {
         String sql = SELECT_BASE + "WHERE h.trangThaiThanhToan = ? ORDER BY h.ngayLap DESC";
@@ -93,10 +98,74 @@ public class HoaDonDAO {
     }
 
     /**
+     * Lấy danh sách các hóa đơn đã thanh toán và còn trong thời hạn đổi trả 7 ngày.
+     */
+    public List<HoaDon> layHoaDonDuDieuKienDoiTra() {
+        String sql = SELECT_BASE + "WHERE h.trangThaiThanhToan = 'DA_THANH_TOAN' "
+                + "AND DATEDIFF(day, h.ngayLap, SYSDATETIME()) BETWEEN 0 AND 7 ORDER BY h.ngayLap DESC";
+        return truyVanDanhSach(sql, List.of());
+    }
+
+    /**
+     * Lập hóa đơn mới - gọi stored procedure sp_LapHoaDon sinh mã HDddMMyyyyAXXX.
+     * @return mã hóa đơn vừa sinh
+     */
+    public String lapHoaDon(String maPhieu, String maNV, String maKM) {
+        String sql = "{call sp_LapHoaDon(?, ?, ?, ?)}";
+        try (Connection con = DbUtil.getConnection(); CallableStatement cs = con.prepareCall(sql)) {
+            cs.setString(1, maPhieu); cs.setString(2, maNV);
+            if (maKM == null || maKM.isBlank()) cs.setNull(3, Types.VARCHAR); else cs.setString(3, maKM);
+            cs.registerOutParameter(4, Types.CHAR); cs.execute();
+            String code = cs.getString(4);
+            return code == null ? null : code.trim();
+        } catch (SQLException e) { throw new RuntimeException("Lỗi lập hóa đơn: " + e.getMessage(), e); }
+    }
+
+    /**
+     * Thanh toán hóa đơn - gọi stored procedure sp_ThanhToanHoaDon.
+     */
+    public boolean thanhToanHoaDon(String maHoaDon, PhuongThucThanhToan phuongThucTT, String maGiaoDich) {
+        if (phuongThucTT == PhuongThucThanhToan.CHUYEN_KHOAN && (maGiaoDich == null || maGiaoDich.isBlank()))
+            throw new IllegalArgumentException("Thanh toán chuyển khoản bắt buộc phải có mã giao dịch.");
+        String sql = "{call sp_ThanhToanHoaDon(?, ?, ?)}";
+        try (Connection con = DbUtil.getConnection(); CallableStatement cs = con.prepareCall(sql)) {
+            cs.setString(1, maHoaDon); cs.setString(2, phuongThucTT.name());
+            if (phuongThucTT == PhuongThucThanhToan.CHUYEN_KHOAN) cs.setString(3, maGiaoDich.trim());
+            else cs.setNull(3, Types.VARCHAR);
+            cs.execute(); return true;
+        } catch (SQLException e) { throw new RuntimeException("Lỗi thanh toán hóa đơn: " + e.getMessage(), e); }
+    }
+
+    /**
+     * Tìm kiếm hóa đơn theo từ khóa (mã HD, mã phiếu, biển số xe, tên khách hàng).
+     */
+    public List<HoaDon> timKiem(String tuKhoa, TrangThaiThanhToan trangThai) {
+        StringBuilder sql = new StringBuilder(SELECT_BASE)
+                .append("LEFT JOIN PhieuTiepNhanSuaChua p ON p.maPhieu = h.maPhieu ")
+                .append("LEFT JOIN Xe x ON x.bienSoXe = p.bienSoXe ")
+                .append("LEFT JOIN KhachHang kh ON kh.maKH = x.maKH WHERE 1=1 ");
+        List<Object> params = new ArrayList<>();
+        if (trangThai != null) { sql.append("AND h.trangThaiThanhToan = ? "); params.add(trangThai.name()); }
+        if (tuKhoa != null && !tuKhoa.isBlank()) {
+            sql.append("AND (h.maHoaDon LIKE ? OR h.maPhieu LIKE ? OR x.bienSoXe LIKE ? OR kh.hoTen LIKE ? OR kh.soDienThoai LIKE ?) ");
+            String pattern = "%" + tuKhoa.trim() + "%";
+            for (int i = 0; i < 5; i++) params.add(pattern);
+        }
+        sql.append("ORDER BY h.ngayLap DESC");
+        return truyVanDanhSach(sql.toString(), params);
+    }
+
+    private List<HoaDon> truyVanDanhSach(String sql, List<?> params) {
+        List<HoaDon> list = new ArrayList<>();
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
+            for (int i = 0; i < params.size(); i++) ps.setObject(i + 1, params.get(i));
+            try (ResultSet rs = ps.executeQuery()) { while (rs.next()) list.add(mapRow(rs)); }
+        } catch (SQLException e) { throw new RuntimeException("Lỗi truy vấn hóa đơn: " + e.getMessage(), e); }
+        return list;
+    }
+
+    /**
      * Thêm mới hóa đơn vào CSDL.
-     *
-     * @param hd hóa đơn cần thêm
-     * @return true nếu thêm thành công
      */
     public boolean them(HoaDon hd) {
         String sql = "INSERT INTO HoaDon (maHoaDon, maPhieu, maNV, maKM, ngayLap, phuongThucTT, trangThaiThanhToan, thoiGianThanhToan, maGiaoDich) " +

@@ -52,6 +52,7 @@ public class ChiTietDoiTra {
         if (stt <= 0 || stt > Short.MAX_VALUE) throw new IllegalArgumentException("Số thứ tự dòng đổi trả không hợp lệ.");
     	this.stt = stt;
     }
+    public void setSttRaw(int stt) { this.stt = stt; }
     public String getMaPhieu() {
     	return maPhieu;
     }
@@ -61,6 +62,9 @@ public class ChiTietDoiTra {
     public String getMaLK() {
     	return maLK;
     }
+    public void setMaPhieuRaw(String maPhieu) { this.maPhieu = maPhieu; }
+    public void setMaDVRaw(String maDV) { this.maDV = maDV; }
+    public void setMaLKRaw(String maLK) { this.maLK = maLK; }
     /** Chọn dòng dịch vụ của phiếu sửa chữa gốc; tự bỏ chọn linh kiện. */
     public void chonDichVu(String maPhieu, String maDV) {
         if (maPhieu == null || maPhieu.isBlank() || maDV == null || maDV.isBlank()) throw new IllegalArgumentException("Phải chọn dịch vụ cần đổi trả.");
@@ -82,6 +86,7 @@ public class ChiTietDoiTra {
         if (soLuong <= 0) throw new IllegalArgumentException("Số lượng đổi trả phải lớn hơn 0.");
     	this.soLuong = soLuong;
     }
+    public void setSoLuongRaw(int soLuong) { this.soLuong = soLuong; }
     public double getDonGia() {
     	return donGia;
     }
@@ -89,6 +94,7 @@ public class ChiTietDoiTra {
         if (!Double.isFinite(donGia) || donGia < 0) throw new IllegalArgumentException("Đơn giá không hợp lệ.");
     	this.donGia = donGia;
     }
+    public void setDonGiaRaw(double donGia) { this.donGia = donGia; }
     public HuongXuLyDoiTra getHuongXuLy() {
     	return huongXuLy;
     }
@@ -96,6 +102,7 @@ public class ChiTietDoiTra {
         if (huongXuLy == null) throw new IllegalArgumentException("Hướng xử lý đổi trả không hợp lệ.");
     	this.huongXuLy = huongXuLy;
     }
+    public void setHuongXuLyRaw(HuongXuLyDoiTra huongXuLy) { this.huongXuLy = huongXuLy; }
 
     /** Thuộc tính suy diễn: chỉ tính tiền khi hoàn tiền (trùng cột tính toán thanhTien trong DB). */
     public double getThanhTien() {

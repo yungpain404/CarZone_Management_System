@@ -346,9 +346,9 @@ public class DashboardController {
                     "SELECT TOP 15 p.maPhieu, x.bienSoXe, kh.hoTen AS tenChuXe, kh.soDienThoai, " +
                     "       nv.hoTen AS tenKtv, p.ngayGioTiepNhan, p.trangThai " +
                     "FROM PhieuTiepNhanSuaChua p " +
-                    "LEFT JOIN Xe x ON p.maXe = x.maXe " +
+                    "LEFT JOIN Xe x ON p.bienSoXe = x.bienSoXe " +
                     "LEFT JOIN KhachHang kh ON x.maKH = kh.maKH " +
-                    "LEFT JOIN NhanVien nv ON p.maNVSuaChua = nv.maNV " +
+                    "LEFT JOIN NhanVien nv ON p.maNVKyThuat = nv.maNV " +
                     "ORDER BY p.ngayGioTiepNhan DESC";
             try (PreparedStatement ps = con.prepareStatement(sqlPhieu);
                  ResultSet rs = ps.executeQuery()) {
@@ -391,7 +391,7 @@ public class DashboardController {
             String manv = ktv.getMaNV();
 
             // 1. Đếm phiếu theo trạng thái của KTV
-            String sqlCounts = "SELECT trangThai, COUNT(*) FROM PhieuTiepNhanSuaChua WHERE maNVSuaChua = ? GROUP BY trangThai";
+            String sqlCounts = "SELECT trangThai, COUNT(*) FROM PhieuTiepNhanSuaChua WHERE maNVKyThuat = ? GROUP BY trangThai";
             try (PreparedStatement ps = con.prepareStatement(sqlCounts)) {
                 ps.setString(1, manv);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -410,8 +410,8 @@ public class DashboardController {
             String sqlPhieu =
                     "SELECT TOP 15 p.maPhieu, x.bienSoXe, x.hangXe, x.model, p.ngayGioTiepNhan, p.yeuCauBanDau, p.trangThai " +
                     "FROM PhieuTiepNhanSuaChua p " +
-                    "LEFT JOIN Xe x ON p.maXe = x.maXe " +
-                    "WHERE p.maNVSuaChua = ? " +
+                    "LEFT JOIN Xe x ON p.bienSoXe = x.bienSoXe " +
+                    "WHERE p.maNVKyThuat = ? " +
                     "ORDER BY p.ngayGioTiepNhan DESC";
             try (PreparedStatement ps = con.prepareStatement(sqlPhieu)) {
                 ps.setString(1, manv);

@@ -15,6 +15,14 @@ import java.util.List;
 /** JDBC DAO tra cứu và quản lý danh mục linh kiện. */
 public class LinhKienDAO {
 
+    public List<LinhKien> layTatCaDangKinhDoanh() { return timKiem(null, true, null); }
+
+    public List<LinhKien> layTatCa() { return timKiem(null, null, null); }
+
+    public List<LinhKien> timKiem(String tuKhoa, Boolean dangKinhDoanh) {
+        return timKiem(tuKhoa, dangKinhDoanh, null);
+    }
+
     /** Tìm theo mã/tên; hai bộ lọc null lần lượt nghĩa là mọi trạng thái kinh doanh/tồn kho. */
     public List<LinhKien> timKiem(String tuKhoa, Boolean dangKinhDoanh, Boolean conTon) {
         String sql = "SELECT maLK, tenLK, donGia, donViTinh, soLuongTon, dangKinhDoanh FROM LinhKien "

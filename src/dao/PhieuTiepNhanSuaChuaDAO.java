@@ -1,6 +1,8 @@
 package dao;
 
 import connectDB.DbUtil;
+import entity.*;
+import enums.*;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -13,6 +15,98 @@ import java.util.List;
  * Luôn đóng tài nguyên qua try-with-resources.
  */
 public class PhieuTiepNhanSuaChuaDAO {
+
+    private static final String SELECT_TNV_BASE =
+            "SELECT p.maPhieu, p.bienSoXe, p.maNVTiepNhan, p.maNVKyThuat, p.ngayGioTiepNhan, p.yeuCauBanDau, p.trangThai, "
+            + "x.hangXe, x.model, x.mauSac, x.namSanXuat, x.soKmHienTai, x.maKH, "
+            + "kh.hoTen AS tenChuXe, kh.soDienThoai AS sdtChuXe, nvtn.hoTen AS tenNVTiepNhan, nvkt.hoTen AS tenNVKyThuat "
+            + "FROM PhieuTiepNhanSuaChua p JOIN Xe x ON p.bienSoXe=x.bienSoXe "
+            + "JOIN KhachHang kh ON x.maKH=kh.maKH JOIN NhanVien nvtn ON p.maNVTiepNhan=nvtn.maNV "
+            + "LEFT JOIN NhanVien nvkt ON p.maNVKyThuat=nvkt.maNV ";
+
+    /** Danh sách phiếu HOAN_TAT chưa có hóa đơn, dùng cho luồng lập hóa đơn. */
+    public List<PhieuTiepNhanSuaChua> layDanhSachDuDieuKienLapHoaDon() {
+        String sql = SELECT_TNV_BASE + "WHERE p.trangThai='HOAN_TAT' "
+                + "AND NOT EXISTS (SELECT 1 FROM HoaDon hd WHERE hd.maPhieu=p.maPhieu) "
+                + "ORDER BY p.ngayGioTiepNhan DESC";
+        List<PhieuTiepNhanSuaChua> result = new ArrayList<>();
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) result.add(mapTiepNhanRow(rs));
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi lấy phiếu đủ điều kiện lập hóa đơn: " + e.getMessage(), e);
+        }
+    }
+
+    /** Lập phiếu bằng stored procedure và ghi các dịch vụ đề nghị trong cùng giao dịch. */
+    public String lapPhieuTiepNhan(PhieuTiepNhanSuaChua phieu, List<ChiTietDichVu> dsDichVu) {
+        String sql = "{call sp_LapPhieuTiepNhan(?, ?, ?, ?, ?)}";
+        try (Connection con = DbUtil.getConnection()) {
+            con.setAutoCommit(false);
+            try {
+                String maPhieu;
+                try (CallableStatement cs = con.prepareCall(sql)) {
+                    cs.setString(1, phieu.getXe().getBienSoXe());
+                    cs.setString(2, phieu.getNhanVienLap().getMaNV());
+                    if (phieu.getNhanVienSuaChua() == null || phieu.getNhanVienSuaChua().getMaNV() == null)
+                        cs.setNull(3, Types.VARCHAR);
+                    else cs.setString(3, phieu.getNhanVienSuaChua().getMaNV());
+                    cs.setString(4, phieu.getYeuCauBanDau());
+                    cs.registerOutParameter(5, Types.VARCHAR);
+                    cs.execute();
+                    maPhieu = cs.getString(5);
+                }
+                if (dsDichVu != null && !dsDichVu.isEmpty()) {
+                    try (PreparedStatement ps = con.prepareStatement(
+                            "INSERT INTO ChiTietDichVu(maPhieu,maDV,soLuong,donGiaThucHien,ghiChu) VALUES(?,?,?,?,?)")) {
+                        for (ChiTietDichVu ct : dsDichVu) {
+                            ps.setString(1, maPhieu);
+                            ps.setString(2, ct.getDichVu().getMaDV());
+                            ps.setInt(3, ct.getSoLuong());
+                            ps.setDouble(4, ct.getDonGiaThucHien());
+                            ps.setString(5, ct.getGhiChu());
+                            ps.addBatch();
+                        }
+                        ps.executeBatch();
+                    }
+                }
+                con.commit();
+                phieu.setMaPhieuRaw(maPhieu);
+                return maPhieu;
+            } catch (SQLException | RuntimeException e) {
+                try { con.rollback(); } catch (SQLException rollbackError) { e.addSuppressed(rollbackError); }
+                throw e;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi lập phiếu tiếp nhận: " + e.getMessage(), e);
+        }
+    }
+
+    private PhieuTiepNhanSuaChua mapTiepNhanRow(ResultSet rs) throws SQLException {
+        PhieuTiepNhanSuaChua p = new PhieuTiepNhanSuaChua();
+        p.setMaPhieuRaw(rs.getString("maPhieu"));
+        Xe xe = new Xe();
+        xe.setBienSoXeRaw(rs.getString("bienSoXe")); xe.setHangXeRaw(rs.getString("hangXe"));
+        xe.setModelRaw(rs.getString("model")); xe.setMauSacRaw(rs.getString("mauSac"));
+        xe.setNamSanXuatRaw(rs.getInt("namSanXuat")); xe.setSoKmHienTaiRaw(rs.getInt("soKmHienTai"));
+        KhachHang kh = new KhachHang();
+        kh.setMaKHRaw(rs.getString("maKH")); kh.setHoTenRaw(rs.getString("tenChuXe"));
+        kh.setSoDienThoaiRaw(rs.getString("sdtChuXe")); xe.setChuXeRaw(kh); p.setXeRaw(xe);
+        NhanVien tnv = new NhanVien(rs.getString("maNVTiepNhan"));
+        tnv.setHoTenRaw(rs.getString("tenNVTiepNhan")); tnv.setVaiTroRaw(VaiTro.TIEP_NHAN_VIEN); p.setNhanVienLapRaw(tnv);
+        String maKTV = rs.getString("maNVKyThuat");
+        if (maKTV != null) {
+            NhanVien ktv = new NhanVien(maKTV); ktv.setHoTenRaw(rs.getString("tenNVKyThuat"));
+            ktv.setVaiTroRaw(VaiTro.KY_THUAT_VIEN); p.setNhanVienSuaChuaRaw(ktv);
+        }
+        Timestamp ngayNhan = rs.getTimestamp("ngayGioTiepNhan");
+        if (ngayNhan != null) p.setNgayGioTiepNhanRaw(new Date(ngayNhan.getTime()));
+        p.setYeuCauBanDauRaw(rs.getString("yeuCauBanDau"));
+        String status = rs.getString("trangThai");
+        if (status != null) p.setTrangThaiRaw(TrangThaiPhieu.valueOf(status));
+        return p;
+    }
 
     public record PhieuSuaChuaItem(
             String maPhieu,

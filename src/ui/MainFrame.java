@@ -184,10 +184,15 @@ public class MainFrame extends JFrame {
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         getContentPane().setBackground(C_BG);
 
-        // Icon ứng dụng
-        ImageIcon appIcon = loadLogoImage(32, 32);
-        if (appIcon != null) {
-            setIconImage(appIcon.getImage());
+        // Icon ứng dụng cho Title bar và Windows Taskbar
+        ImageIcon appIcon32 = loadSquareAppIcon(32);
+        ImageIcon appIcon64 = loadSquareAppIcon(64);
+        ImageIcon appIcon16 = loadSquareAppIcon(16);
+        if (appIcon32 != null) {
+            setIconImage(appIcon32.getImage());
+            if (appIcon16 != null && appIcon64 != null) {
+                setIconImages(List.of(appIcon16.getImage(), appIcon32.getImage(), appIcon64.getImage()));
+            }
         }
 
         addWindowListener(new WindowAdapter() {
@@ -419,14 +424,13 @@ public class MainFrame extends JFrame {
     private static String iconTheoNavId(String navId) {
         return switch (navId) {
             case "NAV_DASHBOARD" -> "nav_dashboard.png";
-            case "NAV_THONG_KE" -> "nav_thong_ke.png";
-            case "NAV_PHIEU_PHAN_CONG" -> "nav_yeu_cau.png";
-            case "NAV_CAP_NHAT_SUA_CHUA" -> "nav_dich_vu.png";
-            case "NAV_QUAN_LY_DICH_VU" -> "nav_dich_vu.png";
+            case "NAV_THONG_KE", "NAV_THONG_KE_TIEP_NHAN", "NAV_HOA_DON" -> "nav_thong_ke.png";
+            case "NAV_PHIEU_PHAN_CONG", "NAV_PHIEU_TIEP_NHAN" -> "nav_yeu_cau.png";
+            case "NAV_QUAN_LY_DICH_VU", "NAV_CAP_NHAT_SUA_CHUA" -> "nav_dich_vu.png";
             case "NAV_LINH_KIEN_KHO" -> "nav_kho.png";
-            case "NAV_YC_LINH_KIEN" -> "nav_kho.png";
-            case "NAV_KHUYEN_MAI" -> "nav_khuyen_mai.png";
-            case "NAV_NHAN_VIEN" -> "nav_nhan_vien.png";
+            case "NAV_YC_LINH_KIEN" -> "nav_yeu_cau.png";
+            case "NAV_KHUYEN_MAI", "NAV_DOI_TRA" -> "nav_khuyen_mai.png";
+            case "NAV_NHAN_VIEN", "NAV_KHACH_HANG_XE" -> "nav_nhan_vien.png";
             case "NAV_TAI_KHOAN" -> "nav_tai_khoan.png";
             case "NAV_TRA_CUU" -> "nav_tra_cuu.png";
             case "NAV_THONG_TIN_CA_NHAN" -> "nav_ho_so.png";
@@ -663,6 +667,16 @@ public class MainFrame extends JFrame {
                 pnlContentPanel.add(traCuuUI, item.getId());
             } else if ("NAV_THONG_TIN_CA_NHAN".equals(item.getId())) {
                 pnlContentPanel.add(new ThongTinCaNhanUI(), item.getId());
+            } else if ("NAV_KHACH_HANG_XE".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.TIEP_NHAN_VIEN) {
+                pnlContentPanel.add(new QuanLyKhachHangVaXeUI(), item.getId());
+            } else if ("NAV_PHIEU_TIEP_NHAN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.TIEP_NHAN_VIEN) {
+                pnlContentPanel.add(new LapPhieuTiepNhanUI(), item.getId());
+            } else if ("NAV_HOA_DON".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.TIEP_NHAN_VIEN) {
+                pnlContentPanel.add(new LapHoaDonThanhToanUI(), item.getId());
+            } else if ("NAV_DOI_TRA".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.TIEP_NHAN_VIEN) {
+                pnlContentPanel.add(new TaoPhieuDoiTraUI(), item.getId());
+            } else if ("NAV_THONG_KE_TIEP_NHAN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.TIEP_NHAN_VIEN) {
+                pnlContentPanel.add(new ThongKeTiepNhanUI(), item.getId());
             } else {
                 pnlContentPanel.add(buildModulePage(item), item.getId());
             }
@@ -672,6 +686,8 @@ public class MainFrame extends JFrame {
         pnlContentPanel.add(new TroGiupUI(), "PAGE_TRO_GIUP");
         pnlContentPanel.add(new VeCarZoneUI(() -> moPageHeader("PAGE_TRO_GIUP")), "PAGE_VE_CARZONE");
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     // ─────────────────────────────────────────────────────────────────────────
     // 3A. TRANG DASHBOARD THEO VAI TRÒ (Bám sát 100% Figma image45.png)
@@ -2811,6 +2827,31 @@ public class MainFrame extends JFrame {
         } catch (Exception ignored) {
         }
         return rawLogoImage;
+    }
+
+    private static ImageIcon loadSquareAppIcon(int size) {
+        try {
+            Image raw = loadRawLogoImage();
+            if (raw == null) return null;
+            java.awt.image.BufferedImage bi = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2 = bi.createGraphics();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            int iw = raw.getWidth(null);
+            int ih = raw.getHeight(null);
+            if (iw > 0 && ih > 0) {
+                double scale = Math.min((double) size / iw, (double) size / ih);
+                int sw = (int) Math.round(iw * scale);
+                int sh = (int) Math.round(ih * scale);
+                int sx = (size - sw) / 2;
+                int sy = (size - sh) / 2;
+                g2.drawImage(raw, sx, sy, sw, sh, null);
+            }
+            g2.dispose();
+            return new ImageIcon(bi);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static ImageIcon loadLogoImage(int targetW, int targetH) {

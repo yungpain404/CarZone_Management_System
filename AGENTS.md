@@ -79,8 +79,10 @@ Làm việc trên nhánh `develop`; chủ repo tự merge sau, agent KHÔNG merg
 | `ai-context/skills/flyway-migration.md` | Đổi schema DB |
 | `ai-context/skills/swing-screen.md` | Làm màn hình Swing bám sát Figma |
 | `ai-context/skills/verify-business-rules.md` | Kiểm tra lại luật nghiệp vụ trước khi báo xong |
+| `ai-context/skills/carzone/SKILL_INDEX.md` | Bộ skill đầy đủ theo use case; đọc khi làm một chức năng trọn vẹn |
+| `ai-context/skills/carzone/PROJECT_CONTEXT.md` | Bản đồ công nghệ, kiến trúc, entity, DB và nợ kỹ thuật đã kiểm chứng |
 
-Mỗi skill là một tệp Markdown thường (có phần đầu `name`/`description`), công cụ nào cũng đọc được: tới lượt thì mở tệp tương ứng và làm theo.
+Mỗi skill là một tệp Markdown thường (có phần đầu `name`/`description`), công cụ nào cũng đọc được: tới lượt thì mở tệp tương ứng và làm theo. Bộ `ai-context/skills/carzone/` dùng cấu trúc `SKILL.md` theo thư mục; các skill cũ dạng phẳng vẫn là tài liệu kỹ thuật chi tiết được bộ mới trỏ tới.
 
 ## Cách làm việc
 - Gặp mâu thuẫn giữa code, DB và tài liệu: dừng, nêu rõ chỗ lệch, hỏi. Không tự chọn bên. Điều chưa chắc thì hỏi, không tự suy diễn.
