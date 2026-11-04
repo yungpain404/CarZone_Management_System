@@ -95,3 +95,14 @@ Mục đích là tránh hai bên làm trùng hoặc mâu thuẫn:
   + Tự động mở toàn màn hình (`JFrame.MAXIMIZED_BOTH`) khi đăng nhập thành công.
   + Thống nhất hệ thống biểu tượng ảnh 3D (`img/nav_*.png`, ví dụ `nav_sao_luu_phuc_hoi.png`) cho Sidebar và tiêu đề trang, fallback bằng vector icon của `MainFrame`. Cấm dùng emoji Unicode (`💾`, `⚠️`, `🔄`, ...).
   + Khung Modal Dialog căn chỉnh lề đều đặn: Dùng `RoundedPanel` với insets 16px thay cho `JTextArea`, `JTextField` đệm lề trái 12px để không lệch trục mắt.
+
+## Giám sát Hành vi Phi lý & Hàng rào Bảo mật Mã PIN Cấp 2 (Chốt 04/11/2026)
+- **Đánh chặn tập trung tại Tầng Proxy JDBC**: Tích hợp `PhatHienHanhViPhiLy.kiemTraTruocKhiThucThi` ngay trong `AuditStatementProxy`. Mọi câu lệnh SQL ghi dữ liệu (`INSERT`, `UPDATE`, `DELETE`, `DDL`) từ tất cả các DAO đều được giám sát tự động mà không cần can thiệp từng DAO đơn lẻ.
+- **3 Nhóm Hành vi Phi lý được bảo vệ**:
+  1. *Bulk & Velocity*: Xóa hàng loạt dữ liệu cốt lõi (≥ 3 bản ghi trong < 2 giây); xóa không có `WHERE`; DDL phá hủy (`DROP`, `TRUNCATE`, `ALTER TABLE ... DROP`).
+  2. *Temporal*: Thao tác xóa/sửa dữ liệu cốt lõi ngoài giờ hành chính (00:00 - 05:00 sáng).
+  3. *Structural & Cascading Danger*: Xóa tài khoản / hồ sơ Chủ cửa hàng `CCH...` gây sụp đổ toàn bộ dữ liệu phụ thuộc; truy cập can thiệp tài nguyên quản trị SQL Server.
+- **Cơ chế Vượt rào & Trừng phạt (PIN Barrier Workflow)**:
+  + Tạm dừng luồng DB đang chạy, hiển thị `PinVerificationDialog` trên EDT yêu cầu mã PIN cấp 2 (băm SHA-256).
+  + Đúng PIN: Mở khóa, thêm bảng vào `whitelist` tạm thời 60 giây (suppression window) để không bị hỏi lại.
+  + Sai PIN ≥ 3 lần: Cưỡng chế thoát (Force Logout), hủy giao dịch, kích hoạt sao lưu khẩn cấp (`BackupService.thucHienBackup(BackupType.LOG)`), gửi cảnh báo khẩn cấp tới `ntfy.sh` và Audit Log, đóng toàn bộ Frame về màn hình Đăng nhập.

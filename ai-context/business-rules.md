@@ -61,3 +61,14 @@ Còn lại:
 1. Báo cáo Word chưa cập nhật công thức thuế/khuyến mãi và định dạng mã mới.
 2. Mã mẫu `DV01/LK01` trong bảng giá giấy chỉ là minh họa hiện trạng, hệ thống dùng `DV00001/LK00001`.
 3. Comment đầu V1 nhắc tên file demo cũ.
+
+## 7. Giám sát hành vi phi lý & Hàng rào Mã PIN cấp 2 (04/11/2026)
+- **Hành vi phi lý bị chặn ngay trước khi xuống CSDL**:
+  1. *Mass Delete*: Xóa ≥ 3 bản ghi dữ liệu cốt lõi trong < 2 giây hoặc xóa không có điều kiện `WHERE`.
+  2. *Mass Update / DDL*: Lệnh `DROP`, `TRUNCATE`, `ALTER TABLE ... DROP` hoặc vô hiệu hóa tài khoản hàng loạt.
+  3. *Temporal Anomaly*: Thao tác xóa/sửa dữ liệu cốt lõi ngoài giờ mở cửa (00:00 - 05:00 sáng).
+  4. *Cascading Danger*: Thao tác xóa tài khoản hoặc nhân viên Chủ cửa hàng `CCH...`.
+- **Cơ chế xác thực**:
+  + Bắt buộc nhập mã PIN cấp 2 của Chủ cửa hàng trên modal dialog.
+  + Đúng PIN: Cấp quyền ngoại lệ tạm thời trong 60 giây.
+  + Sai PIN ≥ 3 lần: Khóa phiên làm việc tức thì (Force Logout), hủy toàn bộ giao dịch, sao lưu khẩn cấp dữ liệu (Emergency Transaction Log Backup), và phát cảnh báo đến kênh an ninh `ntfy.sh`.
