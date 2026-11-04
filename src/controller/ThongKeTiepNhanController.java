@@ -1,13 +1,12 @@
 package controller;
 
-import dao.ThongKeTiepNhanDao;
-import dao.ThongKeTiepNhanDao.DoiTraRow;
-import dao.ThongKeTiepNhanDao.SoSanhNamData;
-import dao.ThongKeTiepNhanDao.SoSanhThangData;
-import dao.ThongKeTiepNhanDao.ThongKeData;
-import dao.ThongKeTiepNhanDao.ThongKeDoiTraData;
-import dao.ThongKeTiepNhanDao.TinhHinhXuLyData;
-import dao.impl.ThongKeTiepNhanDaoImpl;
+import dao.ThongKeTiepNhanDAO;
+import dao.ThongKeTiepNhanDAO.DoiTraRow;
+import dao.ThongKeTiepNhanDAO.SoSanhNamData;
+import dao.ThongKeTiepNhanDAO.SoSanhThangData;
+import dao.ThongKeTiepNhanDAO.ThongKeData;
+import dao.ThongKeTiepNhanDAO.ThongKeDoiTraData;
+import dao.ThongKeTiepNhanDAO.TinhHinhXuLyData;
 import enums.VaiTro;
 import session.UserSession;
 
@@ -21,10 +20,10 @@ import java.util.Date;
  */
 public class ThongKeTiepNhanController {
 
-    private final ThongKeTiepNhanDao thongKeDao;
+    private final ThongKeTiepNhanDAO thongKeDao;
 
     public ThongKeTiepNhanController() {
-        this.thongKeDao = new ThongKeTiepNhanDaoImpl();
+        this.thongKeDao = new ThongKeTiepNhanDAO();
     }
 
     private String layMaNVNeuLaTNV() {

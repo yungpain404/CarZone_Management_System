@@ -7,6 +7,7 @@ import enums.TrangThaiPhieu;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -29,11 +30,17 @@ public class DashboardController {
     // ─────────────────────────────────────────────────────────────────────────
     public static class ChuCuaHangDashboardData {
         public int yeuCauChoDuyet = 0;
+        public int yeuCauDaDuyet = 0;
+        public int yeuCauTuChoi = 0;
+        public int yeuCauDaNhapKho = 0;
         public int tongYeuCauTheoDoi = 0;
         public int choXacNhanNhapKho = 0;
         public int linhKienHetHang = 0;
         public int hoSoChuaCoTaiKhoan = 0;
 
+        /** Ngày báo cáo của khối "Kinh doanh trong ngày" (dd/MM/yyyy). */
+        public String ngayBaoCao = "";
+        /** Số liệu khối "Kinh doanh trong ngày" chỉ tính hóa đơn/đổi trả phát sinh trong ngày hiện tại. */
         public double doanhThuSauHoan = 0.0;
         public double tongThu = 0.0;
         public double hoanTien = 0.0;
@@ -201,45 +208,82 @@ public class DashboardController {
     /**
      * Lấy dữ liệu Dashboard cho Chủ cửa hàng từ cơ sở dữ liệu thật qua JDBC.
      */
-    public ChuCuaHangDashboardData layDataChuCuaHang() {
+    public ChuCuaHangDashboardData layDataChuCuaHang() throws SQLException {
         ChuCuaHangDashboardData data = new ChuCuaHangDashboardData();
-        if (!isDbAvailable()) return data;
+        if (!isDbAvailable()) {
+            throw new SQLException("Cơ sở dữ liệu đang ngoại tuyến.");
+        }
 
         try (Connection con = DbUtil.getConnection()) {
-            // 1. Linh kiện hết hàng (tồn <= 0 và đang kinh doanh)
-            String sqlLk = "SELECT TOP 10 maLK, tenLK, donViTinh FROM LinhKien WHERE soLuongTon <= 0 AND dangKinhDoanh = 1";
+            // 1. Linh kiện hết hàng (tồn <= 0 và đang kinh doanh) + yêu cầu nhập đang chờ duyệt (nếu có)
+            String sqlLk = "SELECT TOP 3 lk.maLK, lk.tenLK, lk.donViTinh, COUNT(*) OVER() AS tongHetHang, " +
+                           "       (SELECT TOP 1 yc.maYeuCau FROM PhieuYeuCauNhapLinhKien yc " +
+                           "        WHERE yc.maLK = lk.maLK AND yc.trangThai = 'CHO_DUYET' ORDER BY yc.ngayTao DESC) AS ycChoDuyet " +
+                           "FROM LinhKien lk " +
+                           "WHERE lk.soLuongTon <= 0 AND lk.dangKinhDoanh = 1 " +
+                           "ORDER BY lk.tenLK";
             try (PreparedStatement ps = con.prepareStatement(sqlLk);
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String ma = rs.getString("maLK");
                     String ten = rs.getString("tenLK");
                     String dvt = rs.getString("donViTinh");
-                    data.linhKienHetHang++;
-                    data.danhSachHetHang.add(new LinhKienHetHangRow(ten, dvt, ma, "Tồn kho: 0 " + dvt));
+                    String yc = rs.getString("ycChoDuyet");
+                    String ghiChu = (yc != null) ? (yc + " đang chờ duyệt") : "Chưa có yêu cầu nhập kho";
+                    data.linhKienHetHang = rs.getInt("tongHetHang");
+                    data.danhSachHetHang.add(new LinhKienHetHangRow(ten, dvt, ma, ghiChu));
                 }
             }
 
-            // 2. Yêu cầu nhập linh kiện
-            String sqlYc = "SELECT TOP 10 yc.maYeuCau, yc.ngayTao, yc.trangThai, nv.hoTen " +
+            // 2. Đếm yêu cầu nhập linh kiện theo cả 4 trạng thái (không giới hạn TOP)
+            String sqlDemYc = "SELECT trangThai, COUNT(*) FROM PhieuYeuCauNhapLinhKien GROUP BY trangThai";
+            try (PreparedStatement ps = con.prepareStatement(sqlDemYc);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String tt = rs.getString(1);
+                    int count = rs.getInt(2);
+                    if ("CHO_DUYET".equals(tt)) data.yeuCauChoDuyet = count;
+                    else if ("DA_DUYET".equals(tt)) data.yeuCauDaDuyet = count;
+                    else if ("TU_CHOI".equals(tt)) data.yeuCauTuChoi = count;
+                    else if ("DA_NHAP_KHO".equals(tt)) data.yeuCauDaNhapKho = count;
+                }
+            }
+            data.tongYeuCauTheoDoi = data.yeuCauChoDuyet + data.yeuCauDaDuyet
+                    + data.yeuCauTuChoi + data.yeuCauDaNhapKho;
+            data.choXacNhanNhapKho = data.yeuCauDaDuyet;
+
+            // 3. Danh sách yêu cầu CHỜ DUYỆT kèm tên/mã linh kiện và tồn kho thật
+            String sqlYc = "SELECT TOP 5 yc.maYeuCau, yc.ngayTao, nv.hoTen, " +
+                           "       lk.tenLK, lk.maLK, lk.donViTinh, yc.soLuongYeuCau, lk.soLuongTon " +
                            "FROM PhieuYeuCauNhapLinhKien yc " +
                            "LEFT JOIN NhanVien nv ON yc.maNVLap = nv.maNV " +
+                           "LEFT JOIN LinhKien lk ON yc.maLK = lk.maLK " +
+                           "WHERE yc.trangThai = 'CHO_DUYET' " +
                            "ORDER BY yc.ngayTao DESC";
             try (PreparedStatement ps = con.prepareStatement(sqlYc);
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String ma = rs.getString("maYeuCau");
                     Timestamp ngayTao = rs.getTimestamp("ngayTao");
-                    String tt = rs.getString("trangThai");
+                    String ngay = ngayTao != null ? DATE_FMT.format(ngayTao) : "Hôm nay";
                     String ktv = rs.getString("hoTen");
                     if (ktv == null) ktv = "N/A";
-                    String ngay = ngayTao != null ? DATE_FMT.format(ngayTao) : "Hôm nay";
-
-                    data.tongYeuCauTheoDoi++;
-                    if ("CHO_DUYET".equals(tt)) data.yeuCauChoDuyet++;
-                    else if ("DA_DUYET".equals(tt)) data.choXacNhanNhapKho++;
+                    String tenLk = rs.getString("tenLK");
+                    if (tenLk == null) tenLk = "Chưa rõ linh kiện";
+                    String maLk = rs.getString("maLK");
+                    if (maLk == null) maLk = "—";
+                    String dvt = rs.getString("donViTinh");
+                    if (dvt == null) dvt = "";
+                    int soLuongYeuCau = rs.getInt("soLuongYeuCau");
+                    int tonKho = rs.getInt("soLuongTon");
+                    boolean tonNull = rs.wasNull();
+                    boolean tonThieu = tonNull || tonKho <= 0;
 
                     data.danhSachYeuCau.add(new YeuCauRow(
-                            ma, ngay, ktv, "Linh kiện sửa chữa", ma, "1 bộ", "0 cái", true
+                            ma, ngay, ktv, tenLk, maLk,
+                            soLuongYeuCau + (dvt.isEmpty() ? "" : " " + dvt),
+                            (tonNull ? 0 : tonKho) + (dvt.isEmpty() ? "" : " " + dvt),
+                            tonThieu
                     ));
                 }
             }
@@ -252,44 +296,71 @@ public class DashboardController {
                 if (rs.next()) data.hoSoChuaCoTaiKhoan = rs.getInt(1);
             }
 
-            // 4. Doanh thu hóa đơn
-            String sqlHdCount = "SELECT COUNT(*) FROM HoaDon WHERE trangThaiThanhToan = 'DA_THANH_TOAN'";
-            try (PreparedStatement ps = con.prepareStatement(sqlHdCount);
+            // 4. Khối "Kinh doanh trong ngày" – chỉ tính phát sinh trong ngày hiện tại
+            String sqlNgay = "SELECT CONVERT(varchar(10), GETDATE(), 103)";
+            try (PreparedStatement ps = con.prepareStatement(sqlNgay);
+                 ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) data.ngayBaoCao = rs.getString(1);
+            }
+
+            String sqlHdHomNay = "SELECT COUNT(*) FROM HoaDon " +
+                                 "WHERE trangThaiThanhToan = 'DA_THANH_TOAN' " +
+                                 "  AND CAST(thoiGianThanhToan AS DATE) = CAST(GETDATE() AS DATE)";
+            try (PreparedStatement ps = con.prepareStatement(sqlHdHomNay);
                  ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) data.soHoaDonThanhToan = rs.getInt(1);
             }
 
-            // Tổng thu từ view vw_HoaDon_TongTien
-            String sqlTongThu = "SELECT COALESCE(SUM(v.tongThanhToan), 0) " +
-                                "FROM vw_HoaDon_TongTien v " +
-                                "INNER JOIN HoaDon h ON h.maHoaDon = v.maHoaDon " +
-                                "WHERE h.trangThaiThanhToan = 'DA_THANH_TOAN'";
-            try (PreparedStatement ps = con.prepareStatement(sqlTongThu);
+            // Tổng thu – hoàn tiền – doanh thu thuần của ngày (hoàn tiền trừ vào đúng ngày phát sinh)
+            String sqlDoanhThu = "SELECT doanhThu, hoanTra, doanhThuThuan FROM vw_DoanhThuTheoNgay " +
+                                 "WHERE ngay = CAST(GETDATE() AS DATE)";
+            try (PreparedStatement ps = con.prepareStatement(sqlDoanhThu);
                  ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    data.tongThu = rs.getDouble(1);
-                    data.doanhThuSauHoan = data.tongThu;
+                    data.tongThu = rs.getDouble("doanhThu");
+                    data.hoanTien = rs.getDouble("hoanTra");
+                    data.doanhThuSauHoan = rs.getDouble("doanhThuThuan");
                 }
             }
 
-            // Chuyển khoản
-            String sqlCk = "SELECT COALESCE(SUM(v.tongThanhToan), 0) " +
-                           "FROM vw_HoaDon_TongTien v " +
-                           "INNER JOIN HoaDon h ON h.maHoaDon = v.maHoaDon " +
-                           "WHERE h.trangThaiThanhToan = 'DA_THANH_TOAN' AND h.phuongThucTT = 'CHUYEN_KHOAN'";
-            try (PreparedStatement ps = con.prepareStatement(sqlCk);
+            // Doanh thu trong ngày theo phương thức thanh toán và theo khung giờ
+            String sqlTrongNgay = "SELECT h.thoiGianThanhToan, h.phuongThucTT, v.tongThanhToan " +
+                                  "FROM HoaDon h " +
+                                  "INNER JOIN vw_HoaDon_TongTien v ON v.maHoaDon = h.maHoaDon " +
+                                  "WHERE h.trangThaiThanhToan = 'DA_THANH_TOAN' " +
+                                  "  AND CAST(h.thoiGianThanhToan AS DATE) = CAST(GETDATE() AS DATE)";
+            try (PreparedStatement ps = con.prepareStatement(sqlTrongNgay);
                  ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    data.doanhThuChuyenKhoan = rs.getDouble(1);
-                    data.doanhThuTienMat = Math.max(0.0, data.tongThu - data.doanhThuChuyenKhoan);
+                while (rs.next()) {
+                    double tien = rs.getDouble("tongThanhToan");
+                    String phuongThuc = rs.getString("phuongThucTT");
+                    if ("CHUYEN_KHOAN".equals(phuongThuc)) {
+                        data.doanhThuChuyenKhoan += tien;
+                    } else {
+                        data.doanhThuTienMat += tien;
+                    }
+                    Timestamp thoiDiem = rs.getTimestamp("thoiGianThanhToan");
+                    if (thoiDiem != null) {
+                        data.doanhThuKhungGio[phanKhungGio(thoiDiem.toLocalDateTime().getHour())] += tien;
+                    }
                 }
             }
 
-        } catch (Exception e) {
-            System.err.println("Lỗi truy vấn Dashboard CCH: " + e.getMessage());
         }
 
         return data;
+    }
+
+    /**
+     * Gán hóa đơn vào một trong 4 khung giờ hiển thị trên biểu đồ:
+     * 08–10, 10–12, 13–15, 15–18. Hóa đơn ngoài khung giờ hành chính được
+     * gộp vào khung gần nhất để tổng biểu đồ luôn khớp tổng doanh thu trong ngày.
+     */
+    private static int phanKhungGio(int gio) {
+        if (gio < 10) return 0;
+        if (gio < 13) return 1;
+        if (gio < 15) return 2;
+        return 3;
     }
 
     /**

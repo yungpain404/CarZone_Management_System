@@ -12,22 +12,14 @@ import enums.VaiTro;
  */
 public class NhanVien {
 	private String maNV;
-
 	/** Phía nghịch của quan hệ 1-1; khóa nằm ở bảng TaiKhoan (TaiKhoan.maNV). */
 	private TaiKhoan taiKhoan;
-
 	private String hoTen;
-
 	private LocalDate ngaySinh;
-
 	private String soDienThoai;
-
 	private String CCCD;
-
 	private String diaChi;
-
 	private LocalDate ngayVaoLam;
-
 	private VaiTro vaiTro;
 
 	public NhanVien() {

@@ -1,147 +1,130 @@
 package controller;
 
-import dao.DichVuDao;
-import dao.KhachHangDao;
-import dao.LinhKienDao;
-import dao.PhieuTiepNhanSuaChuaDao;
-import dao.XeDao;
-import dao.impl.DichVuDaoImpl;
-import dao.impl.KhachHangDaoImpl;
-import dao.impl.LinhKienDaoImpl;
-import dao.impl.PhieuTiepNhanSuaChuaDaoImpl;
-import dao.impl.XeDaoImpl;
+import dao.DichVuDAO;
+import dao.LinhKienDAO;
+import dao.TraCuuDAO;
 import entity.DichVu;
-import entity.KhachHang;
 import entity.LinhKien;
-import entity.PhieuTiepNhanSuaChua;
-import entity.Xe;
-import enums.TrangThaiPhieu;
 import enums.VaiTro;
 import session.UserSession;
 
 import java.util.List;
 
 /**
- * Controller điều phối nghiệp vụ Tra cứu (UC007 - Tiếp nhận viên).
- * TNV chỉ xem phiếu do mình lập (maNVTiepNhan = session.maNV).
- * Đây là chức năng READ-ONLY, không ghi dữ liệu.
+ * Điều phối tra cứu dùng chung cho cả 3 vai trò với phân quyền:
+ * - Chủ cửa hàng: Tra cứu đủ 5 chức năng (Dịch vụ, Linh kiện, Khách hàng, Lịch sử sửa chữa, Lịch sử tiếp nhận).
+ * - Tiếp nhận viên: Không tra cứu được linh kiện và lịch sử sửa chữa (tra cứu: Dịch vụ, Khách hàng, Lịch sử tiếp nhận).
+ * - Kỹ thuật viên: Không xem được khách hàng và lịch sử tiếp nhận (tra cứu: Dịch vụ, Linh kiện, Lịch sử sửa chữa).
  */
 public class TraCuuController {
-
-    private final DichVuDao dichVuDao;
-    private final LinhKienDao linhKienDao;
-    private final KhachHangDao khachHangDao;
-    private final XeDao xeDao;
-    private final PhieuTiepNhanSuaChuaDao phieuDao;
+    private final DichVuDAO dichVuDao;
+    private final LinhKienDAO linhKienDao;
+    private final TraCuuDAO traCuuDao;
 
     public TraCuuController() {
-        this.dichVuDao = new DichVuDaoImpl();
-        this.linhKienDao = new LinhKienDaoImpl();
-        this.khachHangDao = new KhachHangDaoImpl();
-        this.xeDao = new XeDaoImpl();
-        this.phieuDao = new PhieuTiepNhanSuaChuaDaoImpl();
+        this(new DichVuDAO(), new LinhKienDAO(), new TraCuuDAO());
     }
 
-    // ── Tra cứu Dịch vụ ──────────────────────────────────────────────────────
-
-    /**
-     * Lấy toàn bộ danh sách dịch vụ (read-only).
-     */
-    public List<DichVu> layTatCaDichVu() {
-        return dichVuDao.layTatCa();
+    public TraCuuController(DichVuDAO dichVuDao, LinhKienDAO linhKienDao, TraCuuDAO traCuuDao) {
+        this.dichVuDao = dichVuDao;
+        this.linhKienDao = linhKienDao;
+        this.traCuuDao = traCuuDao;
     }
 
-    /**
-     * Tìm kiếm dịch vụ theo từ khóa (mã, tên).
-     */
-    public List<DichVu> timDichVu(String tuKhoa) {
-        if (tuKhoa == null || tuKhoa.isBlank()) return dichVuDao.layTatCa();
-        return dichVuDao.timKiem(tuKhoa.trim(), null);
+    /** Tra cứu dịch vụ: dùng chung cho cả 3 vai trò (CCH, TNV, KTV). */
+    public List<DichVu> timDichVu(String tuKhoa, String trangThai) {
+        Boolean dangCungCap = switch (trangThai == null ? "Tất cả" : trangThai) {
+            case "Đang cung cấp" -> true;
+            case "Ngừng cung cấp" -> false;
+            default -> null;
+        };
+        return dichVuDao.timKiem(tuKhoa == null ? null : tuKhoa.trim(), dangCungCap);
     }
 
-    // ── Tra cứu Linh kiện ─────────────────────────────────────────────────────
-
-    /**
-     * Lấy toàn bộ danh sách linh kiện (read-only).
-     */
-    public List<LinhKien> layTatCaLinhKien() {
-        return linhKienDao.layTatCa();
+    /** Tra cứu linh kiện: CHU_CUA_HANG và KY_THUAT_VIEN (TIEP_NHAN_VIEN không được truy cập). */
+    public List<LinhKien> timLinhKien(String tuKhoa, String trangThai) {
+        kiemTraQuyenLinhKien();
+        Boolean dangKinhDoanh = switch (trangThai == null ? "Tất cả" : trangThai) {
+            case "Đang kinh doanh" -> true;
+            case "Ngừng kinh doanh" -> false;
+            default -> null;
+        };
+        Boolean conTon = switch (trangThai == null ? "Tất cả" : trangThai) {
+            case "Còn hàng" -> true;
+            case "Hết hàng" -> false;
+            default -> null;
+        };
+        return linhKienDao.timKiem(tuKhoa == null ? null : tuKhoa.trim(), dangKinhDoanh, conTon);
     }
 
-    /**
-     * Tìm kiếm linh kiện theo từ khóa (mã, tên).
-     */
-    public List<LinhKien> timLinhKien(String tuKhoa) {
-        if (tuKhoa == null || tuKhoa.isBlank()) return linhKienDao.layTatCa();
-        return linhKienDao.timKiem(tuKhoa.trim(), null);
+    /** Tra cứu khách hàng: CHU_CUA_HANG và TIEP_NHAN_VIEN (KY_THUAT_VIEN không được truy cập). */
+    public List<TraCuuDAO.KhachHangResult> timKhachHang(String tuKhoa) {
+        kiemTraQuyenKhachHang();
+        yeuCauTuKhoa(tuKhoa);
+        return traCuuDao.timKhachHang(tuKhoa.trim());
     }
 
-    // ── Tra cứu Khách hàng ────────────────────────────────────────────────────
-
-    /**
-     * Lấy toàn bộ khách hàng (read-only).
-     */
-    public List<KhachHang> layTatCaKhachHang() {
-        return khachHangDao.layTatCa();
+    /** Đọc xe của khách hàng: CHU_CUA_HANG và TIEP_NHAN_VIEN. */
+    public List<TraCuuDAO.XeResult> layXeKhachHang(String maKH) {
+        kiemTraQuyenKhachHang();
+        return traCuuDao.layXeKhachHang(maKH);
     }
 
-    /**
-     * Tìm kiếm khách hàng theo từ khóa (mã, họ tên, số điện thoại, CCCD).
-     */
-    public List<KhachHang> timKhachHang(String tuKhoa) {
-        if (tuKhoa == null || tuKhoa.isBlank()) return khachHangDao.layTatCa();
-        return khachHangDao.timKiem(tuKhoa.trim());
+    /** Tra cứu lịch sử sửa chữa: CHU_CUA_HANG và KY_THUAT_VIEN (TIEP_NHAN_VIEN không được truy cập). */
+    public List<TraCuuDAO.LichSuResult> timLichSu(String tuKhoa) {
+        kiemTraQuyenLichSuSuaChua();
+        yeuCauTuKhoa(tuKhoa);
+        return traCuuDao.timLichSu(tuKhoa.trim());
     }
 
-    /**
-     * Lấy danh sách xe của một khách hàng.
-     */
-    public List<Xe> layXeTheoKhachHang(String maKH) {
-        if (maKH == null || maKH.isBlank()) return List.of();
-        return xeDao.layTheoKhachHang(maKH.trim());
+    /** Đọc hạng mục phiếu sửa chữa: CHU_CUA_HANG và KY_THUAT_VIEN. */
+    public List<TraCuuDAO.HangMucResult> layHangMucPhieu(String maPhieu) {
+        kiemTraQuyenLichSuSuaChua();
+        return traCuuDao.layHangMucPhieu(maPhieu);
     }
 
-    /**
-     * Tìm kiếm xe theo biển số hoặc thông tin nhận diện.
-     */
-    public List<Xe> timXe(String tuKhoa) {
-        if (tuKhoa == null || tuKhoa.isBlank()) return xeDao.layTatCa();
-        return xeDao.timKiem(tuKhoa.trim());
+    /** Tra cứu lịch sử tiếp nhận: CHU_CUA_HANG và TIEP_NHAN_VIEN (KY_THUAT_VIEN không được truy cập). */
+    public List<TraCuuDAO.LichSuTiepNhanResult> timLichSuTiepNhan(String tuKhoa) {
+        kiemTraQuyenLichSuTiepNhan();
+        yeuCauTuKhoa(tuKhoa);
+        String maNVTiepNhan = UserSession.getInstance().getVaiTro() == VaiTro.TIEP_NHAN_VIEN
+                ? UserSession.getInstance().getNhanVien().getMaNV() : null;
+        return traCuuDao.timLichSuTiepNhan(tuKhoa.trim(), maNVTiepNhan);
     }
 
-    // ── Tra cứu Lịch sử tiếp nhận (TNV chỉ xem phiếu của mình) ──────────────
+    // ── Kiểm tra phân quyền nghiệp vụ ─────────────────────────────────────────
 
-    /**
-     * Lấy tất cả phiếu tiếp nhận của tiếp nhận viên hiện tại.
-     */
-    public List<PhieuTiepNhanSuaChua> layLichSuTiepNhan() {
-        VaiTro role = UserSession.getInstance().getVaiTro();
-        if (role == VaiTro.TIEP_NHAN_VIEN) {
-            String maNV = UserSession.getInstance().getNhanVien().getMaNV();
-            return phieuDao.layTheoTiepNhanVien(maNV);
+    private static void yeuCauTuKhoa(String tuKhoa) {
+        if (tuKhoa == null || tuKhoa.isBlank()) {
+            throw new IllegalArgumentException("Vui lòng nhập từ khóa tra cứu.");
         }
-        // CHU_CUA_HANG xem tất cả
-        return phieuDao.layTatCa();
     }
 
-    /**
-     * Tìm kiếm phiếu tiếp nhận theo từ khóa và trạng thái.
-     * TNV bị giới hạn trong phạm vi của mình.
-     */
-    public List<PhieuTiepNhanSuaChua> timLichSuTiepNhan(String tuKhoa, TrangThaiPhieu trangThai) {
-        String maNVFilter = null;
-        VaiTro role = UserSession.getInstance().getVaiTro();
-        if (role == VaiTro.TIEP_NHAN_VIEN) {
-            maNVFilter = UserSession.getInstance().getNhanVien().getMaNV();
+    private static void kiemTraQuyenLinhKien() {
+        VaiTro vt = UserSession.getInstance().getVaiTro();
+        if (vt == VaiTro.TIEP_NHAN_VIEN) {
+            throw new SecurityException("Tiếp nhận viên không có quyền tra cứu linh kiện và tồn kho.");
         }
-        return phieuDao.timKiem(tuKhoa, maNVFilter, trangThai);
     }
 
-    /**
-     * Xem chi tiết một phiếu tiếp nhận theo mã.
-     */
-    public PhieuTiepNhanSuaChua layChiTietPhieu(String maPhieu) {
-        if (maPhieu == null || maPhieu.isBlank()) return null;
-        return phieuDao.timTheoMa(maPhieu.trim());
+    private static void kiemTraQuyenKhachHang() {
+        VaiTro vt = UserSession.getInstance().getVaiTro();
+        if (vt == VaiTro.KY_THUAT_VIEN) {
+            throw new SecurityException("Kỹ thuật viên không có quyền tra cứu hồ sơ khách hàng.");
+        }
+    }
+
+    private static void kiemTraQuyenLichSuSuaChua() {
+        VaiTro vt = UserSession.getInstance().getVaiTro();
+        if (vt == VaiTro.TIEP_NHAN_VIEN) {
+            throw new SecurityException("Tiếp nhận viên không có quyền tra cứu chi tiết lịch sử sửa chữa kỹ thuật.");
+        }
+    }
+
+    private static void kiemTraQuyenLichSuTiepNhan() {
+        VaiTro vt = UserSession.getInstance().getVaiTro();
+        if (vt == VaiTro.KY_THUAT_VIEN) {
+            throw new SecurityException("Kỹ thuật viên không có quyền tra cứu lịch sử tiếp nhận.");
+        }
     }
 }

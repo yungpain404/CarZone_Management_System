@@ -1,6 +1,7 @@
 package ui;
 
 import com.formdev.flatlaf.FlatClientProperties;
+import backup.AppShutdownManager;
 import entity.NhanVien;
 import controller.DangNhapController;
 import controller.DangNhapController.KetQuaDangNhap;
@@ -172,16 +173,13 @@ public class DangNhapUI extends JFrame {
      * Nút Help / About với bo góc 12px chuẩn theo Figma.
      */
     private JButton makeNavButton(String text, boolean isHelp) {
-        Color bg = isHelp ? C_HELP_BG : C_WHITE;
-        Color hoverBg = isHelp ? new Color(0xDBEAFE) : new Color(0xF8FAFC);
-        Color stroke = isHelp ? C_HELP_STROKE : C_CARD_STROKE;
-
-        RoundedButton btn = new RoundedButton(text, 12, bg, hoverBg, stroke);
-        btn.setFont(f(isHelp ? Font.BOLD : Font.PLAIN, 13));
-        btn.setForeground(isHelp ? C_PRIMARY : C_TEXT_LABEL);
+        // Cả Help và About đều dùng nền trắng, viền xám nhạt – giống nhau
+        RoundedButton btn = new RoundedButton(text, 12, C_WHITE, new Color(0xF8FAFC), C_CARD_STROKE);
+        btn.setFont(f(Font.PLAIN, 13));
+        btn.setForeground(C_TEXT_LABEL);
         btn.setIcon(createNavIcon(isHelp));
         btn.setIconTextGap(7);
-        btn.setPreferredSize(new Dimension(isHelp ? 86 : 92, 38));
+        btn.setMargin(new Insets(4, 14, 4, 14));
         return btn;
     }
 
@@ -191,7 +189,8 @@ public class DangNhapUI extends JFrame {
             public void paintIcon(Component c, Graphics g, int x, int y) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(isHelp ? C_PRIMARY : C_TEXT_SUBTLE);
+                // Cả hai nút đều dùng màu xám (C_TEXT_SUBTLE) – giống nhau
+                g2.setColor(C_TEXT_SUBTLE);
                 g2.setStroke(new BasicStroke(1.8f));
                 g2.drawOval(x + 1, y + 1, 14, 14);
 
@@ -747,7 +746,7 @@ public class DangNhapUI extends JFrame {
     private static Image loadRawLogoImage() {
         if (rawLogoImage != null) return rawLogoImage;
         try {
-            java.net.URL url = DangNhapUI.class.getResource("/resources/images/carzone_logo.png");
+            java.net.URL url = DangNhapUI.class.getResource("/carzone_logo.png");
             if (url == null) {
                 url = DangNhapUI.class.getResource("carzone_logo.png");
             }
@@ -755,8 +754,6 @@ public class DangNhapUI extends JFrame {
                 rawLogoImage = javax.imageio.ImageIO.read(url);
             } else {
                 java.io.File file = new java.io.File("img/carzone_logo.png");
-                if (!file.exists()) file = new java.io.File("src/resources/images/carzone_logo.png");
-                if (!file.exists()) file = new java.io.File("src/ui/carzone_logo.png");
                 if (file.exists()) {
                     rawLogoImage = javax.imageio.ImageIO.read(file);
                 }
@@ -1002,7 +999,7 @@ public class DangNhapUI extends JFrame {
                 "Bạn có chắc muốn thoát ứng dụng CarZone không?", "Xác nhận thoát",
                 JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (c == JOptionPane.YES_OPTION) {
-            System.exit(0);
+            AppShutdownManager.handleExit(this);
         }
     }
 

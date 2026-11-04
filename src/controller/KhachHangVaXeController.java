@@ -1,9 +1,9 @@
 package controller;
 
-import dao.KhachHangDao;
-import dao.XeDao;
-import dao.impl.KhachHangDaoImpl;
-import dao.impl.XeDaoImpl;
+import dao.KhachHangDAO;
+import dao.XeDAO;
+import dao.KhachHangDAO;
+import dao.XeDAO;
 import entity.KhachHang;
 import entity.Xe;
 import enums.VaiTro;
@@ -16,15 +16,15 @@ import java.util.List;
  */
 public class KhachHangVaXeController {
 
-    private final KhachHangDao khachHangDao;
-    private final XeDao xeDao;
+    private final KhachHangDAO khachHangDao;
+    private final XeDAO xeDao;
 
     public KhachHangVaXeController() {
-        this.khachHangDao = new KhachHangDaoImpl();
-        this.xeDao = new XeDaoImpl();
+        this.khachHangDao = new KhachHangDAO();
+        this.xeDao = new XeDAO();
     }
 
-    public KhachHangVaXeController(KhachHangDao khachHangDao, XeDao xeDao) {
+    public KhachHangVaXeController(KhachHangDAO khachHangDao, XeDAO xeDao) {
         this.khachHangDao = khachHangDao;
         this.xeDao = xeDao;
     }

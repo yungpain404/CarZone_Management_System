@@ -18,34 +18,22 @@ import enums.VaiTro;
  */
 public class HoaDon {
 	private String maHoaDon;
-
 	/** Mỗi phiếu sửa chữa tối đa một hóa đơn (DB: UQ_HoaDon_maPhieu). */
 	private PhieuTiepNhanSuaChua phieuSuaChua;
-
 	private NhanVien nhanVien;
-
 	private KhuyenMai khuyenMai;
-
 	private Date ngayLap;
-
 	/** NULL khi chưa thanh toán; bắt buộc có khi đã thanh toán (DB: CK_HoaDon_DaThanhToan). */
 	private PhuongThucThanhToan phuongThucTT;
-
 	private TrangThaiThanhToan trangThaiThanhToan;
-
 	private Date thoiGianThanhToan;
-
 	private String maGiaoDich;
 
 	// ---- Thuộc tính suy diễn: đọc từ view, không có setter ----
 	private double tongTienDichVu;
-
 	private double tongTienLinhKien;
-
 	private double tienGiam;
-
 	private double thue;
-
 	private double tongThanhToan;
 
 	public HoaDon() {

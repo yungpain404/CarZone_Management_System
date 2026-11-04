@@ -1,13 +1,13 @@
 package controller;
 
-import dao.HoaDonDao;
-import dao.PhieuDoiTraDao;
-import dao.ChiTietDichVuDao;
-import dao.ChiTietLinhKienDao;
-import dao.impl.HoaDonDaoImpl;
-import dao.impl.PhieuDoiTraDaoImpl;
-import dao.impl.ChiTietDichVuDaoImpl;
-import dao.impl.ChiTietLinhKienDaoImpl;
+import dao.HoaDonDAO;
+import dao.PhieuDoiTraDAO;
+import dao.ChiTietDichVuDAO;
+import dao.ChiTietLinhKienDAO;
+import dao.HoaDonDAO;
+import dao.PhieuDoiTraDAO;
+import dao.ChiTietDichVuDAO;
+import dao.ChiTietLinhKienDAO;
 import entity.ChiTietDichVu;
 import entity.ChiTietDoiTra;
 import entity.ChiTietLinhKien;
@@ -29,16 +29,16 @@ import java.util.List;
  */
 public class TaoPhieuDoiTraController {
 
-    private final HoaDonDao hoaDonDao;
-    private final PhieuDoiTraDao phieuDoiTraDao;
-    private final ChiTietDichVuDao chiTietDichVuDao;
-    private final ChiTietLinhKienDao chiTietLinhKienDao;
+    private final HoaDonDAO hoaDonDao;
+    private final PhieuDoiTraDAO phieuDoiTraDao;
+    private final ChiTietDichVuDAO chiTietDichVuDAO;
+    private final ChiTietLinhKienDAO chiTietLinhKienDAO;
 
     public TaoPhieuDoiTraController() {
-        this.hoaDonDao = new HoaDonDaoImpl();
-        this.phieuDoiTraDao = new PhieuDoiTraDaoImpl();
-        this.chiTietDichVuDao = new ChiTietDichVuDaoImpl();
-        this.chiTietLinhKienDao = new ChiTietLinhKienDaoImpl();
+        this.hoaDonDao = new HoaDonDAO();
+        this.phieuDoiTraDao = new PhieuDoiTraDAO();
+        this.chiTietDichVuDAO = new ChiTietDichVuDAO();
+        this.chiTietLinhKienDAO = new ChiTietLinhKienDAO();
     }
 
     private void kiemTraQuyen() {
@@ -94,7 +94,7 @@ public class TaoPhieuDoiTraController {
      */
     public List<ChiTietDichVu> layChiTietDichVu(String maPhieu) {
         if (maPhieu == null || maPhieu.isBlank()) return List.of();
-        return chiTietDichVuDao.layTheoPhieu(maPhieu.trim());
+        return chiTietDichVuDAO.layTheoPhieu(maPhieu.trim());
     }
 
     /**
@@ -102,7 +102,7 @@ public class TaoPhieuDoiTraController {
      */
     public List<ChiTietLinhKien> layChiTietLinhKien(String maPhieu) {
         if (maPhieu == null || maPhieu.isBlank()) return List.of();
-        return chiTietLinhKienDao.layTheoPhieu(maPhieu.trim());
+        return chiTietLinhKienDAO.layTheoPhieu(maPhieu.trim());
     }
 
     /**

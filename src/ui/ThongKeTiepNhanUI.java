@@ -1,14 +1,14 @@
 package ui;
 
 import controller.ThongKeTiepNhanController;
-import dao.ThongKeTiepNhanDao.DoiTraRow;
-import dao.ThongKeTiepNhanDao.PhieuRow;
-import dao.ThongKeTiepNhanDao.PhieuTonDongRow;
-import dao.ThongKeTiepNhanDao.SoSanhNamData;
-import dao.ThongKeTiepNhanDao.SoSanhThangData;
-import dao.ThongKeTiepNhanDao.ThongKeData;
-import dao.ThongKeTiepNhanDao.ThongKeDoiTraData;
-import dao.ThongKeTiepNhanDao.TinhHinhXuLyData;
+import dao.ThongKeTiepNhanDAO.DoiTraRow;
+import dao.ThongKeTiepNhanDAO.PhieuRow;
+import dao.ThongKeTiepNhanDAO.PhieuTonDongRow;
+import dao.ThongKeTiepNhanDAO.SoSanhNamData;
+import dao.ThongKeTiepNhanDAO.SoSanhThangData;
+import dao.ThongKeTiepNhanDAO.ThongKeData;
+import dao.ThongKeTiepNhanDAO.ThongKeDoiTraData;
+import dao.ThongKeTiepNhanDAO.TinhHinhXuLyData;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;

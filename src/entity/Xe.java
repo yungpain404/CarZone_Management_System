@@ -8,17 +8,11 @@ import java.util.Objects;
  */
 public class Xe {
     private String bienSoXe;
-
     private String hangXe;
-
     private String model;
-
     private String mauSac;
-
     private int namSanXuat;
-
     private int soKmHienTai;
-
     private KhachHang chuXe;
 
     public Xe() {

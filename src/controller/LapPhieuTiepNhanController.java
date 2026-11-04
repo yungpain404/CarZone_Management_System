@@ -1,7 +1,12 @@
 package controller;
 
-import dao.*;
-import dao.impl.*;
+import dao.ChiTietDichVuDAO;
+import dao.ChiTietLinhKienDAO;
+import dao.DichVuDAO;
+import dao.KhachHangDAO;
+import dao.NhanVienDAO;
+import dao.PhieuTiepNhanSuaChuaDAO;
+import dao.XeDAO;
 import entity.*;
 import enums.TrangThaiPhieu;
 import enums.VaiTro;
@@ -15,22 +20,22 @@ import java.util.List;
  */
 public class LapPhieuTiepNhanController {
 
-    private final KhachHangDao khachHangDao;
-    private final XeDao xeDao;
-    private final DichVuDao dichVuDao;
-    private final NhanVienDao nhanVienDao;
-    private final PhieuTiepNhanSuaChuaDao phieuDao;
-    private final ChiTietDichVuDao chiTietDichVuDao;
-    private final ChiTietLinhKienDao chiTietLinhKienDao;
+    private final KhachHangDAO khachHangDao;
+    private final XeDAO xeDao;
+    private final DichVuDAO dichVuDao;
+    private final NhanVienDAO nhanVienDao;
+    private final PhieuTiepNhanSuaChuaDAO phieuDao;
+    private final ChiTietDichVuDAO chiTietDichVuDao;
+    private final ChiTietLinhKienDAO chiTietLinhKienDao;
 
     public LapPhieuTiepNhanController() {
-        this.khachHangDao = new KhachHangDaoImpl();
-        this.xeDao = new XeDaoImpl();
-        this.dichVuDao = new DichVuDaoImpl();
-        this.nhanVienDao = new NhanVienDaoImpl();
-        this.phieuDao = new PhieuTiepNhanSuaChuaDaoImpl();
-        this.chiTietDichVuDao = new ChiTietDichVuDaoImpl();
-        this.chiTietLinhKienDao = new ChiTietLinhKienDaoImpl();
+        this.khachHangDao = new KhachHangDAO();
+        this.xeDao = new XeDAO();
+        this.dichVuDao = new DichVuDAO();
+        this.nhanVienDao = new NhanVienDAO();
+        this.phieuDao = new PhieuTiepNhanSuaChuaDAO();
+        this.chiTietDichVuDao = new ChiTietDichVuDAO();
+        this.chiTietLinhKienDao = new ChiTietLinhKienDAO();
     }
 
     private void kiemTraQuyen() {
