@@ -97,6 +97,7 @@ public class ChiTietLinhKien {
     }
 
     public double getDonGia() { return donGiaXuat; }
+    public void setPhieuSuaChuaRaw(PhieuTiepNhanSuaChua p) { this.phieuSuaChua = p; }
     public void setLinhKienRaw(LinhKien lk) { this.linhKien = lk; }
     public void setSoLuongRaw(int sl) { this.soLuong = sl; }
     public void setDonGiaXuatRaw(double dg) { this.donGiaXuat = dg; }

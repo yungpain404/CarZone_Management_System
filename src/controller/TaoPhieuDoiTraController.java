@@ -24,7 +24,7 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * Controller điều phối nghiệp vụ Tạo phiếu đổi trả (UC012 - Tiếp nhận viên).
+ * Controller điều phối nghiệp vụ Quản lý & Tạo phiếu đổi trả (UC012 - Tiếp nhận viên).
  * Kiểm tra hóa đơn đã thanh toán và còn trong vòng 7 ngày trước khi cho phép đổi trả.
  */
 public class TaoPhieuDoiTraController {
@@ -44,7 +44,7 @@ public class TaoPhieuDoiTraController {
     private void kiemTraQuyen() {
         VaiTro role = UserSession.getInstance().getVaiTro();
         if (role != VaiTro.TIEP_NHAN_VIEN && role != VaiTro.CHU_CUA_HANG) {
-            throw new SecurityException("Bạn không có quyền tạo phiếu đổi trả.");
+            throw new SecurityException("Bạn không có quyền thao tác phiếu đổi trả.");
         }
     }
 
@@ -148,6 +148,31 @@ public class TaoPhieuDoiTraController {
     }
 
     /**
+     * Lấy danh sách tất cả phiếu đổi trả (cho màn hình Quản lý phiếu đổi trả).
+     */
+    public List<PhieuDoiTra> layTatCaPhieuDoiTra() {
+        return phieuDoiTraDao.layTatCa();
+    }
+
+    /**
+     * Tìm kiếm phiếu đổi trả theo từ khóa (toàn hệ thống).
+     */
+    public List<PhieuDoiTra> timKiemTatCaPhieuDoiTra(String tuKhoa) {
+        if (tuKhoa == null || tuKhoa.isBlank()) {
+            return phieuDoiTraDao.layTatCa();
+        }
+        return phieuDoiTraDao.timKiem(tuKhoa, null);
+    }
+
+    /**
+     * Tìm phiếu đổi trả theo mã.
+     */
+    public PhieuDoiTra timTheoMa(String maPhieuDT) {
+        if (maPhieuDT == null || maPhieuDT.isBlank()) return null;
+        return phieuDoiTraDao.timTheoMa(maPhieuDT.trim());
+    }
+
+    /**
      * Lấy danh sách phiếu đổi trả của tiếp nhận viên hiện tại.
      */
     public List<PhieuDoiTra> layDanhSachPhieuDoiTra() {
@@ -156,7 +181,7 @@ public class TaoPhieuDoiTraController {
     }
 
     /**
-     * Tìm kiếm phiếu đổi trả theo từ khóa.
+     * Tìm kiếm phiếu đổi trả theo từ khóa của nhân viên hiện tại.
      */
     public List<PhieuDoiTra> timKiemPhieuDoiTra(String tuKhoa) {
         String maNV = UserSession.getInstance().getNhanVien().getMaNV();

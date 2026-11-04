@@ -4,6 +4,7 @@ import connectDB.DbUtil;
 import dao.ThongKeTiepNhanDao;
 
 import java.sql.*;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Date;
@@ -403,6 +404,154 @@ public class ThongKeTiepNhanDaoImpl implements ThongKeTiepNhanDao {
 
         } catch (SQLException e) {
             System.err.println("Lỗi thống kê tình hình xử lý: " + e.getMessage());
+        }
+
+        return data;
+    }
+
+    @Override
+    public ThongKeDoiTraData layThongKeDoiTra(String maNVTiepNhan) {
+        ThongKeDoiTraData data = new ThongKeDoiTraData();
+        data.xuHuong7Ngay = new LinkedHashMap<>();
+        data.danhSachGanDay = new ArrayList<>();
+
+        if (!DbUtil.isDatabaseOnline()) return data;
+
+        // Khởi tạo 7 ngày gần nhất (kể cả ngày không có phiếu)
+        Calendar cal = Calendar.getInstance();
+        for (int i = 6; i >= 0; i--) {
+            Calendar tmp = (Calendar) cal.clone();
+            tmp.add(Calendar.DAY_OF_YEAR, -i);
+            data.xuHuong7Ngay.put(DAY_KEY_FMT.format(tmp.getTime()), 0);
+        }
+
+        // ── 1. Thống kê số phiếu & tiền hoàn hôm nay và tháng này ──────────
+        String sqlKpi = "SELECT " +
+            " SUM(CASE WHEN CAST(p.ngayLap AS DATE) = CAST(SYSDATETIME() AS DATE) THEN 1 ELSE 0 END) AS soPhieuHomNay," +
+            " ISNULL(SUM(CASE WHEN CAST(p.ngayLap AS DATE) = CAST(SYSDATETIME() AS DATE) THEN v.soTienHoanTra ELSE 0 END), 0) AS tienHoanHomNay," +
+            " COUNT(*) AS soPhieuThangNay," +
+            " ISNULL(SUM(v.soTienHoanTra), 0) AS tienHoanThangNay" +
+            " FROM PhieuDoiTra p" +
+            " JOIN vw_PhieuDoiTra_HoanTien v ON v.maPhieuDT = p.maPhieuDT" +
+            " WHERE YEAR(p.ngayLap) = YEAR(SYSDATETIME()) AND MONTH(p.ngayLap) = MONTH(SYSDATETIME())";
+
+        List<Object> kpiParams = new ArrayList<>();
+        String kpiFilter = sqlKpi;
+        if (maNVTiepNhan != null && !maNVTiepNhan.isBlank()) {
+            kpiFilter = "SELECT " +
+                " SUM(CASE WHEN CAST(p.ngayLap AS DATE) = CAST(SYSDATETIME() AS DATE) THEN 1 ELSE 0 END) AS soPhieuHomNay," +
+                " ISNULL(SUM(CASE WHEN CAST(p.ngayLap AS DATE) = CAST(SYSDATETIME() AS DATE) THEN v.soTienHoanTra ELSE 0 END), 0) AS tienHoanHomNay," +
+                " COUNT(*) AS soPhieuThangNay," +
+                " ISNULL(SUM(v.soTienHoanTra), 0) AS tienHoanThangNay" +
+                " FROM PhieuDoiTra p" +
+                " JOIN vw_PhieuDoiTra_HoanTien v ON v.maPhieuDT = p.maPhieuDT" +
+                " WHERE YEAR(p.ngayLap) = YEAR(SYSDATETIME()) AND MONTH(p.ngayLap) = MONTH(SYSDATETIME())" +
+                " AND p.maNV = ?";
+            kpiParams.add(maNVTiepNhan);
+        }
+
+        try (Connection con = DbUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(kpiFilter)) {
+            for (int i = 0; i < kpiParams.size(); i++) ps.setObject(i + 1, kpiParams.get(i));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    data.soPhieuHomNay   = rs.getInt("soPhieuHomNay");
+                    data.tienHoanHomNay  = rs.getDouble("tienHoanHomNay");
+                    data.soPhieuThangNay = rs.getLong("soPhieuThangNay");
+                    data.tienHoanThangNay = rs.getDouble("tienHoanThangNay");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Lỗi thống kê đổi trả KPI: " + e.getMessage());
+        }
+
+        // ── 2. Phân bố hướng xử lý (tháng này) ─────────────────────────────
+        String sqlHX = "SELECT c.huongXuLy, COUNT(*) AS soLuong" +
+            " FROM ChiTietDoiTra c" +
+            " JOIN PhieuDoiTra p ON p.maPhieuDT = c.maPhieuDT" +
+            " WHERE YEAR(p.ngayLap) = YEAR(SYSDATETIME()) AND MONTH(p.ngayLap) = MONTH(SYSDATETIME())" +
+            (maNVTiepNhan != null && !maNVTiepNhan.isBlank() ? " AND p.maNV = ?" : "") +
+            " GROUP BY c.huongXuLy";
+        try (Connection con = DbUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sqlHX)) {
+            if (maNVTiepNhan != null && !maNVTiepNhan.isBlank()) ps.setString(1, maNVTiepNhan);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    switch (rs.getString("huongXuLy")) {
+                        case "HOAN_TIEN"      -> data.soHoanTien += rs.getInt("soLuong");
+                        case "DOI_MOI"        -> data.soDoiMoi   += rs.getInt("soLuong");
+                        case "SUA_LAI_MIEN_PHI" -> data.soSuaLai += rs.getInt("soLuong");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Lỗi phân bố hướng xử lý đổi trả: " + e.getMessage());
+        }
+
+        // ── 3. Xu hướng 7 ngày gần nhất ─────────────────────────────────────
+        String sqlXH = "SELECT CAST(p.ngayLap AS DATE) AS ngay, COUNT(*) AS soPhieu" +
+            " FROM PhieuDoiTra p" +
+            " WHERE p.ngayLap >= DATEADD(DAY, -6, CAST(SYSDATETIME() AS DATE))" +
+            (maNVTiepNhan != null && !maNVTiepNhan.isBlank() ? " AND p.maNV = ?" : "") +
+            " GROUP BY CAST(p.ngayLap AS DATE)" +
+            " ORDER BY ngay";
+        try (Connection con = DbUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sqlXH)) {
+            if (maNVTiepNhan != null && !maNVTiepNhan.isBlank()) ps.setString(1, maNVTiepNhan);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    java.sql.Date ngay = rs.getDate("ngay");
+                    if (ngay != null) {
+                        String key = DAY_KEY_FMT.format(ngay);
+                        data.xuHuong7Ngay.put(key, rs.getInt("soPhieu"));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Lỗi xu hướng 7 ngày đổi trả: " + e.getMessage());
+        }
+
+        // ── 4. Danh sách 10 phiếu gần nhất ──────────────────────────────────
+        String sqlDs = "SELECT TOP 10 p.maPhieuDT, p.ngayLap, p.maHoaDon," +
+            "   kh.hoTen AS tenKhach, x.bienSoXe," +
+            "   ISNULL(v.soTienHoanTra, 0) AS soTienHoanTra," +
+            "   (SELECT STRING_AGG(c.huongXuLy, ' / ') FROM ChiTietDoiTra c WHERE c.maPhieuDT = p.maPhieuDT) AS huongXuLy" +
+            " FROM PhieuDoiTra p" +
+            " JOIN vw_PhieuDoiTra_HoanTien v ON v.maPhieuDT = p.maPhieuDT" +
+            " JOIN HoaDon h ON h.maHoaDon = p.maHoaDon" +
+            " JOIN PhieuTiepNhanSuaChua pt ON pt.maPhieu = h.maPhieu" +
+            " JOIN Xe x ON x.bienSoXe = pt.bienSoXe" +
+            " JOIN KhachHang kh ON kh.maKH = x.maKH" +
+            (maNVTiepNhan != null && !maNVTiepNhan.isBlank() ? " WHERE p.maNV = ?" : "") +
+            " ORDER BY p.ngayLap DESC";
+        try (Connection con = DbUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sqlDs)) {
+            if (maNVTiepNhan != null && !maNVTiepNhan.isBlank()) ps.setString(1, maNVTiepNhan);
+            DecimalFormat mf = new DecimalFormat("#,### đ");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Timestamp ts = rs.getTimestamp("ngayLap");
+                    String ngayStr = ts != null ? DATE_FMT.format(ts) : "--";
+                    String tienStr = mf.format(rs.getDouble("soTienHoanTra"));
+                    String hx = rs.getString("huongXuLy");
+                    if (hx != null) {
+                        hx = hx.replace("HOAN_TIEN", "Hoàn tiền")
+                               .replace("DOI_MOI", "Đổi mới")
+                               .replace("SUA_LAI_MIEN_PHI", "Sửa lại");
+                    }
+                    data.danhSachGanDay.add(new DoiTraRow(
+                        rs.getString("maPhieuDT"),
+                        ngayStr,
+                        rs.getString("maHoaDon"),
+                        rs.getString("tenKhach"),
+                        rs.getString("bienSoXe"),
+                        tienStr,
+                        hx != null ? hx : "--"
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Lỗi danh sách đổi trả gần đây: " + e.getMessage());
         }
 
         return data;

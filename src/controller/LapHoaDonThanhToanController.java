@@ -49,11 +49,23 @@ public class LapHoaDonThanhToanController {
         }
     }
 
+    public PhieuTiepNhanSuaChua layPhieuTheoMa(String maPhieu) {
+        if (maPhieu == null || maPhieu.isBlank()) return null;
+        return phieuDao.timTheoMa(maPhieu.trim());
+    }
+
     /**
      * Lấy danh sách phiếu sửa chữa HOAN_TAT và chưa có hóa đơn (đủ điều kiện lập HĐ).
      */
     public List<PhieuTiepNhanSuaChua> layDanhSachPhieuDuDieuKien() {
         return phieuDao.layDanhSachDuDieuKienLapHoaDon();
+    }
+
+    /**
+     * Lấy danh sách các hóa đơn đã thanh toán.
+     */
+    public List<HoaDon> layDanhSachHoaDonDaThanhToan() {
+        return hoaDonDao.timTheoTrangThai(TrangThaiThanhToan.DA_THANH_TOAN);
     }
 
     /**
@@ -124,6 +136,12 @@ public class LapHoaDonThanhToanController {
             throw new RuntimeException("Lập hóa đơn thất bại. Vui lòng kiểm tra lại phiếu sửa chữa và khuyến mãi.");
         }
         return maHD;
+    }
+
+    public boolean capNhatKhuyenMai(String maHoaDon, String maKM) {
+        kiemTraQuyen();
+        if (maHoaDon == null || maHoaDon.isBlank()) return false;
+        return hoaDonDao.capNhatKhuyenMai(maHoaDon.trim(), (maKM != null && !maKM.isBlank()) ? maKM.trim() : null);
     }
 
     /**

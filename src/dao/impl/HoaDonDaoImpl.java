@@ -19,12 +19,13 @@ public class HoaDonDaoImpl implements HoaDonDao {
             "SELECT h.maHoaDon, h.maPhieu, h.maNV, h.maKM, h.ngayLap, h.phuongThucTT, " +
             "       h.trangThaiThanhToan, h.thoiGianThanhToan, h.maGiaoDich, " +
             "       v.tongTienDichVu, v.tongTienLinhKien, v.tienGiam, v.thue, v.tongThanhToan, " +
-            "       p.bienSoXe, x.hangXe, x.model, kh.maKH, kh.hoTen AS tenKhachHang, kh.soDienThoai " +
+            "       p.bienSoXe, x.hangXe, x.model, kh.maKH, kh.hoTen AS tenKhachHang, kh.soDienThoai, nv.hoTen AS tenNhanVien " +
             "FROM HoaDon h " +
             "LEFT JOIN vw_HoaDon_TongTien v ON h.maHoaDon = v.maHoaDon " +
             "LEFT JOIN PhieuTiepNhanSuaChua p ON h.maPhieu = p.maPhieu " +
             "LEFT JOIN Xe x ON p.bienSoXe = x.bienSoXe " +
-            "LEFT JOIN KhachHang kh ON x.maKH = kh.maKH ";
+            "LEFT JOIN KhachHang kh ON x.maKH = kh.maKH " +
+            "LEFT JOIN NhanVien nv ON h.maNV = nv.maNV ";
 
     @Override
     public HoaDon timTheoMa(String maHoaDon) {
@@ -216,6 +217,23 @@ public class HoaDonDaoImpl implements HoaDonDao {
         }
     }
 
+    @Override
+    public boolean capNhatKhuyenMai(String maHoaDon, String maKM) {
+        String sql = "UPDATE HoaDon SET maKM = ? WHERE maHoaDon = ? AND trangThaiThanhToan = 'CHUA_THANH_TOAN'";
+        try (Connection con = DbUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            if (maKM != null && !maKM.isBlank()) {
+                ps.setString(1, maKM.trim());
+            } else {
+                ps.setNull(1, Types.VARCHAR);
+            }
+            ps.setString(2, maHoaDon.trim());
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi cập nhật khuyến mãi: " + e.getMessage(), e);
+        }
+    }
+
     private HoaDon mapRow(ResultSet rs) throws SQLException {
         HoaDon hd = new HoaDon(rs.getString("maHoaDon").trim());
 
@@ -238,29 +256,34 @@ public class HoaDonDaoImpl implements HoaDonDao {
                 }
                 p.setXeRaw(xe);
             }
-            hd.setPhieuSuaChua(p);
+            hd.setPhieuSuaChuaRaw(p);
         }
 
         String maNV = rs.getString("maNV");
-        if (maNV != null) hd.setNhanVien(new NhanVien(maNV));
+        if (maNV != null) {
+            NhanVien nv = new NhanVien(maNV);
+            String tenNV = rs.getString("tenNhanVien");
+            if (tenNV != null) nv.setHoTenRaw(tenNV);
+            hd.setNhanVienRaw(nv);
+        }
 
         String maKM = rs.getString("maKM");
-        if (maKM != null) hd.setKhuyenMai(new KhuyenMai(maKM));
+        if (maKM != null) hd.setKhuyenMaiRaw(new KhuyenMai(maKM));
 
         Timestamp ngayLap = rs.getTimestamp("ngayLap");
-        if (ngayLap != null) hd.setNgayLap(new java.util.Date(ngayLap.getTime()));
+        if (ngayLap != null) hd.setNgayLapRaw(new java.util.Date(ngayLap.getTime()));
 
         String pt = rs.getString("phuongThucTT");
-        if (pt != null) hd.setPhuongThucTT(PhuongThucThanhToan.valueOf(pt));
+        if (pt != null) hd.setPhuongThucTTRaw(PhuongThucThanhToan.valueOf(pt));
 
         String tt = rs.getString("trangThaiThanhToan");
-        if (tt != null) hd.setTrangThaiThanhToan(TrangThaiThanhToan.valueOf(tt));
+        if (tt != null) hd.setTrangThaiThanhToanRaw(TrangThaiThanhToan.valueOf(tt));
 
         Timestamp thoiGianTT = rs.getTimestamp("thoiGianThanhToan");
-        if (thoiGianTT != null) hd.setThoiGianThanhToan(new java.util.Date(thoiGianTT.getTime()));
+        if (thoiGianTT != null) hd.setThoiGianThanhToanRaw(new java.util.Date(thoiGianTT.getTime()));
 
         String maGD = rs.getString("maGiaoDich");
-        if (maGD != null) hd.setMaGiaoDich(maGD);
+        if (maGD != null) hd.setMaGiaoDichRaw(maGD);
 
         // Computed values from view vw_HoaDon_TongTien
         hd.setTongTienDichVuRaw(rs.getDouble("tongTienDichVu"));

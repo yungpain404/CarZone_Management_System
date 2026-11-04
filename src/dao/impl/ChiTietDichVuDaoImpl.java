@@ -32,17 +32,17 @@ public class ChiTietDichVuDaoImpl implements ChiTietDichVuDao {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     ChiTietDichVu ct = new ChiTietDichVu();
-                    ct.setPhieuSuaChua(new PhieuTiepNhanSuaChua(rs.getString("maPhieu")));
+                    ct.setPhieuSuaChuaRaw(new PhieuTiepNhanSuaChua(rs.getString("maPhieu")));
 
                     DichVu dv = new DichVu(rs.getString("maDV"));
                     dv.setTenDV(rs.getString("tenDV"));
                     dv.setDonViTinh(rs.getString("donViTinh"));
                     dv.setDonGia(rs.getDouble("donGiaThucHien"));
-                    ct.setDichVu(dv);
+                    ct.setDichVuRaw(dv);
 
-                    ct.setSoLuong(rs.getInt("soLuong"));
-                    ct.setDonGiaThucHien(rs.getDouble("donGiaThucHien"));
-                    ct.setGhiChu(rs.getString("ghiChu"));
+                    ct.setSoLuongRaw(rs.getInt("soLuong"));
+                    ct.setDonGiaThucHienRaw(rs.getDouble("donGiaThucHien"));
+                    ct.setGhiChuRaw(rs.getString("ghiChu"));
                     list.add(ct);
                 }
             }

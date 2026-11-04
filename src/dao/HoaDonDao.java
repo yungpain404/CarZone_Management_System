@@ -55,5 +55,7 @@ public interface HoaDonDao {
     /**
      * Thêm mới hóa đơn vào CSDL.
      */
+    boolean capNhatKhuyenMai(String maHoaDon, String maKM);
+
     boolean them(HoaDon hd);
 }

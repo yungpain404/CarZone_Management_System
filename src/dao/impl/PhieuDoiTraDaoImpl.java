@@ -78,8 +78,13 @@ public class PhieuDoiTraDaoImpl implements PhieuDoiTraDao {
 
     @Override
     public List<ChiTietDoiTra> layChiTiet(String maPhieuDT) {
-        String sql = "SELECT c.maPhieuDT, c.stt, c.maPhieu, c.maDV, c.maLK, c.soLuong, c.donGia, c.huongXuLy " +
-                     "FROM ChiTietDoiTra c WHERE c.maPhieuDT = ? ORDER BY c.stt ASC";
+        String sql = "SELECT c.maPhieuDT, c.stt, c.maPhieu, c.maDV, c.maLK, c.soLuong, c.donGia, c.huongXuLy, " +
+                     "       COALESCE(d.tenDV, l.tenLK) AS tenHangMuc, " +
+                     "       COALESCE(d.donViTinh, l.donViTinh) AS donViTinh " +
+                     "FROM ChiTietDoiTra c " +
+                     "LEFT JOIN DichVu d ON c.maDV = d.maDV " +
+                     "LEFT JOIN LinhKien l ON c.maLK = l.maLK " +
+                     "WHERE c.maPhieuDT = ? ORDER BY c.stt ASC";
         List<ChiTietDoiTra> list = new ArrayList<>();
         try (Connection con = DbUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
@@ -96,6 +101,8 @@ public class PhieuDoiTraDaoImpl implements PhieuDoiTraDao {
                     ct.setDonGiaRaw(rs.getDouble("donGia"));
                     String hx = rs.getString("huongXuLy");
                     if (hx != null) ct.setHuongXuLyRaw(HuongXuLyDoiTra.valueOf(hx));
+                    ct.setTenHangMucRaw(rs.getString("tenHangMuc"));
+                    ct.setDonViTinhRaw(rs.getString("donViTinh"));
                     list.add(ct);
                 }
             }
@@ -213,7 +220,7 @@ public class PhieuDoiTraDaoImpl implements PhieuDoiTraDao {
                     }
                     pt.setXeRaw(xe);
                 }
-                hd.setPhieuSuaChua(pt);
+                hd.setPhieuSuaChuaRaw(pt);
             }
             p.setHoaDonRaw(hd);
         }

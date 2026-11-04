@@ -29,6 +29,10 @@ public class ChiTietDoiTra {
 
     private HuongXuLyDoiTra huongXuLy;
 
+    // Thuộc tính hiển thị mở rộng (không lưu trực tiếp cột mới vào DB)
+    private String tenHangMuc;
+    private String donViTinh;
+
     public ChiTietDoiTra() {
         soLuong = 1;
     }
@@ -76,6 +80,22 @@ public class ChiTietDoiTra {
 
     public String getMaLK() {
         return maLK;
+    }
+
+    public String getTenHangMuc() {
+        return tenHangMuc;
+    }
+
+    public void setTenHangMuc(String tenHangMuc) {
+        this.tenHangMuc = tenHangMuc;
+    }
+
+    public String getDonViTinh() {
+        return donViTinh;
+    }
+
+    public void setDonViTinh(String donViTinh) {
+        this.donViTinh = donViTinh;
     }
 
     /** Chọn dòng dịch vụ của phiếu sửa chữa gốc; tự bỏ chọn linh kiện. */
@@ -134,6 +154,8 @@ public class ChiTietDoiTra {
     public void setSoLuongRaw(int soLuong) { this.soLuong = soLuong; }
     public void setDonGiaRaw(double donGia) { this.donGia = donGia; }
     public void setHuongXuLyRaw(HuongXuLyDoiTra huongXuLy) { this.huongXuLy = huongXuLy; }
+    public void setTenHangMucRaw(String ten) { this.tenHangMuc = ten; }
+    public void setDonViTinhRaw(String dvt) { this.donViTinh = dvt; }
 
     @Override public int hashCode() {
         return Objects.hash(phieuDT, id.getStt());

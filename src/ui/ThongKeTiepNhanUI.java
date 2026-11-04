@@ -1,11 +1,13 @@
 package ui;
 
 import controller.ThongKeTiepNhanController;
+import dao.ThongKeTiepNhanDao.DoiTraRow;
 import dao.ThongKeTiepNhanDao.PhieuRow;
 import dao.ThongKeTiepNhanDao.PhieuTonDongRow;
 import dao.ThongKeTiepNhanDao.SoSanhNamData;
 import dao.ThongKeTiepNhanDao.SoSanhThangData;
 import dao.ThongKeTiepNhanDao.ThongKeData;
+import dao.ThongKeTiepNhanDao.ThongKeDoiTraData;
 import dao.ThongKeTiepNhanDao.TinhHinhXuLyData;
 
 import javax.swing.*;
@@ -91,6 +93,16 @@ public class ThongKeTiepNhanUI extends JPanel {
     private DefaultTableModel modelTonDong;
     private JTable tblTonDong;
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // CONTROLS PHẦN 4: THỐNG KÊ ĐỔI TRẢ
+    // ─────────────────────────────────────────────────────────────────────────
+    private JLabel lblDTHomNayVal, lblDTHomNayTien;
+    private JLabel lblDTThangNayVal, lblDTThangNayTien;
+    private JLabel lblHoanTienVal, lblDoiMoiVal, lblSuaLaiVal;
+    private ChartBarPanel pnlBarChartDoiTra;
+    private DefaultTableModel modelDoiTra;
+    private JTable tblDoiTra;
+
     public ThongKeTiepNhanUI() {
         setLayout(new BorderLayout(0, 0));
         setOpaque(false);
@@ -155,6 +167,15 @@ public class ThongKeTiepNhanUI extends JPanel {
         body.add(buildSectionTitle("TÌNH HÌNH XỬ LÝ PHIẾU TIẾP NHẬN", "Nắm bắt trạng thái xử lý tức thời và danh sách các phiếu đang tồn đọng cần xử lý"));
         body.add(Box.createVerticalStrut(12));
         body.add(buildPhanTinhHinhXuLy());
+
+        // ═════════════════════════════════════════════════════════════════════
+        // PHẦN 4: THỐNG KÊ ĐỔI TRẢ – BẢO HÀNH
+        // ═════════════════════════════════════════════════════════════════════
+        body.add(Box.createVerticalStrut(28));
+        body.add(buildSectionTitle("THỐNG KÊ ĐỔI TRẢ – BẢO HÀNH",
+                "Theo dõi hoạt động đổi trả, hoàn tiền và bảo hành linh kiện, dịch vụ trong tháng"));
+        body.add(Box.createVerticalStrut(12));
+        body.add(buildPhanThongKeDoiTra());
 
         JScrollPane scroll = new JScrollPane(body);
         scroll.setBorder(null);
@@ -747,12 +768,13 @@ public class ThongKeTiepNhanUI extends JPanel {
     // DỮ LIỆU & SWINGWORKER
     // ─────────────────────────────────────────────────────────────────────────
     /**
-     * Tải dữ liệu của cả 3 phần.
+     * Tải dữ liệu của cả 4 phần.
      */
     private void taiToanBoDuLieuThongKe() {
         taiDuLieuPhan1();
         taiDuLieuPhan2();
         taiDuLieuPhan3();
+        taiDuLieuPhan4();
     }
 
     /**
@@ -979,6 +1001,319 @@ public class ThongKeTiepNhanUI extends JPanel {
                 } catch (Exception ignored) {}
             }
         }.execute();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4. PHẦN 4: THỐNG KÊ ĐỔI TRẢ – BẢO HÀNH
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private JPanel buildPhanThongKeDoiTra() {
+        JPanel pnl = new JPanel();
+        pnl.setLayout(new BoxLayout(pnl, BoxLayout.Y_AXIS));
+        pnl.setOpaque(false);
+        pnl.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // ── KPI Cards (4 card) ────────────────────────────────────────────────
+        JPanel kpiRow = new JPanel(new GridLayout(1, 4, 12, 0));
+        kpiRow.setOpaque(false);
+        kpiRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
+        kpiRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Card 1: Phiếu ĐT hôm nay (số lượng + tiền)
+        lblDTHomNayVal  = new JLabel("0");
+        lblDTHomNayTien = new JLabel("0 đ");
+        kpiRow.add(createDoiTraKpiCard("PHIẾU ĐỔI TRẢ HÔM NAY", lblDTHomNayVal, lblDTHomNayTien, true));
+
+        // Card 2: Phiếu ĐT tháng này (số lượng + tiền)
+        lblDTThangNayVal  = new JLabel("0");
+        lblDTThangNayTien = new JLabel("0 đ");
+        kpiRow.add(createDoiTraKpiCard("PHIẾU ĐỔI TRẢ THÁNG NÀY", lblDTThangNayVal, lblDTThangNayTien, false));
+
+        // Card 3: Số hạng mục Hoàn tiền
+        lblHoanTienVal = new JLabel("0");
+        kpiRow.add(createSimpleKpiCard("HOÀN TIỀN (HẠNG MỤC)", lblHoanTienVal, "Hạng mục hoàn tiền tháng này", new Color(0xDC2626)));
+
+        // Card 4: Đổi mới + Sửa lại
+        lblDoiMoiVal = new JLabel("0");
+        lblSuaLaiVal = new JLabel("0");
+        kpiRow.add(createDoiMoiSuaLaiCard());
+
+        pnl.add(kpiRow);
+        pnl.add(Box.createVerticalStrut(14));
+
+        // ── Hàng 2: Biểu đồ xu hướng 7 ngày + Phân bố hướng xử lý ──────────
+        JPanel row2 = new JPanel(new GridLayout(1, 2, 14, 0));
+        row2.setOpaque(false);
+        row2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 240));
+        row2.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        pnlBarChartDoiTra = new ChartBarPanel("Xu hướng phiếu đổi trả 7 ngày gần nhất");
+        pnlBarChartDoiTra.setPreferredSize(new Dimension(0, 240));
+        row2.add(pnlBarChartDoiTra);
+
+        row2.add(buildPhanBoPhanBo());
+
+        pnl.add(row2);
+        pnl.add(Box.createVerticalStrut(14));
+
+        // ── Bảng 10 phiếu gần nhất ───────────────────────────────────────────
+        pnl.add(buildTableDoiTra());
+
+        return pnl;
+    }
+
+    /** Card KPI kép: số lượng + tiền hoàn */
+    private JPanel createDoiTraKpiCard(String title, JLabel lblVal, JLabel lblTien, boolean isPrimary) {
+        JPanel card = new JPanel(new BorderLayout(0, 2));
+        card.setBackground(isPrimary ? C_PRIMARY : C_WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(isPrimary ? C_PRIMARY : C_BORDER, 1),
+                new EmptyBorder(10, 14, 10, 14)));
+
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(f(Font.BOLD, 11));
+        lblTitle.setForeground(isPrimary ? new Color(0xDBEAFE) : C_TEXT_SUBTLE);
+        card.add(lblTitle, BorderLayout.NORTH);
+
+        JPanel mid = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        mid.setOpaque(false);
+        lblVal.setFont(f(Font.BOLD, 24));
+        lblVal.setForeground(isPrimary ? C_WHITE : C_TEXT_HEAD);
+        mid.add(lblVal);
+        card.add(mid, BorderLayout.CENTER);
+
+        lblTien.setFont(f(Font.PLAIN, 11));
+        lblTien.setForeground(isPrimary ? new Color(0xBFDBFE) : C_TEXT_MUTED);
+        card.add(lblTien, BorderLayout.SOUTH);
+
+        return card;
+    }
+
+    /** Card KPI đơn với màu tùy chỉnh */
+    private JPanel createSimpleKpiCard(String title, JLabel lblVal, String sub, Color accentColor) {
+        JPanel card = new JPanel(new BorderLayout(0, 4));
+        card.setBackground(C_WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(C_BORDER, 1),
+                new EmptyBorder(10, 14, 10, 14)));
+
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(f(Font.BOLD, 11));
+        lblTitle.setForeground(C_TEXT_SUBTLE);
+        card.add(lblTitle, BorderLayout.NORTH);
+
+        JPanel mid = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        mid.setOpaque(false);
+        lblVal.setFont(f(Font.BOLD, 24));
+        lblVal.setForeground(accentColor);
+        mid.add(lblVal);
+        card.add(mid, BorderLayout.CENTER);
+
+        JLabel lblSub = new JLabel(sub);
+        lblSub.setFont(f(Font.PLAIN, 11));
+        lblSub.setForeground(C_TEXT_MUTED);
+        card.add(lblSub, BorderLayout.SOUTH);
+
+        return card;
+    }
+
+    /** Card KPI kép: Đổi mới + Sửa lại */
+    private JPanel createDoiMoiSuaLaiCard() {
+        JPanel card = new JPanel(new BorderLayout(0, 4));
+        card.setBackground(C_WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(C_BORDER, 1),
+                new EmptyBorder(10, 14, 10, 14)));
+
+        JLabel lblTitle = new JLabel("ĐỔI MỚI / SỬA LẠI");
+        lblTitle.setFont(f(Font.BOLD, 11));
+        lblTitle.setForeground(C_TEXT_SUBTLE);
+        card.add(lblTitle, BorderLayout.NORTH);
+
+        JPanel mid = new JPanel();
+        mid.setLayout(new BoxLayout(mid, BoxLayout.Y_AXIS));
+        mid.setOpaque(false);
+
+        JPanel rowDoiMoi = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        rowDoiMoi.setOpaque(false);
+        JLabel lblDM = new JLabel("Đổi mới:");
+        lblDM.setFont(f(Font.PLAIN, 12));
+        lblDM.setForeground(C_TEXT_MUTED);
+        lblDoiMoiVal.setFont(f(Font.BOLD, 14));
+        lblDoiMoiVal.setForeground(new Color(0x2563EB));
+        rowDoiMoi.add(lblDM);
+        rowDoiMoi.add(lblDoiMoiVal);
+
+        JPanel rowSuaLai = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        rowSuaLai.setOpaque(false);
+        JLabel lblSL = new JLabel("Sửa lại:");
+        lblSL.setFont(f(Font.PLAIN, 12));
+        lblSL.setForeground(C_TEXT_MUTED);
+        lblSuaLaiVal.setFont(f(Font.BOLD, 14));
+        lblSuaLaiVal.setForeground(new Color(0x059669));
+        rowSuaLai.add(lblSL);
+        rowSuaLai.add(lblSuaLaiVal);
+
+        mid.add(rowDoiMoi);
+        mid.add(rowSuaLai);
+        card.add(mid, BorderLayout.CENTER);
+
+        JLabel lblSub = new JLabel("Hạng mục tháng này");
+        lblSub.setFont(f(Font.PLAIN, 11));
+        lblSub.setForeground(C_TEXT_MUTED);
+        card.add(lblSub, BorderLayout.SOUTH);
+
+        return card;
+    }
+
+    /** Panel phân bố hướng xử lý (3 badge) */
+    private JPanel buildPhanBoPhanBo() {
+        JPanel card = new JPanel(new BorderLayout(0, 10));
+        card.setBackground(C_WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(C_BORDER, 1),
+                new EmptyBorder(12, 16, 12, 16)));
+
+        JLabel lbl = new JLabel("Phân bố hướng xử lý (tháng này)");
+        lbl.setFont(f(Font.BOLD, 14));
+        lbl.setForeground(C_TEXT_HEAD);
+        card.add(lbl, BorderLayout.NORTH);
+
+        JPanel badges = new JPanel(new GridLayout(3, 1, 0, 8));
+        badges.setOpaque(false);
+
+        // badge sẽ được cập nhật trong capNhatPhan4DoiTra()
+        badges.add(buildBadgeRow("💰 Hoàn tiền", lblHoanTienVal, new Color(0xFEE2E2), new Color(0xDC2626)));
+        badges.add(buildBadgeRow("🔄 Đổi mới linh kiện", lblDoiMoiVal, new Color(0xDBEAFE), new Color(0x2563EB)));
+        badges.add(buildBadgeRow("🔧 Sửa lại miễn phí", lblSuaLaiVal, new Color(0xDCFCE7), new Color(0x059669)));
+
+        card.add(badges, BorderLayout.CENTER);
+        return card;
+    }
+
+    /** Một dòng badge: label mô tả + label số lượng */
+    private JPanel buildBadgeRow(String desc, JLabel lblCount, Color bg, Color fg) {
+        JPanel row = new JPanel(new BorderLayout(8, 0));
+        row.setBackground(bg);
+        row.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(fg.brighter(), 1),
+                new EmptyBorder(6, 10, 6, 10)));
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+
+        JLabel lblDesc = new JLabel(desc);
+        lblDesc.setFont(f(Font.PLAIN, 13));
+        lblDesc.setForeground(fg.darker());
+        row.add(lblDesc, BorderLayout.CENTER);
+
+        lblCount.setFont(f(Font.BOLD, 16));
+        lblCount.setForeground(fg);
+        lblCount.setHorizontalAlignment(SwingConstants.RIGHT);
+        row.add(lblCount, BorderLayout.EAST);
+
+        return row;
+    }
+
+    /** Bảng 10 phiếu đổi trả gần nhất */
+    private JPanel buildTableDoiTra() {
+        JPanel card = new JPanel(new BorderLayout(0, 8));
+        card.setBackground(C_WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(C_BORDER, 1),
+                new EmptyBorder(12, 14, 12, 14)));
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel lbl = new JLabel("10 phiếu đổi trả gần nhất");
+        lbl.setFont(f(Font.BOLD, 14));
+        lbl.setForeground(C_TEXT_HEAD);
+        card.add(lbl, BorderLayout.NORTH);
+
+        modelDoiTra = new DefaultTableModel(
+                new String[]{"STT", "Mã phiếu ĐT", "Ngày lập", "Mã HĐ gốc", "Khách hàng", "Biển số", "Tiền hoàn", "Hướng xử lý"}, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        tblDoiTra = new JTable(modelDoiTra);
+        tblDoiTra.setFont(f(Font.PLAIN, 13));
+        tblDoiTra.setRowHeight(30);
+        tblDoiTra.setShowGrid(false);
+        tblDoiTra.getTableHeader().setFont(f(Font.BOLD, 12));
+        tblDoiTra.getTableHeader().setBackground(new Color(0xF8FAFC));
+
+        // Center STT
+        DefaultTableCellRenderer centerRend = new DefaultTableCellRenderer();
+        centerRend.setHorizontalAlignment(SwingConstants.CENTER);
+        tblDoiTra.getColumnModel().getColumn(0).setCellRenderer(centerRend);
+        tblDoiTra.getColumnModel().getColumn(0).setPreferredWidth(40);
+        tblDoiTra.getColumnModel().getColumn(0).setMaxWidth(50);
+
+        JScrollPane scroll = new JScrollPane(tblDoiTra);
+        scroll.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
+        scroll.setPreferredSize(new Dimension(0, 220));
+        card.add(scroll, BorderLayout.CENTER);
+
+        return card;
+    }
+
+    /**
+     * Tải dữ liệu Phần 4: Thống kê đổi trả.
+     */
+    private void taiDuLieuPhan4() {
+        new SwingWorker<ThongKeDoiTraData, Void>() {
+            @Override
+            protected ThongKeDoiTraData doInBackground() {
+                return controller.layThongKeDoiTra();
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    ThongKeDoiTraData data = get();
+                    if (data != null) capNhatPhan4DoiTra(data);
+                } catch (Exception ignored) {}
+            }
+        }.execute();
+    }
+
+    /**
+     * Cập nhật toàn bộ UI Phần 4 từ dữ liệu trả về.
+     */
+    private void capNhatPhan4DoiTra(ThongKeDoiTraData data) {
+        DecimalFormat mf = new DecimalFormat("#,### đ");
+
+        // KPI Hôm nay
+        lblDTHomNayVal.setText(INT_FMT.format(data.soPhieuHomNay));
+        lblDTHomNayTien.setText("Hoàn: " + mf.format(data.tienHoanHomNay));
+
+        // KPI Tháng này
+        lblDTThangNayVal.setText(INT_FMT.format(data.soPhieuThangNay));
+        lblDTThangNayTien.setText("Hoàn: " + mf.format(data.tienHoanThangNay));
+
+        // Phân bố hướng xử lý
+        lblHoanTienVal.setText(INT_FMT.format(data.soHoanTien));
+        lblDoiMoiVal.setText(INT_FMT.format(data.soDoiMoi));
+        lblSuaLaiVal.setText(INT_FMT.format(data.soSuaLai));
+
+        // Biểu đồ xu hướng 7 ngày
+        if (data.xuHuong7Ngay != null) {
+            pnlBarChartDoiTra.setData(data.xuHuong7Ngay);
+        }
+
+        // Bảng 10 phiếu gần nhất
+        modelDoiTra.setRowCount(0);
+        if (data.danhSachGanDay != null) {
+            int stt = 1;
+            for (DoiTraRow r : data.danhSachGanDay) {
+                modelDoiTra.addRow(new Object[]{
+                        stt++,
+                        r.maPhieuDT,
+                        r.ngayLap,
+                        r.maHoaDon,
+                        r.khachHang,
+                        r.bienSo,
+                        r.tienHoan,
+                        r.huongXuLy
+                });
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

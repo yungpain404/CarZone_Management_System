@@ -32,17 +32,17 @@ public class ChiTietLinhKienDaoImpl implements ChiTietLinhKienDao {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     ChiTietLinhKien ct = new ChiTietLinhKien();
-                    ct.setPhieuSuaChua(new PhieuTiepNhanSuaChua(rs.getString("maPhieu")));
+                    ct.setPhieuSuaChuaRaw(new PhieuTiepNhanSuaChua(rs.getString("maPhieu")));
 
                     LinhKien lk = new LinhKien(rs.getString("maLK"));
                     lk.setTenLK(rs.getString("tenLK"));
                     lk.setDonViTinh(rs.getString("donViTinh"));
                     lk.setDonGia(rs.getDouble("donGiaXuat"));
-                    ct.setLinhKien(lk);
+                    ct.setLinhKienRaw(lk);
 
-                    ct.setSoLuong(rs.getInt("soLuong"));
-                    ct.setDonGiaXuat(rs.getDouble("donGiaXuat"));
-                    ct.setGhiChu(rs.getString("ghiChu"));
+                    ct.setSoLuongRaw(rs.getInt("soLuong"));
+                    ct.setDonGiaXuatRaw(rs.getDouble("donGiaXuat"));
+                    ct.setGhiChuRaw(rs.getString("ghiChu"));
                     list.add(ct);
                 }
             }

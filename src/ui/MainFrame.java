@@ -19,6 +19,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -1000,67 +1001,808 @@ public class MainFrame extends JFrame {
         return c;
     }
 
-    // Dashboard Tiếp nhận viên
+    private JPanel createWhiteCardPanel(int arc) {
+        JPanel pnl = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(C_WHITE);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, arc, arc);
+                g2.setColor(C_BORDER);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, arc, arc);
+                g2.dispose();
+            }
+        };
+        pnl.setOpaque(false);
+        return pnl;
+    }
+
+    private static class StatusBadgeRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+            JLabel lbl = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+            lbl.setHorizontalAlignment(SwingConstants.CENTER);
+            lbl.setOpaque(true);
+
+            String valStr = value != null ? value.toString() : "";
+            String txt = valStr;
+            Color fg = C_TEXT_MAIN;
+            Color bg = new Color(0xF1F5F9);
+
+            if ("CHO_SUA".equals(valStr) || "Chờ sửa".equals(valStr)) {
+                txt = "Chờ sửa";
+                fg = new Color(0xEA580C);
+                bg = new Color(0xFFEDD5);
+            } else if ("DANG_SUA".equals(valStr) || "Đang sửa".equals(valStr)) {
+                txt = "Đang sửa";
+                fg = new Color(0x2563EB);
+                bg = new Color(0xDBEAFE);
+            } else if ("CHO_LINH_KIEN".equals(valStr) || "Chờ linh kiện".equals(valStr)) {
+                txt = "Chờ linh kiện";
+                fg = new Color(0xD97706);
+                bg = new Color(0xFEF3C7);
+            } else if ("HOAN_TAT".equals(valStr) || "Hoàn tất".equals(valStr)) {
+                txt = "Hoàn tất";
+                fg = new Color(0x059669);
+                bg = new Color(0xECFDF5);
+            }
+
+            lbl.setText(txt);
+            lbl.setFont(f(Font.BOLD, 11));
+            lbl.setForeground(fg);
+            lbl.setBackground(bg);
+            lbl.setBorder(new EmptyBorder(2, 6, 2, 6));
+
+            return lbl;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DASHBOARD TIẾP NHẬN VIÊN (ĐÃ NÂNG CẤP: ACTION-DRIVEN & VISUAL CHARTS)
+    // ─────────────────────────────────────────────────────────────────────────
     private JPanel buildTiepNhanVienDashboardView() {
         TiepNhanVienDashboardData data = dashboardController.layDataTiepNhanVien();
 
         ScrollableContentPanel main = new ScrollableContentPanel();
-        main.setBorder(new EmptyBorder(16, 24, 16, 24));
+        main.setBorder(new EmptyBorder(16, 24, 24, 24));
 
-        JLabel title = new JLabel("Dashboard Tiếp Nhận Xe");
-        title.setFont(f(Font.BOLD, 22));
-        title.setForeground(C_TEXT_HEAD);
-        main.add(title);
+        // ── 1. Header ca làm việc & Quick Actions ───────────────────────────
+        JPanel pnlTitle = new JPanel(new BorderLayout(12, 0));
+        pnlTitle.setOpaque(false);
+        pnlTitle.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+
+        JPanel titleBlock = new JPanel();
+        titleBlock.setLayout(new BoxLayout(titleBlock, BoxLayout.Y_AXIS));
+        titleBlock.setOpaque(false);
+
+        JLabel lblTitle = new JLabel("Bảng điều hành Tiếp nhận viên");
+        lblTitle.setFont(f(Font.BOLD, 22));
+        lblTitle.setForeground(C_TEXT_HEAD);
+        titleBlock.add(lblTitle);
+
+        String ngayHienTai = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        JLabel lblSubTitle = new JLabel("Ca trực hôm nay: " + ngayHienTai + " · Giám sát xe xưởng, điều phối KTV và hàng đợi xử lý");
+        lblSubTitle.setFont(f(Font.PLAIN, 12));
+        lblSubTitle.setForeground(C_TEXT_SUBTLE);
+        titleBlock.add(lblSubTitle);
+        pnlTitle.add(titleBlock, BorderLayout.WEST);
+
+        // Nút Quick Actions
+        JPanel pnlQuickActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        pnlQuickActions.setOpaque(false);
+
+        JButton btnAddPhieu = new RoundedButton("+ Tiếp nhận xe (F2)", 8, C_PRIMARY, C_PRIMARY_HV, C_PRIMARY);
+        btnAddPhieu.setForeground(C_WHITE);
+        btnAddPhieu.setFont(f(Font.BOLD, 12));
+        btnAddPhieu.setPreferredSize(new Dimension(160, 34));
+        btnAddPhieu.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnAddPhieu.addActionListener(e -> moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN"));
+        pnlQuickActions.add(btnAddPhieu);
+
+        JButton btnAddHoaDon = new RoundedButton("💵 Thu tiền (F3)", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
+        btnAddHoaDon.setForeground(C_TEXT_MAIN);
+        btnAddHoaDon.setFont(f(Font.BOLD, 12));
+        btnAddHoaDon.setPreferredSize(new Dimension(130, 34));
+        btnAddHoaDon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnAddHoaDon.addActionListener(e -> moPageTheoNavigation("NAV_HOA_DON"));
+        pnlQuickActions.add(btnAddHoaDon);
+
+        JButton btnDoiTra = new RoundedButton("🔄 Đổi trả (F4)", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
+        btnDoiTra.setForeground(C_TEXT_MAIN);
+        btnDoiTra.setFont(f(Font.BOLD, 12));
+        btnDoiTra.setPreferredSize(new Dimension(120, 34));
+        btnDoiTra.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnDoiTra.addActionListener(e -> moPageTheoNavigation("NAV_DOI_TRA"));
+        pnlQuickActions.add(btnDoiTra);
+
+        pnlTitle.add(pnlQuickActions, BorderLayout.EAST);
+        main.add(pnlTitle);
+
         main.add(Box.createVerticalStrut(16));
 
-        JPanel pnlKpis = new JPanel(new GridLayout(1, 4, 14, 0));
-        pnlKpis.setOpaque(false);
-        pnlKpis.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
+        // ── 2. Hàng 4 Thẻ KPI Tức thời trong ngày ───────────────────────────
+        JPanel pnlStats = new JPanel(new GridLayout(1, 4, 14, 0));
+        pnlStats.setOpaque(false);
+        pnlStats.setPreferredSize(new Dimension(800, 130));
+        pnlStats.setMaximumSize(new Dimension(Integer.MAX_VALUE, 135));
 
-        pnlKpis.add(createWhiteKpiCard(String.format("%02d", data.phieuChoSua), "Chờ sửa chữa", "Xe đã tiếp nhận", "Xem danh sách ↗", "⏳", "NAV_PHIEU_TIEP_NHAN"));
-        pnlKpis.add(createWhiteKpiCard(String.format("%02d", data.phieuDangSua), "Đang sửa chữa", "KTV đang xử lý", "Xem danh sách ↗", "🔧", "NAV_PHIEU_TIEP_NHAN"));
-        pnlKpis.add(createWhiteKpiCard(String.format("%02d", data.phieuChoLinhKien), "Chờ linh kiện", "Chờ xuất kho", "Xem danh sách ↗", "📦", "NAV_PHIEU_TIEP_NHAN"));
-        pnlKpis.add(createWhiteKpiCard(String.format("%02d", data.phieuHoanTatChoThu), "Hoàn tất chờ thu", "Sẵn sàng xuất hóa đơn", "Lập hóa đơn ↗", "🧾", "NAV_HOA_DON"));
-        main.add(pnlKpis);
-
-        main.add(Box.createVerticalStrut(20));
-
-        // Bảng phiếu tiếp nhận gần đây
-        JPanel cardTable = new JPanel(new BorderLayout(0, 10));
-        cardTable.setBackground(C_WHITE);
-        cardTable.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(C_BORDER, 1),
-                new EmptyBorder(14, 16, 14, 16)
+        // Card 1: Tiếp nhận hôm nay (Primary Blue)
+        pnlStats.add(createClickableStatCard(
+                String.format("%02d", data.tiepNhanHomNay),
+                "Tiếp nhận hôm nay",
+                "Lượt xe vào xưởng hôm nay",
+                "Lập phiếu tiếp nhận mới ↗",
+                "🚗",
+                C_PRIMARY, C_PRIMARY, C_WHITE, C_WHITE, new Color(0xDBEAFE), C_WHITE,
+                () -> moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN")
         ));
-        cardTable.setMaximumSize(new Dimension(Integer.MAX_VALUE, 400));
 
-        JLabel tblTitle = new JLabel("Tiến độ xe tại xưởng trong ngày");
-        tblTitle.setFont(f(Font.BOLD, 14));
-        tblTitle.setForeground(C_TEXT_HEAD);
-        cardTable.add(tblTitle, BorderLayout.NORTH);
+        // Card 2: Cần phân công ngay (Nếu > 0 thì cảnh báo đỏ)
+        boolean coChuaPhanCong = data.chuaPhanCongKTV > 0;
+        pnlStats.add(createClickableStatCard(
+                String.format("%02d", data.chuaPhanCongKTV),
+                "Cần phân công KTV",
+                coChuaPhanCong ? "Phiếu chờ chỉ định thợ!" : "Đã phân công đầy đủ",
+                coChuaPhanCong ? "Phân công KTV ngay ↗" : "Xem danh sách xe ↗",
+                coChuaPhanCong ? "⚠️" : "✓",
+                coChuaPhanCong ? new Color(0xFEF2F2) : C_WHITE,
+                coChuaPhanCong ? new Color(0xFCA5A5) : C_BORDER,
+                coChuaPhanCong ? C_DANGER : C_TEXT_HEAD,
+                coChuaPhanCong ? C_DANGER : C_TEXT_HEAD,
+                coChuaPhanCong ? new Color(0xB91C1C) : C_TEXT_SUBTLE,
+                coChuaPhanCong ? C_DANGER : C_PRIMARY,
+                () -> moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN")
+        ));
 
-        String[] cols = {"MÃ PHIẾU", "BIỂN SỐ XE", "KHÁCH HÀNG", "SỐ ĐIỆN THOẠI", "KTV PHỤ TRÁCH", "GIỜ TIẾP NHẬN", "TRẠNG THÁI"};
-        DefaultTableModel model = new DefaultTableModel(cols, 0);
-        for (PhieuTiepNhanRow r : data.danhSachPhieu) {
-            model.addRow(new Object[]{r.maPhieu, r.bienSo, r.khachHang, r.soDienThoai, r.ktvChinh, r.thoiDiem, r.trangThai.toString()});
-        }
-        if (model.getRowCount() == 0) {
-            model.addRow(new Object[]{"Chưa có phiếu tiếp nhận nào trong ngày", "—", "—", "—", "—", "—", "—"});
-        }
+        // Card 3: Xe đang sửa chữa tại xưởng
+        pnlStats.add(createClickableStatCard(
+                String.format("%02d", data.phieuDangSua),
+                "Xe đang sửa chữa",
+                "Đang tiến hành tại xưởng",
+                "Xem tiến độ sửa chữa ↗",
+                "🔧",
+                C_WHITE, C_BORDER, C_TEXT_HEAD, C_TEXT_HEAD, C_TEXT_SUBTLE, C_PRIMARY,
+                () -> moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN")
+        ));
 
-        JTable tbl = new JTable(model);
-        tbl.setFont(f(Font.PLAIN, 12));
-        tbl.setRowHeight(34);
-        tbl.getTableHeader().setFont(f(Font.BOLD, 11));
-        tbl.getTableHeader().setBackground(new Color(0xF8FAFC));
-        tbl.getTableHeader().setPreferredSize(new Dimension(0, 32));
+        // Card 4: Sẵn sàng giao xe & chờ thu tiền (Xanh lá)
+        boolean coChoThu = data.phieuChoThuTien > 0;
+        pnlStats.add(createClickableStatCard(
+                String.format("%02d", data.phieuChoThuTien),
+                "Chờ thanh toán & giao xe",
+                coChoThu ? "Sẵn sàng lập hóa đơn thu tiền" : "Không có xe tồn thu",
+                "Lập hóa đơn thanh toán ↗",
+                "💵",
+                coChoThu ? new Color(0xECFDF5) : C_WHITE,
+                coChoThu ? new Color(0xA7F3D0) : C_BORDER,
+                coChoThu ? new Color(0x059669) : C_TEXT_HEAD,
+                coChoThu ? new Color(0x059669) : C_TEXT_HEAD,
+                coChoThu ? new Color(0x047857) : C_TEXT_SUBTLE,
+                coChoThu ? new Color(0x059669) : C_PRIMARY,
+                () -> moPageTheoNavigation("NAV_HOA_DON")
+        ));
 
-        JScrollPane sp = new JScrollPane(tbl);
-        sp.setBorder(null);
-        cardTable.add(sp, BorderLayout.CENTER);
-        main.add(cardTable);
+        main.add(pnlStats);
+
+        main.add(Box.createVerticalStrut(18));
+
+        // ── 3. Hàng 2 Biểu đồ Trực quan số liệu (Charts) ───────────────────
+        JPanel pnlChartsRow = new JPanel(new GridLayout(1, 2, 14, 0));
+        pnlChartsRow.setOpaque(false);
+        pnlChartsRow.setPreferredSize(new Dimension(800, 220));
+        pnlChartsRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 230));
+
+        // Chart 1: Trực quan trạng thái xe xưởng
+        pnlChartsRow.add(buildTnvStatusProgressPanel(data));
+
+        // Chart 2: Tải công việc Kỹ thuật viên
+        pnlChartsRow.add(buildTnvWorkloadBarChart(data.taiCongViecKTV));
+
+        main.add(pnlChartsRow);
+
+        main.add(Box.createVerticalStrut(18));
+
+        // ── 4. Action Center: Hàng đợi công việc cần xử lý ngay ────────────
+        JPanel pnlActionRow = new JPanel(new GridBagLayout());
+        pnlActionRow.setOpaque(false);
+        pnlActionRow.setPreferredSize(new Dimension(800, 240));
+        pnlActionRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weighty = 1.0;
+
+        // Card Trái: Xe chờ giao & thanh toán (60%)
+        gbc.gridx = 0;
+        gbc.weightx = 0.60;
+        gbc.insets = new Insets(0, 0, 0, 14);
+        pnlActionRow.add(buildTnvXeChoGiaoCard(data), gbc);
+
+        // Card Phải: Cảnh báo & hàng đợi cần can thiệp (40%)
+        gbc.gridx = 1;
+        gbc.weightx = 0.40;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        pnlActionRow.add(buildTnvCanhBaoCard(data), gbc);
+
+        main.add(pnlActionRow);
+
+        main.add(Box.createVerticalStrut(18));
+
+        // ── 5. Bảng tổng hợp xe tại Gara hôm nay ───────────────────────────
+        main.add(buildTnvLiveXeTable(data));
 
         return main;
+    }
+
+    /**
+     * Helper tạo Card KPI nhấp chuột điều hướng trong MainFrame.
+     */
+    private JPanel createClickableStatCard(String number, String title, String subtitle, String linkText, String icon,
+                                          Color bg, Color border, Color textNum, Color textTitle, Color textSub, Color textLink,
+                                          Runnable onClick) {
+        JPanel card = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(bg);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g2.setColor(border);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g2.dispose();
+            }
+        };
+        card.setOpaque(false);
+        card.setLayout(new BorderLayout(0, 4));
+        card.setBorder(new EmptyBorder(12, 14, 10, 14));
+        card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        card.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (onClick != null) onClick.run();
+            }
+        });
+
+        // Header
+        JPanel top = new JPanel(new BorderLayout());
+        top.setOpaque(false);
+        JLabel lblNum = new JLabel(number);
+        lblNum.setFont(f(Font.BOLD, 26));
+        lblNum.setForeground(textNum);
+        top.add(lblNum, BorderLayout.WEST);
+
+        JLabel lblIcon = new JLabel(icon);
+        lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 18));
+        top.add(lblIcon, BorderLayout.EAST);
+        card.add(top, BorderLayout.NORTH);
+
+        // Center
+        JPanel center = new JPanel();
+        center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+        center.setOpaque(false);
+
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(f(Font.BOLD, 13));
+        lblTitle.setForeground(textTitle);
+        center.add(lblTitle);
+
+        JLabel lblSub = new JLabel(subtitle);
+        lblSub.setFont(f(Font.PLAIN, 11));
+        lblSub.setForeground(textSub);
+        center.add(lblSub);
+        card.add(center, BorderLayout.CENTER);
+
+        // Link
+        JLabel lblLink = new JLabel(linkText);
+        lblLink.setFont(f(Font.BOLD, 11));
+        lblLink.setForeground(textLink);
+        card.add(lblLink, BorderLayout.SOUTH);
+
+        return card;
+    }
+
+    /**
+     * Biểu đồ 1 (TNV): Tình trạng xe tại xưởng.
+     */
+    private JPanel buildTnvStatusProgressPanel(TiepNhanVienDashboardData data) {
+        JPanel card = createWhiteCardPanel(16);
+        card.setLayout(new BorderLayout(0, 10));
+        card.setBorder(new EmptyBorder(14, 16, 14, 16));
+
+        int choSua = data.phanBoTrangThai.getOrDefault("Chờ sửa chữa", 0);
+        int dangSua = data.phanBoTrangThai.getOrDefault("Đang sửa chữa", 0);
+        int choLK = data.phanBoTrangThai.getOrDefault("Chờ linh kiện", 0);
+        int choThu = data.phanBoTrangThai.getOrDefault("Chờ thanh toán", 0);
+        int tongXe = choSua + dangSua + choLK + choThu;
+
+        JPanel pnlHead = new JPanel(new BorderLayout());
+        pnlHead.setOpaque(false);
+        JLabel lblTitle = new JLabel("Tình trạng xe tại xưởng");
+        lblTitle.setFont(f(Font.BOLD, 14));
+        lblTitle.setForeground(C_TEXT_HEAD);
+        pnlHead.add(lblTitle, BorderLayout.WEST);
+
+        JLabel lblBadge = new JLabel(tongXe + " xe có mặt");
+        lblBadge.setFont(f(Font.BOLD, 11));
+        lblBadge.setForeground(C_PRIMARY);
+        lblBadge.setBackground(C_PRIMARY_BG);
+        lblBadge.setOpaque(true);
+        lblBadge.setBorder(new EmptyBorder(2, 8, 2, 8));
+        pnlHead.add(lblBadge, BorderLayout.EAST);
+        card.add(pnlHead, BorderLayout.NORTH);
+
+        JPanel body = new JPanel();
+        body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+        body.setOpaque(false);
+
+        JPanel bar = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                int w = getWidth();
+                int h = getHeight();
+
+                if (tongXe == 0) {
+                    g2.setColor(new Color(0xE2E8F0));
+                    g2.fillRoundRect(0, 0, w, h, 8, 8);
+                    g2.dispose();
+                    return;
+                }
+
+                g2.setClip(new java.awt.geom.RoundRectangle2D.Double(0, 0, w, h, 8, 8));
+                int wChoSua = (int) Math.round((double) choSua * w / tongXe);
+                int wDangSua = (int) Math.round((double) dangSua * w / tongXe);
+                int wChoLK = (int) Math.round((double) choLK * w / tongXe);
+                int wChoThu = w - (wChoSua + wDangSua + wChoLK);
+
+                int curX = 0;
+                if (wChoSua > 0) {
+                    g2.setColor(new Color(0xEA580C));
+                    g2.fillRect(curX, 0, wChoSua, h);
+                    curX += wChoSua;
+                }
+                if (wDangSua > 0) {
+                    g2.setColor(new Color(0x2563EB));
+                    g2.fillRect(curX, 0, wDangSua, h);
+                    curX += wDangSua;
+                }
+                if (wChoLK > 0) {
+                    g2.setColor(new Color(0xD97706));
+                    g2.fillRect(curX, 0, wChoLK, h);
+                    curX += wChoLK;
+                }
+                if (wChoThu > 0) {
+                    g2.setColor(new Color(0x059669));
+                    g2.fillRect(curX, 0, wChoThu, h);
+                }
+                g2.dispose();
+            }
+        };
+        bar.setPreferredSize(new Dimension(0, 16));
+        bar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 16));
+        bar.setOpaque(false);
+        body.add(bar);
+
+        body.add(Box.createVerticalStrut(14));
+
+        JPanel pnlBoxes = new JPanel(new GridLayout(2, 2, 8, 8));
+        pnlBoxes.setOpaque(false);
+        pnlBoxes.add(createTnvMiniBox("Chờ sửa chữa", choSua, tongXe, new Color(0xEA580C), new Color(0xFFEDD5)));
+        pnlBoxes.add(createTnvMiniBox("Đang sửa chữa", dangSua, tongXe, new Color(0x2563EB), new Color(0xDBEAFE)));
+        pnlBoxes.add(createTnvMiniBox("Chờ linh kiện", choLK, tongXe, new Color(0xD97706), new Color(0xFEF3C7)));
+        pnlBoxes.add(createTnvMiniBox("Chờ thu tiền", choThu, tongXe, new Color(0x059669), new Color(0xD1FAE5)));
+
+        body.add(pnlBoxes);
+        card.add(body, BorderLayout.CENTER);
+        return card;
+    }
+
+    private JPanel createTnvMiniBox(String label, int val, int total, Color dotColor, Color bgColor) {
+        JPanel box = new JPanel(new BorderLayout(6, 0));
+        box.setBackground(bgColor);
+        box.setBorder(new EmptyBorder(6, 10, 6, 10));
+
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        left.setOpaque(false);
+        JLabel dot = new JLabel("●");
+        dot.setFont(f(Font.BOLD, 12));
+        dot.setForeground(dotColor);
+        left.add(dot);
+
+        JLabel lbl = new JLabel(label);
+        lbl.setFont(f(Font.PLAIN, 12));
+        lbl.setForeground(C_TEXT_MAIN);
+        left.add(lbl);
+        box.add(left, BorderLayout.WEST);
+
+        int pct = total > 0 ? (int) Math.round((double) val * 100.0 / total) : 0;
+        JLabel lblVal = new JLabel(val + " (" + pct + "%)");
+        lblVal.setFont(f(Font.BOLD, 12));
+        lblVal.setForeground(dotColor.darker());
+        box.add(lblVal, BorderLayout.EAST);
+
+        return box;
+    }
+
+    /**
+     * Biểu đồ 2 (TNV): Tải công việc Kỹ thuật viên.
+     */
+    private JPanel buildTnvWorkloadBarChart(Map<String, Integer> taiCongViecKTV) {
+        JPanel card = createWhiteCardPanel(16);
+        card.setLayout(new BorderLayout(0, 10));
+        card.setBorder(new EmptyBorder(14, 16, 14, 16));
+
+        JPanel pnlHead = new JPanel(new BorderLayout());
+        pnlHead.setOpaque(false);
+        JLabel lblTitle = new JLabel("Tải công việc Kỹ thuật viên");
+        lblTitle.setFont(f(Font.BOLD, 14));
+        lblTitle.setForeground(C_TEXT_HEAD);
+        pnlHead.add(lblTitle, BorderLayout.WEST);
+
+        JLabel lblSub = new JLabel("Chọn KTV ít việc để phân công");
+        lblSub.setFont(f(Font.PLAIN, 11));
+        lblSub.setForeground(C_TEXT_SUBTLE);
+        pnlHead.add(lblSub, BorderLayout.EAST);
+        card.add(pnlHead, BorderLayout.NORTH);
+
+        JPanel pnlList = new JPanel();
+        pnlList.setLayout(new BoxLayout(pnlList, BoxLayout.Y_AXIS));
+        pnlList.setOpaque(false);
+
+        if (taiCongViecKTV == null || taiCongViecKTV.isEmpty()) {
+            JLabel lblEmpty = new JLabel("Chưa có thông tin kỹ thuật viên");
+            lblEmpty.setFont(f(Font.ITALIC, 12));
+            lblEmpty.setForeground(C_TEXT_MUTED);
+            pnlList.add(lblEmpty);
+        } else {
+            int maxJobs = 1;
+            for (int v : taiCongViecKTV.values()) if (v > maxJobs) maxJobs = v;
+
+            for (Map.Entry<String, Integer> e : taiCongViecKTV.entrySet()) {
+                String ktvName = e.getKey();
+                int jobs = e.getValue();
+
+                JPanel row = new JPanel(new BorderLayout(8, 0));
+                row.setOpaque(false);
+                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
+
+                JLabel lblName = new JLabel(ktvName);
+                lblName.setFont(f(Font.PLAIN, 12));
+                lblName.setForeground(C_TEXT_MAIN);
+                lblName.setPreferredSize(new Dimension(130, 24));
+                row.add(lblName, BorderLayout.WEST);
+
+                final int finalJobs = jobs;
+                final int finalMax = maxJobs;
+                JPanel barPanel = new JPanel() {
+                    @Override
+                    protected void paintComponent(Graphics g) {
+                        super.paintComponent(g);
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        int w = getWidth();
+                        int h = 10;
+                        int y = (getHeight() - h) / 2;
+
+                        g2.setColor(new Color(0xF1F5F9));
+                        g2.fillRoundRect(0, y, w, h, 6, 6);
+
+                        if (finalJobs > 0) {
+                            int barW = Math.max(12, (int) Math.round((double) finalJobs * w / Math.max(finalMax, 4)));
+                            Color barCol = finalJobs >= 3 ? new Color(0xDC2626) : (finalJobs >= 2 ? new Color(0xD97706) : C_PRIMARY);
+                            g2.setColor(barCol);
+                            g2.fillRoundRect(0, y, barW, h, 6, 6);
+                        }
+                        g2.dispose();
+                    }
+                };
+                barPanel.setOpaque(false);
+                row.add(barPanel, BorderLayout.CENTER);
+
+                JPanel badge = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+                badge.setOpaque(false);
+                badge.setPreferredSize(new Dimension(95, 24));
+
+                JLabel lblStatus = new JLabel(jobs == 0 ? "✓ Sẵn sàng" : jobs + " xe");
+                lblStatus.setFont(f(Font.BOLD, 11));
+                lblStatus.setForeground(jobs == 0 ? new Color(0x059669) : (jobs >= 3 ? C_DANGER : C_TEXT_HEAD));
+                badge.add(lblStatus);
+                row.add(badge, BorderLayout.EAST);
+
+                pnlList.add(row);
+                pnlList.add(Box.createVerticalStrut(4));
+            }
+        }
+
+        JScrollPane scroll = new JScrollPane(pnlList);
+        scroll.setBorder(null);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        card.add(scroll, BorderLayout.CENTER);
+        return card;
+    }
+
+    /**
+     * Action Card Trái (TNV): Xe đã sửa xong – Chờ thu tiền & giao xe.
+     */
+    private JPanel buildTnvXeChoGiaoCard(TiepNhanVienDashboardData data) {
+        JPanel card = createWhiteCardPanel(16);
+        card.setLayout(new BorderLayout(0, 10));
+        card.setBorder(new EmptyBorder(14, 16, 14, 16));
+
+        JPanel pnlHead = new JPanel(new BorderLayout());
+        pnlHead.setOpaque(false);
+
+        JPanel pnlTitle = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        pnlTitle.setOpaque(false);
+        JLabel lblTitle = new JLabel("Xe đã sửa xong – Chờ thu tiền & giao xe");
+        lblTitle.setFont(f(Font.BOLD, 14));
+        lblTitle.setForeground(C_TEXT_HEAD);
+        pnlTitle.add(lblTitle);
+
+        JLabel lblBadge = new JLabel(data.danhSachChoGiao.size() + " xe");
+        lblBadge.setFont(f(Font.BOLD, 11));
+        lblBadge.setForeground(new Color(0x059669));
+        lblBadge.setBackground(new Color(0xECFDF5));
+        lblBadge.setOpaque(true);
+        lblBadge.setBorder(new EmptyBorder(2, 6, 2, 6));
+        pnlTitle.add(lblBadge);
+        pnlHead.add(pnlTitle, BorderLayout.WEST);
+
+        JLabel lblOpen = new JLabel("Sang Lập hóa đơn ↗");
+        lblOpen.setFont(f(Font.BOLD, 11));
+        lblOpen.setForeground(C_PRIMARY);
+        lblOpen.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        lblOpen.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                moPageTheoNavigation("NAV_HOA_DON");
+            }
+        });
+        pnlHead.add(lblOpen, BorderLayout.EAST);
+        card.add(pnlHead, BorderLayout.NORTH);
+
+        String[] cols = {"MÃ PHIẾU", "BIỂN SỐ XE", "KHÁCH HÀNG", "KTV CHÍNH", "TẠM TÍNH", "THAO TÁC"};
+        DefaultTableModel model = new DefaultTableModel(cols, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) {
+                return false;
+            }
+        };
+
+        for (XeChoGiaoRow r : data.danhSachChoGiao) {
+            model.addRow(new Object[]{
+                    r.maPhieu,
+                    r.bienSo,
+                    r.khachHang,
+                    r.ktvChinh,
+                    MONEY_FMT.format(r.tienTamTinh) + " đ",
+                    "💵 Thu tiền ↗"
+            });
+        }
+
+        JTable table = new JTable(model);
+        table.setFont(f(Font.PLAIN, 12));
+        table.setRowHeight(32);
+        table.setShowGrid(false);
+        table.getTableHeader().setFont(f(Font.BOLD, 11));
+        table.getTableHeader().setBackground(new Color(0xF8FAFC));
+        table.getTableHeader().setPreferredSize(new Dimension(0, 32));
+
+        table.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable tbl, Object val, boolean isSel, boolean hasFoc, int r, int c) {
+                JLabel lbl = (JLabel) super.getTableCellRendererComponent(tbl, val, isSel, hasFoc, r, c);
+                lbl.setFont(f(Font.BOLD, 11));
+                lbl.setForeground(new Color(0x059669));
+                lbl.setHorizontalAlignment(SwingConstants.CENTER);
+                lbl.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                return lbl;
+            }
+        });
+
+        table.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                int row = table.rowAtPoint(e.getPoint());
+                if (row >= 0) {
+                    moPageTheoNavigation("NAV_HOA_DON");
+                }
+            }
+        });
+
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
+        scroll.getViewport().setBackground(C_WHITE);
+        card.add(scroll, BorderLayout.CENTER);
+
+        return card;
+    }
+
+    /**
+     * Action Card Phải (TNV): Cảnh báo & Việc cần can thiệp.
+     */
+    private JPanel buildTnvCanhBaoCard(TiepNhanVienDashboardData data) {
+        JPanel card = createWhiteCardPanel(16);
+        card.setLayout(new BorderLayout(0, 10));
+        card.setBorder(new EmptyBorder(14, 16, 14, 16));
+
+        JPanel pnlHead = new JPanel(new BorderLayout());
+        pnlHead.setOpaque(false);
+
+        JPanel pnlTitle = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        pnlTitle.setOpaque(false);
+        JLabel lblTitle = new JLabel("Cảnh báo & Việc cần can thiệp");
+        lblTitle.setFont(f(Font.BOLD, 14));
+        lblTitle.setForeground(C_TEXT_HEAD);
+        pnlTitle.add(lblTitle);
+
+        int count = data.danhSachCanhBao != null ? data.danhSachCanhBao.size() : 0;
+        JLabel lblBadge = new JLabel(count + " mục");
+        lblBadge.setFont(f(Font.BOLD, 11));
+        lblBadge.setForeground(count > 0 ? C_DANGER : new Color(0x059669));
+        lblBadge.setBackground(count > 0 ? new Color(0xFEF2F2) : new Color(0xECFDF5));
+        lblBadge.setOpaque(true);
+        lblBadge.setBorder(new EmptyBorder(2, 6, 2, 6));
+        pnlTitle.add(lblBadge);
+        pnlHead.add(pnlTitle, BorderLayout.WEST);
+        card.add(pnlHead, BorderLayout.NORTH);
+
+        JPanel pnlList = new JPanel();
+        pnlList.setLayout(new BoxLayout(pnlList, BoxLayout.Y_AXIS));
+        pnlList.setOpaque(false);
+
+        if (data.danhSachCanhBao == null || data.danhSachCanhBao.isEmpty()) {
+            JPanel pnlOk = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 40));
+            pnlOk.setOpaque(false);
+            JLabel lblOk = new JLabel("✓ Không có cảnh báo tồn đọng. Mọi việc đang trôi chảy!");
+            lblOk.setFont(f(Font.PLAIN, 12));
+            lblOk.setForeground(new Color(0x059669));
+            pnlOk.add(lblOk);
+            pnlList.add(pnlOk);
+        } else {
+            for (CanhBaoTNVRow cb : data.danhSachCanhBao) {
+                boolean isDanger = "DANGER".equals(cb.mucDo);
+                JPanel item = new JPanel(new BorderLayout(8, 0));
+                item.setBackground(isDanger ? new Color(0xFEF2F2) : new Color(0xFFFBEB));
+                item.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(isDanger ? new Color(0xFCA5A5) : new Color(0xFDE68A), 1),
+                        new EmptyBorder(6, 10, 6, 10)
+                ));
+                item.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+
+                JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+                left.setOpaque(false);
+                JLabel icon = new JLabel(isDanger ? "⚠️" : "⏳");
+                icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+                left.add(icon);
+
+                JLabel bs = new JLabel(cb.bienSo);
+                bs.setFont(f(Font.BOLD, 12));
+                bs.setForeground(isDanger ? C_DANGER : new Color(0xB45309));
+                left.add(bs);
+
+                JLabel note = new JLabel("– " + cb.thongTin);
+                note.setFont(f(Font.PLAIN, 11));
+                note.setForeground(C_TEXT_MAIN);
+                left.add(note);
+                item.add(left, BorderLayout.CENTER);
+
+                JLabel btnAction = new JLabel("Xử lý ↗");
+                btnAction.setFont(f(Font.BOLD, 11));
+                btnAction.setForeground(C_PRIMARY);
+                btnAction.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                btnAction.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mouseClicked(java.awt.event.MouseEvent e) {
+                        moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN");
+                    }
+                });
+                item.add(btnAction, BorderLayout.EAST);
+
+                pnlList.add(item);
+                pnlList.add(Box.createVerticalStrut(6));
+            }
+        }
+
+        JScrollPane scroll = new JScrollPane(pnlList);
+        scroll.setBorder(null);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        card.add(scroll, BorderLayout.CENTER);
+
+        return card;
+    }
+
+    /**
+     * Bảng Live xe tại Gara hôm nay (MainFrame).
+     */
+    private JPanel buildTnvLiveXeTable(TiepNhanVienDashboardData data) {
+        JPanel cardTable = createWhiteCardPanel(16);
+        cardTable.setLayout(new BorderLayout(0, 10));
+        cardTable.setBorder(new EmptyBorder(14, 16, 14, 16));
+        cardTable.setMaximumSize(new Dimension(Integer.MAX_VALUE, 460));
+
+        JPanel tblHead = new JPanel(new BorderLayout());
+        tblHead.setOpaque(false);
+
+        JLabel lblTblTitle = new JLabel("Danh sách xe đang tiếp nhận & xử lý tại xưởng");
+        lblTblTitle.setFont(f(Font.BOLD, 15));
+        lblTblTitle.setForeground(C_TEXT_HEAD);
+        tblHead.add(lblTblTitle, BorderLayout.WEST);
+
+        String[] cols = {"MÃ PHIẾU", "BIỂN SỐ XE", "KHÁCH HÀNG", "SỐ ĐIỆN THOẠI", "KTV PHỤ TRÁCH", "GIỜ TIẾP NHẬN", "TRẠNG THÁI"};
+        DefaultTableModel model = new DefaultTableModel(cols, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) {
+                return false;
+            }
+        };
+
+        for (PhieuTiepNhanRow r : data.danhSachPhieu) {
+            model.addRow(new Object[]{
+                    r.maPhieu,
+                    r.bienSo,
+                    r.khachHang,
+                    r.soDienThoai,
+                    r.ktvChinh,
+                    r.thoiDiem,
+                    r.trangThai
+            });
+        }
+
+        JTable table = new JTable(model);
+        table.setFont(f(Font.PLAIN, 12));
+        table.setRowHeight(34);
+        table.setShowGrid(false);
+        table.getTableHeader().setFont(f(Font.BOLD, 11));
+        table.getTableHeader().setBackground(new Color(0xF8FAFC));
+        table.getTableHeader().setPreferredSize(new Dimension(0, 32));
+        table.getColumnModel().getColumn(6).setCellRenderer(new StatusBadgeRenderer());
+
+        TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(model);
+        table.setRowSorter(sorter);
+
+        JPanel pnlFilters = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        pnlFilters.setOpaque(false);
+
+        String[] filterNames = {"Tất cả", "Chờ sửa", "Đang sửa", "Chờ linh kiện", "Hoàn tất"};
+        for (String fn : filterNames) {
+            JButton btnF = new JButton(fn);
+            btnF.setFont(f(Font.PLAIN, 11));
+            btnF.setBackground(C_WHITE);
+            btnF.setForeground(C_TEXT_MAIN);
+            btnF.setFocusPainted(false);
+            btnF.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            btnF.addActionListener(e -> {
+                if ("Tất cả".equals(fn)) {
+                    sorter.setRowFilter(null);
+                } else {
+                    String query = switch (fn) {
+                        case "Chờ sửa" -> "CHO_SUA";
+                        case "Đang sửa" -> "DANG_SUA";
+                        case "Chờ linh kiện" -> "CHO_LINH_KIEN";
+                        case "Hoàn tất" -> "HOAN_TAT";
+                        default -> fn;
+                    };
+                    sorter.setRowFilter(RowFilter.regexFilter(query, 6));
+                }
+            });
+            pnlFilters.add(btnF);
+        }
+
+        tblHead.add(pnlFilters, BorderLayout.EAST);
+        cardTable.add(tblHead, BorderLayout.NORTH);
+
+        JScrollPane scrollTable = new JScrollPane(table);
+        scrollTable.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
+        scrollTable.getViewport().setBackground(C_WHITE);
+        cardTable.add(scrollTable, BorderLayout.CENTER);
+
+        return cardTable;
     }
 
     // Dashboard Kỹ thuật viên

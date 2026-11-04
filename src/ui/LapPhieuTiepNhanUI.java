@@ -24,7 +24,7 @@ import static ui.MainFrame.*;
 
 /**
  * Màn hình Quản lý phiếu tiếp nhận – sửa chữa (UC010, UC011 - Tiếp nhận viên).
- * Danh sách phiếu tiếp nhận với bộ lọc, tìm kiếm, xem chi tiết và modal lập phiếu mới (Figma 100%).
+ * Danh sách phiếu tiếp nhận với bộ lọc, tìm kiếm, xem chi tiết, tạo mới và sửa phiếu chờ sửa.
  */
 public class LapPhieuTiepNhanUI extends JPanel {
 
@@ -75,7 +75,7 @@ public class LapPhieuTiepNhanUI extends JPanel {
         lblTitle.setFont(f(Font.BOLD, 20));
         lblTitle.setForeground(C_TEXT_HEAD);
 
-        JLabel lblSub = new JLabel("Theo dõi tình trạng tiếp nhận, tiến độ sửa chữa và quản lý phiếu xe ra vào gara.");
+        JLabel lblSub = new JLabel("Theo dõi tình trạng tiếp nhận, phân công kỹ thuật viên và quản lý tiến độ sửa chữa xe.");
         lblSub.setFont(f(Font.PLAIN, 12));
         lblSub.setForeground(C_TEXT_SUBTLE);
 
@@ -161,7 +161,7 @@ public class LapPhieuTiepNhanUI extends JPanel {
 
         card.add(left, BorderLayout.WEST);
 
-        // Phải: Nút tạo phiếu mới + Nút xem chi tiết
+        // Phải: Nút xem chi tiết + Nút tạo phiếu mới
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         right.setOpaque(false);
 
@@ -265,10 +265,10 @@ public class LapPhieuTiepNhanUI extends JPanel {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 3. TẢI DỮ LIỆU & LỌC
+    // 3. TẢI DỮ LIỆU & BỘ LỌC
     // ─────────────────────────────────────────────────────────────────────────
     public void taiDanhSachPhieu() {
-        lblSoLuong.setText("Đang tải...");
+        lblSoLuong.setText("Đang tải dữ liệu...");
         new SwingWorker<List<PhieuTiepNhanSuaChua>, Void>() {
             @Override
             protected List<PhieuTiepNhanSuaChua> doInBackground() {
@@ -279,18 +279,19 @@ public class LapPhieuTiepNhanUI extends JPanel {
             protected void done() {
                 try {
                     dsPhieu = get();
-                    capNhatDuLieuLenBang(dsPhieu);
+                    thucHienLoc();
                 } catch (Exception ex) {
-                    lblSoLuong.setText("Lỗi: " + ex.getMessage());
+                    lblSoLuong.setText("Lỗi tải dữ liệu: " + ex.getMessage());
                 }
             }
         }.execute();
     }
 
     private void thucHienLoc() {
-        String tuKhoa = txtTimKiem.getText().trim();
-        int idxTt = cboLocTrangThai.getSelectedIndex();
-        TrangThaiPhieu tt = switch (idxTt) {
+        String kw = txtTimKiem.getText().trim().toLowerCase();
+        int idx = cboLocTrangThai.getSelectedIndex();
+
+        TrangThaiPhieu tt = switch (idx) {
             case 1 -> TrangThaiPhieu.CHO_SUA;
             case 2 -> TrangThaiPhieu.DANG_SUA;
             case 3 -> TrangThaiPhieu.CHO_LINH_KIEN;
@@ -298,52 +299,54 @@ public class LapPhieuTiepNhanUI extends JPanel {
             default -> null;
         };
 
-        lblSoLuong.setText("Đang lọc...");
-        new SwingWorker<List<PhieuTiepNhanSuaChua>, Void>() {
-            @Override
-            protected List<PhieuTiepNhanSuaChua> doInBackground() {
-                return controller.timKiemPhieu(tuKhoa, tt);
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    dsPhieu = get();
-                    capNhatDuLieuLenBang(dsPhieu);
-                } catch (Exception ex) {
-                    lblSoLuong.setText("Lỗi: " + ex.getMessage());
-                }
-            }
-        }.execute();
-    }
-
-    private void capNhatDuLieuLenBang(List<PhieuTiepNhanSuaChua> list) {
         modelPhieu.setRowCount(0);
         int stt = 1;
-        for (PhieuTiepNhanSuaChua p : list) {
+        int dem = 0;
+
+        for (PhieuTiepNhanSuaChua p : dsPhieu) {
+            // Lọc trạng thái
+            if (tt != null && p.getTrangThai() != tt) {
+                continue;
+            }
+
+            // Lọc từ khóa
+            if (!kw.isEmpty()) {
+                String mp = p.getMaPhieu() != null ? p.getMaPhieu().toLowerCase() : "";
+                String bs = p.getXe() != null && p.getXe().getBienSoXe() != null ? p.getXe().getBienSoXe().toLowerCase() : "";
+                String tenKh = (p.getXe() != null && p.getXe().getChuXe() != null && p.getXe().getChuXe().getHoTen() != null) ?
+                        p.getXe().getChuXe().getHoTen().toLowerCase() : "";
+                String sdt = (p.getXe() != null && p.getXe().getChuXe() != null && p.getXe().getChuXe().getSoDienThoai() != null) ?
+                        p.getXe().getChuXe().getSoDienThoai() : "";
+
+                if (!mp.contains(kw) && !bs.contains(kw) && !tenKh.contains(kw) && !sdt.contains(kw)) {
+                    continue;
+                }
+            }
+
             Xe xe = p.getXe();
             KhachHang kh = xe != null ? xe.getChuXe() : null;
-            String xeInfo = (xe != null && xe.getHangXe() != null ? xe.getHangXe() + " " : "") +
-                            (xe != null && xe.getModel() != null ? xe.getModel() : "--");
+            String xeInfo = (xe != null ? (xe.getHangXe() != null ? xe.getHangXe() : "") + " " + (xe.getModel() != null ? xe.getModel() : "") : "--").trim();
 
             modelPhieu.addRow(new Object[]{
                     stt++,
                     p.getMaPhieu(),
                     p.getNgayGioTiepNhan() != null ? timeFmt.format(p.getNgayGioTiepNhan()) : "--",
                     xe != null ? xe.getBienSoXe() : "--",
-                    xeInfo,
+                    xeInfo.isEmpty() ? "--" : xeInfo,
                     kh != null ? kh.getHoTen() : "--",
                     kh != null ? kh.getSoDienThoai() : "--",
                     p.getNhanVienSuaChua() != null ? p.getNhanVienSuaChua().getHoTen() : "-- Chưa phân công --",
                     p.getTrangThai() != null ? p.getTrangThai().name() : "CHO_SUA"
             });
+            dem++;
         }
-        lblSoLuong.setText("Tổng cộng: " + list.size() + " phiếu tiếp nhận");
+
+        lblSoLuong.setText("Hiển thị " + dem + " / " + dsPhieu.size() + " phiếu tiếp nhận");
         btnXemChiTiet.setEnabled(false);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 4. PHÍM TẮT & ĐIỀU HƯỚNG TỪ XE (F2)
+    // 4. PHÍM TẮT & SỰ KIỆN MỞ MODAL
     // ─────────────────────────────────────────────────────────────────────────
     private void caiDatPhimTat() {
         InputMap im = getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
@@ -376,7 +379,16 @@ public class LapPhieuTiepNhanUI extends JPanel {
 
     private void moModalLapPhieu(String maKHMoi, String bienSoXeMoi) {
         Window parent = SwingUtilities.getWindowAncestor(this);
-        LapPhieuTiepNhanModalDialog dialog = new LapPhieuTiepNhanModalDialog(parent, maKHMoi, bienSoXeMoi);
+        LapPhieuTiepNhanModalDialog dialog = new LapPhieuTiepNhanModalDialog(parent, maKHMoi, bienSoXeMoi, null);
+        dialog.setVisible(true);
+        if (dialog.isThanhCong()) {
+            taiDanhSachPhieu();
+        }
+    }
+
+    private void moModalSuaPhieu(PhieuTiepNhanSuaChua phieuCanSua) {
+        Window parent = SwingUtilities.getWindowAncestor(this);
+        LapPhieuTiepNhanModalDialog dialog = new LapPhieuTiepNhanModalDialog(parent, null, null, phieuCanSua);
         dialog.setVisible(true);
         if (dialog.isThanhCong()) {
             taiDanhSachPhieu();
@@ -394,11 +406,12 @@ public class LapPhieuTiepNhanUI extends JPanel {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 5. MODAL FORM: LẬP PHIẾU TIẾP NHẬN SỬA CHỮA (BÁM SÁT 100% FIGMA)
+    // 5. MODAL FORM: LẬP & SỬA PHIẾU TIẾP NHẬN SỬA CHỮA (BÁM SÁT FIGMA)
     // ─────────────────────────────────────────────────────────────────────────
     private class LapPhieuTiepNhanModalDialog extends JDialog {
         private final String defaultMaKH;
         private final String defaultBienSoXe;
+        private final PhieuTiepNhanSuaChua phieuCanSua;
         private boolean thanhCong = false;
 
         private List<KhachHang> modalDsKH = new ArrayList<>();
@@ -429,21 +442,24 @@ public class LapPhieuTiepNhanUI extends JPanel {
         private JButton btnHuy;
         private JButton btnLuu;
 
-        public LapPhieuTiepNhanModalDialog(Window parent, String maKH, String bienSo) {
-            super(parent, "Lập phiếu tiếp nhận – sửa chữa", ModalityType.APPLICATION_MODAL);
+        public LapPhieuTiepNhanModalDialog(Window parent, String maKH, String bienSo, PhieuTiepNhanSuaChua phieuCanSua) {
+            super(parent, phieuCanSua != null ? "Chỉnh sửa phiếu tiếp nhận – " + phieuCanSua.getMaPhieu() : "Lập phiếu tiếp nhận – sửa chữa", ModalityType.APPLICATION_MODAL);
             this.defaultMaKH = maKH;
             this.defaultBienSoXe = bienSo;
+            this.phieuCanSua = phieuCanSua;
 
             setLayout(new BorderLayout());
             getContentPane().setBackground(C_WHITE);
-            setResizable(false);
+            setResizable(true);
 
             add(buildModalHeader(), BorderLayout.NORTH);
             add(buildModalBody(), BorderLayout.CENTER);
             add(buildModalFooter(), BorderLayout.SOUTH);
 
-            pack();
-            setLocationRelativeTo(parent);
+            // Mở full màn hình làm việc (trừ Taskbar để không bị che khuất các nút thao tác)
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            Rectangle bounds = ge.getMaximumWindowBounds();
+            setBounds(bounds.x + 10, bounds.y + 10, bounds.width - 20, bounds.height - 20);
 
             napDuLieuModal();
         }
@@ -455,7 +471,10 @@ public class LapPhieuTiepNhanUI extends JPanel {
             pnl.setBackground(C_WHITE);
             pnl.setBorder(new EmptyBorder(16, 24, 12, 24));
 
-            JLabel lblTitle = new JLabel("Lập phiếu tiếp nhận – sửa chữa");
+            String title = phieuCanSua != null ?
+                    "Chỉnh sửa phiếu tiếp nhận – " + phieuCanSua.getMaPhieu() + " (Chờ sửa chữa)" :
+                    "Lập phiếu tiếp nhận – sửa chữa";
+            JLabel lblTitle = new JLabel(title);
             lblTitle.setFont(f(Font.BOLD, 18));
             lblTitle.setForeground(C_TEXT_HEAD);
             pnl.add(lblTitle, BorderLayout.WEST);
@@ -475,7 +494,7 @@ public class LapPhieuTiepNhanUI extends JPanel {
             pnlC1.setLayout(new BoxLayout(pnlC1, BoxLayout.Y_AXIS));
             pnlC1.setOpaque(false);
 
-            // Hàng 1: Khách hàng * | Xe của khách hàng * | Nút Hồ sơ
+            // Hàng 1: Khách hàng * | Xe của khách hàng * | KTV chính phụ trách
             JPanel row1 = new JPanel(new GridLayout(1, 3, 10, 0));
             row1.setOpaque(false);
             row1.setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
@@ -497,20 +516,24 @@ public class LapPhieuTiepNhanUI extends JPanel {
             pnlC1.add(row1);
             pnlC1.add(Box.createVerticalStrut(10));
 
-            // Hàng 2: Mã phiếu (tự sinh) | Thời điểm tiếp nhận | Người tiếp nhận
+            // Hàng 2: Mã phiếu (tự sinh / mã cũ) | Thời điểm tiếp nhận | Người tiếp nhận
             JPanel row2 = new JPanel(new GridLayout(1, 3, 10, 0));
             row2.setOpaque(false);
             row2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
             row2.setAlignmentX(0.0f);
 
-            txtMaPhieu = taoTextFieldModal("Chưa được cấp mã (Hệ thống tự sinh)", false);
-            row2.add(wrapFieldModal("Mã phiếu — tự sinh · Chỉ đọc", txtMaPhieu));
+            String txtMa = phieuCanSua != null ? phieuCanSua.getMaPhieu() : "Chưa được cấp mã (Hệ thống tự sinh)";
+            txtMaPhieu = taoTextFieldModal(txtMa, false);
+            row2.add(wrapFieldModal("Mã phiếu · Chỉ đọc", txtMaPhieu));
 
-            txtThoiGian = taoTextFieldModal(timeFmt.format(new Date()), false);
+            String txtTime = phieuCanSua != null && phieuCanSua.getNgayGioTiepNhan() != null ?
+                    timeFmt.format(phieuCanSua.getNgayGioTiepNhan()) : timeFmt.format(new Date());
+            txtThoiGian = taoTextFieldModal(txtTime, false);
             row2.add(wrapFieldModal("Thời điểm tiếp nhận *", txtThoiGian));
 
-            String nvName = UserSession.getInstance().daDangNhap() ?
-                    UserSession.getInstance().getNhanVien().getHoTen() : "Tiếp nhận viên";
+            String nvName = phieuCanSua != null && phieuCanSua.getNhanVienLap() != null ?
+                    phieuCanSua.getNhanVienLap().getHoTen() :
+                    (UserSession.getInstance().daDangNhap() ? UserSession.getInstance().getNhanVien().getHoTen() : "Tiếp nhận viên");
             txtNguoiTiepNhan = taoTextFieldModal(nvName, false);
             row2.add(wrapFieldModal("Người tiếp nhận · Chỉ đọc", txtNguoiTiepNhan));
 
@@ -527,89 +550,103 @@ public class LapPhieuTiepNhanUI extends JPanel {
             txtYeuCauKhach.setFont(f(Font.PLAIN, 13));
             txtYeuCauKhach.setLineWrap(true);
             txtYeuCauKhach.setWrapStyleWord(true);
-            JScrollPane scrollYc = new JScrollPane(txtYeuCauKhach);
-            scrollYc.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
-            row3.add(wrapFieldModal("Yêu cầu của khách hàng *", scrollYc));
+            txtYeuCauKhach.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(C_BORDER, 1),
+                    new EmptyBorder(6, 8, 6, 8)));
+            JScrollPane spYc = new JScrollPane(txtYeuCauKhach);
+            row3.add(wrapFieldModal("Yêu cầu của khách hàng *", spYc));
 
             txtTinhTrangXe = new JTextArea(3, 20);
             txtTinhTrangXe.setFont(f(Font.PLAIN, 13));
             txtTinhTrangXe.setLineWrap(true);
             txtTinhTrangXe.setWrapStyleWord(true);
-            JScrollPane scrollTt = new JScrollPane(txtTinhTrangXe);
-            scrollTt.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
-            row3.add(wrapFieldModal("Tình trạng xe khi tiếp nhận *", scrollTt));
+            txtTinhTrangXe.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(C_BORDER, 1),
+                    new EmptyBorder(6, 8, 6, 8)));
+            JScrollPane spTt = new JScrollPane(txtTinhTrangXe);
+            row3.add(wrapFieldModal("Tình trạng xe khi tiếp nhận (vết xước, đèn báo lỗi, móp méo...)", spTt));
 
             pnlC1.add(row3);
             pnlC1.add(Box.createVerticalStrut(10));
 
             // Hàng 4: Ghi chú tiếp nhận
             txtGhiChuTiepNhan = taoTextFieldModal("", true);
-            txtGhiChuTiepNhan.putClientProperty("JTextField.placeholderText", "Nhập thông tin bổ sung");
-            JPanel row4 = wrapFieldModal("Ghi chú tiếp nhận", txtGhiChuTiepNhan);
-            row4.setAlignmentX(0.0f);
-            pnlC1.add(row4);
+            pnlC1.add(wrapFieldModal("Ghi chú tiếp nhận thêm", txtGhiChuTiepNhan));
 
             card1.add(pnlC1, BorderLayout.CENTER);
             pnl.add(card1);
-            pnl.add(Box.createVerticalStrut(14));
+            pnl.add(Box.createVerticalStrut(12));
 
-            // KHỐI 2: DỊCH VỤ ĐỀ NGHỊ (Theo Figma)
-            JPanel card2 = taoCardNhom("Dịch vụ đề nghị");
-            JPanel pnlC2 = new JPanel(new BorderLayout(0, 8));
+            // KHỐI 2: DỊCH VỤ ĐỀ NGHỊ BAN ĐẦU (Figma 100%)
+            JPanel card2 = taoCardNhom("Dịch vụ đề nghị ban đầu");
+            JPanel pnlC2 = new JPanel(new BorderLayout(0, 10));
             pnlC2.setOpaque(false);
 
-            // Công cụ chọn dịch vụ
-            JPanel toolRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-            toolRow.setOpaque(false);
+            // Dòng chọn dịch vụ + số lượng + ghi chú + nút Thêm
+            JPanel pnlTopDV = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 4));
+            pnlTopDV.setOpaque(false);
 
-            toolRow.add(new JLabel("Chọn dịch vụ:"));
+            pnlTopDV.add(new JLabel("Chọn dịch vụ:"));
             cboDichVu = new JComboBox<>();
             cboDichVu.setFont(f(Font.PLAIN, 13));
             cboDichVu.setPreferredSize(new Dimension(280, 34));
-            toolRow.add(cboDichVu);
+            pnlTopDV.add(cboDichVu);
 
-            toolRow.add(new JLabel("Số lượng:"));
+            pnlTopDV.add(new JLabel("Số lượng:"));
             spnSoLuongDV = new JSpinner(new SpinnerNumberModel(1, 1, 100, 1));
             spnSoLuongDV.setFont(f(Font.PLAIN, 13));
             spnSoLuongDV.setPreferredSize(new Dimension(65, 34));
-            toolRow.add(spnSoLuongDV);
+            pnlTopDV.add(spnSoLuongDV);
 
-            toolRow.add(new JLabel("Ghi chú:"));
-            txtGhiChuDV = taoTextFieldModal("", true);
-            txtGhiChuDV.setPreferredSize(new Dimension(140, 34));
-            toolRow.add(txtGhiChuDV);
+            pnlTopDV.add(new JLabel("Ghi chú:"));
+            txtGhiChuDV = new JTextField();
+            txtGhiChuDV.setFont(f(Font.PLAIN, 13));
+            txtGhiChuDV.setPreferredSize(new Dimension(180, 34));
+            txtGhiChuDV.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(C_BORDER, 1),
+                    new EmptyBorder(4, 6, 4, 6)));
+            pnlTopDV.add(txtGhiChuDV);
 
-            JButton btnThemDV = new RoundedButton("+ Thêm", 8, C_PRIMARY, C_PRIMARY_HV, C_PRIMARY);
+            JButton btnThemDV = new RoundedButton("+ Thêm dịch vụ", 8, C_PRIMARY, C_PRIMARY_HV, C_PRIMARY);
             btnThemDV.setFont(f(Font.BOLD, 12));
             btnThemDV.setForeground(C_WHITE);
-            btnThemDV.setPreferredSize(new Dimension(80, 34));
+            btnThemDV.setPreferredSize(new Dimension(130, 34));
             btnThemDV.addActionListener(e -> themDichVuModal());
-            toolRow.add(btnThemDV);
+            pnlTopDV.add(btnThemDV);
 
-            JButton btnBoDV = new RoundedButton("✕ Bỏ", 8, C_WHITE, new Color(0xFEE2E2), C_BORDER);
+            JButton btnBoDV = new RoundedButton("✕ Bỏ chọn", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
             btnBoDV.setFont(f(Font.PLAIN, 12));
             btnBoDV.setForeground(C_DANGER);
-            btnBoDV.setPreferredSize(new Dimension(70, 34));
+            btnBoDV.setPreferredSize(new Dimension(95, 34));
             btnBoDV.addActionListener(e -> boDichVuModal());
-            toolRow.add(btnBoDV);
+            pnlTopDV.add(btnBoDV);
 
-            pnlC2.add(toolRow, BorderLayout.NORTH);
+            pnlC2.add(pnlTopDV, BorderLayout.NORTH);
 
-            // Bảng dịch vụ đề nghị (cột đúng Figma: Mã DV, Tên DV, ĐVT, Số lượng, Ghi chú)
-            String[] dvCols = {"STT", "Mã dịch vụ", "Tên dịch vụ", "Đơn vị tính", "Số lượng", "Ghi chú"};
-            modelDVModal = new DefaultTableModel(dvCols, 0) {
-                @Override public boolean isCellEditable(int r, int c) { return false; }
+            // Bảng dịch vụ đề nghị
+            String[] colsDV = {"STT", "Mã DV", "Tên dịch vụ", "Đơn vị tính", "Số lượng", "Ghi chú"};
+            modelDVModal = new DefaultTableModel(colsDV, 0) {
+                @Override
+                public boolean isCellEditable(int r, int c) { return false; }
             };
+
             tblDVModal = new JTable(modelDVModal);
-            tblDVModal.setFont(f(Font.PLAIN, 13));
+            tblDVModal.setFont(f(Font.PLAIN, 12));
             tblDVModal.setRowHeight(28);
             tblDVModal.setShowGrid(false);
-            tblDVModal.getTableHeader().setFont(f(Font.BOLD, 12));
+            tblDVModal.getTableHeader().setFont(f(Font.BOLD, 11));
             tblDVModal.getTableHeader().setBackground(new Color(0xF8FAFC));
+
+            tblDVModal.getColumnModel().getColumn(0).setPreferredWidth(40);
+            tblDVModal.getColumnModel().getColumn(1).setPreferredWidth(85);
+            tblDVModal.getColumnModel().getColumn(2).setPreferredWidth(260);
+            tblDVModal.getColumnModel().getColumn(3).setPreferredWidth(80);
+            tblDVModal.getColumnModel().getColumn(4).setPreferredWidth(70);
+            tblDVModal.getColumnModel().getColumn(5).setPreferredWidth(160);
 
             JScrollPane scrollDV = new JScrollPane(tblDVModal);
             scrollDV.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
-            scrollDV.setPreferredSize(new Dimension(740, 130));
+            scrollDV.setPreferredSize(new Dimension(0, 180));
             pnlC2.add(scrollDV, BorderLayout.CENTER);
 
             card2.add(pnlC2, BorderLayout.CENTER);
@@ -617,7 +654,6 @@ public class LapPhieuTiepNhanUI extends JPanel {
 
             JScrollPane mainScroll = new JScrollPane(pnl);
             mainScroll.setBorder(null);
-            mainScroll.setPreferredSize(new Dimension(780, 520));
             mainScroll.getVerticalScrollBar().setUnitIncrement(16);
             return mainScroll;
         }
@@ -629,7 +665,9 @@ public class LapPhieuTiepNhanUI extends JPanel {
                     BorderFactory.createMatteBorder(1, 0, 0, 0, C_BORDER),
                     new EmptyBorder(12, 24, 12, 24)));
 
-            lblCanhBaoLuu = new JLabel("Chưa thể lưu: vui lòng chọn khách hàng, xe và nhập nội dung yêu cầu.");
+            lblCanhBaoLuu = new JLabel(phieuCanSua != null ?
+                    "Đang chỉnh sửa phiếu tiếp nhận. Có thể cập nhật kỹ thuật viên, yêu cầu và danh mục dịch vụ." :
+                    "Kiểm tra kỹ thông tin khách hàng, xe và yêu cầu trước khi tạo phiếu.");
             lblCanhBaoLuu.setFont(f(Font.ITALIC, 12));
             lblCanhBaoLuu.setForeground(C_TEXT_SUBTLE);
             pnl.add(lblCanhBaoLuu, BorderLayout.WEST);
@@ -640,14 +678,15 @@ public class LapPhieuTiepNhanUI extends JPanel {
             btnHuy = new RoundedButton("Hủy", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
             btnHuy.setFont(f(Font.PLAIN, 12));
             btnHuy.setForeground(C_TEXT_MAIN);
-            btnHuy.setPreferredSize(new Dimension(85, 34));
+            btnHuy.setPreferredSize(new Dimension(85, 36));
             btnHuy.addActionListener(e -> dispose());
             btnGroup.add(btnHuy);
 
-            btnLuu = new RoundedButton("💾 Lưu phiếu tiếp nhận", 8, C_PRIMARY, C_PRIMARY_HV, C_PRIMARY);
-            btnLuu.setFont(f(Font.BOLD, 12));
+            String txtBtn = phieuCanSua != null ? "💾 Cập nhật phiếu tiếp nhận" : "💾 Lưu phiếu tiếp nhận";
+            btnLuu = new RoundedButton(txtBtn, 8, C_PRIMARY, C_PRIMARY_HV, C_PRIMARY);
+            btnLuu.setFont(f(Font.BOLD, 13));
             btnLuu.setForeground(C_WHITE);
-            btnLuu.setPreferredSize(new Dimension(170, 34));
+            btnLuu.setPreferredSize(new Dimension(200, 36));
             btnLuu.addActionListener(e -> thucHienLuuPhieuModal());
             btnGroup.add(btnLuu);
 
@@ -656,11 +695,11 @@ public class LapPhieuTiepNhanUI extends JPanel {
         }
 
         private JPanel taoCardNhom(String title) {
-            JPanel card = new JPanel(new BorderLayout(0, 8));
+            JPanel card = new JPanel(new BorderLayout(0, 10));
             card.setBackground(C_WHITE);
             card.setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createLineBorder(C_BORDER, 1),
-                    new EmptyBorder(10, 14, 10, 14)));
+                    new EmptyBorder(12, 16, 12, 16)));
             card.setAlignmentX(0.0f);
 
             JLabel lbl = new JLabel(title);
@@ -673,7 +712,9 @@ public class LapPhieuTiepNhanUI extends JPanel {
         private JPanel wrapFieldModal(String labelText, JComponent input) {
             JPanel pnl = new JPanel(new BorderLayout(0, 4));
             pnl.setOpaque(false);
-            pnl.setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
+            if (!(input instanceof JScrollPane)) {
+                pnl.setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
+            }
             pnl.setAlignmentX(0.0f);
 
             JLabel lbl = new JLabel(labelText);
@@ -704,12 +745,16 @@ public class LapPhieuTiepNhanUI extends JPanel {
                 List<KhachHang> khs;
                 List<DichVu> dvs;
                 List<NhanVien> ktvs;
+                List<ChiTietDichVu> dsDvCu;
 
                 @Override
                 protected Void doInBackground() {
                     khs = controller.layDanhSachKhachHang();
                     dvs = controller.layDanhSachDichVuDangCungCap();
                     ktvs = controller.layDanhSachKyThuatVien();
+                    if (phieuCanSua != null) {
+                        dsDvCu = controller.layChiTietDichVu(phieuCanSua.getMaPhieu());
+                    }
                     return null;
                 }
 
@@ -737,8 +782,66 @@ public class LapPhieuTiepNhanUI extends JPanel {
                         cboDichVu.addItem(dv.getMaDV() + " - " + dv.getTenDV() + " (" + moneyFmt.format(dv.getDonGia()) + ")");
                     }
 
-                    // Nếu có truyền sẵn maKH và bienSo (từ F2 Quản lý xe)
-                    if (defaultMaKH != null) {
+                    // TRƯỜNG HỢP 1: SỬA PHIẾU CHỜ SỬA ĐÃ CÓ
+                    if (phieuCanSua != null) {
+                        txtMaPhieu.setText(phieuCanSua.getMaPhieu());
+                        txtThoiGian.setText(phieuCanSua.getNgayGioTiepNhan() != null ? timeFmt.format(phieuCanSua.getNgayGioTiepNhan()) : timeFmt.format(new Date()));
+                        txtNguoiTiepNhan.setText(phieuCanSua.getNhanVienLap() != null ? phieuCanSua.getNhanVienLap().getHoTen() : "Tiếp nhận viên");
+
+                        // Bóc tách nội dung yêu cầu, hiện trạng, ghi chú
+                        String raw = phieuCanSua.getYeuCauBanDau();
+                        if (raw != null) {
+                            String yc = raw;
+                            String tt = "";
+                            String gc = "";
+                            if (yc.contains(" | [Ghi chú]: ")) {
+                                String[] partsGc = yc.split(" \\| \\[Ghi chú\\]: ", 2);
+                                yc = partsGc[0];
+                                gc = partsGc.length > 1 ? partsGc[1] : "";
+                            }
+                            if (yc.contains(" | [Hiện trạng]: ")) {
+                                String[] partsTt = yc.split(" \\| \\[Hiện trạng\\]: ", 2);
+                                yc = partsTt[0];
+                                tt = partsTt.length > 1 ? partsTt[1] : "";
+                            }
+                            txtYeuCauKhach.setText(yc.trim());
+                            txtTinhTrangXe.setText(tt.trim());
+                            txtGhiChuTiepNhan.setText(gc.trim());
+                        }
+
+                        // Chọn khách hàng & xe
+                        Xe xe = phieuCanSua.getXe();
+                        KhachHang kh = xe != null ? xe.getChuXe() : null;
+                        if (kh != null) {
+                            for (int i = 0; i < modalDsKH.size(); i++) {
+                                if (kh.getMaKH().equals(modalDsKH.get(i).getMaKH())) {
+                                    cboKhachHang.setSelectedIndex(i + 1);
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Chọn KTV phụ trách nếu đã phân công
+                        if (phieuCanSua.getNhanVienSuaChua() != null) {
+                            String maKtv = phieuCanSua.getNhanVienSuaChua().getMaNV();
+                            for (int i = 0; i < modalDsKtv.size(); i++) {
+                                if (maKtv.equals(modalDsKtv.get(i).getMaNV())) {
+                                    cboKtv.setSelectedIndex(i + 1);
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Đổ danh sách dịch vụ cũ vào bảng
+                        if (dsDvCu != null) {
+                            modalDsChiTietDV.clear();
+                            modalDsChiTietDV.addAll(dsDvCu);
+                            capNhatBangDVModal();
+                        }
+                        lblCanhBaoLuu.setText("Đang chỉnh sửa phiếu tiếp nhận " + phieuCanSua.getMaPhieu() + ". Vui lòng cập nhật thông tin và lưu lại.");
+                    }
+                    // TRƯỜNG HỢP 2: TẠO MỚI CÓ SẴN KH VÀ XE (Từ F2 Quản lý xe)
+                    else if (defaultMaKH != null) {
                         for (int i = 0; i < modalDsKH.size(); i++) {
                             if (defaultMaKH.equals(modalDsKH.get(i).getMaKH())) {
                                 cboKhachHang.setSelectedIndex(i + 1);
@@ -778,16 +881,19 @@ public class LapPhieuTiepNhanUI extends JPanel {
                                 String info = xe.getBienSoXe() + " (" + (xe.getHangXe() != null ? xe.getHangXe() : "") + " " + (xe.getModel() != null ? xe.getModel() : "") + ")";
                                 cboXe.addItem(info);
                             }
-                            if (defaultBienSoXe != null) {
+                            // Ưu tiên chọn xe của phiếu đang sửa hoặc default xe truyền vào
+                            String targetBienSo = (phieuCanSua != null && phieuCanSua.getXe() != null) ?
+                                    phieuCanSua.getXe().getBienSoXe() : defaultBienSoXe;
+                            if (targetBienSo != null) {
                                 for (int j = 0; j < modalDsXe.size(); j++) {
-                                    if (defaultBienSoXe.equalsIgnoreCase(modalDsXe.get(j).getBienSoXe())) {
+                                    if (targetBienSo.equalsIgnoreCase(modalDsXe.get(j).getBienSoXe())) {
                                         cboXe.setSelectedIndex(j);
                                         break;
                                     }
                                 }
                             }
                         }
-                        lblCanhBaoLuu.setText("Đã chọn khách hàng. Vui lòng nhập nội dung yêu cầu.");
+                        lblCanhBaoLuu.setText("Đã chọn khách hàng. Vui lòng kiểm tra xe và nội dung yêu cầu.");
                     } catch (Exception ex) {
                         lblCanhBaoLuu.setText("Lỗi nạp xe: " + ex.getMessage());
                     }
@@ -896,25 +1002,34 @@ public class LapPhieuTiepNhanUI extends JPanel {
             new SwingWorker<String, Void>() {
                 @Override
                 protected String doInBackground() {
-                    return controller.lapPhieu(finalBienSo, finalMaKtv, finalYc, finalTt, finalGc, modalDsChiTietDV);
+                    if (phieuCanSua == null) {
+                        return controller.lapPhieu(finalBienSo, finalMaKtv, finalYc, finalTt, finalGc, modalDsChiTietDV);
+                    } else {
+                        boolean ok = controller.capNhatPhieu(phieuCanSua.getMaPhieu(), finalBienSo, finalMaKtv, finalYc, finalTt, finalGc, modalDsChiTietDV);
+                        if (!ok) {
+                            throw new RuntimeException("Cập nhật phiếu tiếp nhận thất bại.");
+                        }
+                        return phieuCanSua.getMaPhieu();
+                    }
                 }
 
                 @Override
                 protected void done() {
                     btnLuu.setEnabled(true);
-                    btnLuu.setText("💾 Lưu phiếu tiếp nhận");
+                    btnLuu.setText(phieuCanSua != null ? "💾 Cập nhật phiếu tiếp nhận" : "💾 Lưu phiếu tiếp nhận");
                     try {
-                        String maPhieuMoi = get();
+                        String maPhieu = get();
                         thanhCong = true;
-                        JOptionPane.showMessageDialog(LapPhieuTiepNhanModalDialog.this,
-                                "Lập phiếu tiếp nhận sửa chữa thành công!\nMã phiếu: " + maPhieuMoi + "\nTrạng thái: Chờ sửa chữa",
-                                "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                        String msg = phieuCanSua != null ?
+                                "Cập nhật thông tin phiếu tiếp nhận " + maPhieu + " thành công!" :
+                                "Lập phiếu tiếp nhận sửa chữa thành công!\nMã phiếu: " + maPhieu + "\nTrạng thái: Chờ sửa chữa";
+                        JOptionPane.showMessageDialog(LapPhieuTiepNhanModalDialog.this, msg, "Thành công", JOptionPane.INFORMATION_MESSAGE);
                         dispose();
                     } catch (Exception ex) {
                         String msg = ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage();
                         lblCanhBaoLuu.setText("Lỗi: " + msg);
                         lblCanhBaoLuu.setForeground(C_DANGER);
-                        JOptionPane.showMessageDialog(LapPhieuTiepNhanModalDialog.this, msg, "Lỗi lập phiếu", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(LapPhieuTiepNhanModalDialog.this, msg, "Lỗi lưu phiếu", JOptionPane.ERROR_MESSAGE);
                     }
                 }
             }.execute();
@@ -933,14 +1048,17 @@ public class LapPhieuTiepNhanUI extends JPanel {
 
             setLayout(new BorderLayout());
             getContentPane().setBackground(C_WHITE);
-            setResizable(false);
+            setResizable(true);
 
             add(buildHeader(), BorderLayout.NORTH);
             add(buildContent(), BorderLayout.CENTER);
             add(buildFooter(), BorderLayout.SOUTH);
 
-            pack();
-            setLocationRelativeTo(parent);
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            Rectangle bounds = ge.getMaximumWindowBounds();
+            int w = Math.min(1000, bounds.width - 60);
+            int h = Math.min(750, bounds.height - 60);
+            setBounds(bounds.x + (bounds.width - w) / 2, bounds.y + (bounds.height - h) / 2, w, h);
         }
 
         private JPanel buildHeader() {
@@ -1051,7 +1169,7 @@ public class LapPhieuTiepNhanUI extends JPanel {
             tblDv.setShowGrid(false);
             tblDv.getTableHeader().setFont(f(Font.BOLD, 11));
             JScrollPane spDv = new JScrollPane(tblDv);
-            spDv.setPreferredSize(new Dimension(680, 110));
+            spDv.setPreferredSize(new Dimension(0, 160));
             cardDv.add(spDv, BorderLayout.CENTER);
 
             JLabel lblTongTien = new JLabel("Tổng tiền dịch vụ tạm tính: " + moneyFmt.format(tongTienDv));
@@ -1064,7 +1182,7 @@ public class LapPhieuTiepNhanUI extends JPanel {
 
             JScrollPane scroll = new JScrollPane(pnl);
             scroll.setBorder(null);
-            scroll.setPreferredSize(new Dimension(720, 480));
+            scroll.getVerticalScrollBar().setUnitIncrement(16);
             return scroll;
         }
 
@@ -1072,6 +1190,19 @@ public class LapPhieuTiepNhanUI extends JPanel {
             JPanel pnl = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 10));
             pnl.setBackground(new Color(0xF8FAFC));
             pnl.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, C_BORDER));
+
+            PhieuTiepNhanSuaChua phieu = controller.layPhieuTheoMa(maPhieu);
+            if (phieu != null && phieu.getTrangThai() == TrangThaiPhieu.CHO_SUA) {
+                JButton btnSua = new RoundedButton("✏️ Sửa phiếu này", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
+                btnSua.setFont(f(Font.PLAIN, 12));
+                btnSua.setForeground(C_TEXT_MAIN);
+                btnSua.setPreferredSize(new Dimension(135, 34));
+                btnSua.addActionListener(e -> {
+                    dispose();
+                    moModalSuaPhieu(phieu);
+                });
+                pnl.add(btnSua);
+            }
 
             JButton btnDong = new RoundedButton("Đóng", 8, C_PRIMARY, C_PRIMARY_HV, C_PRIMARY);
             btnDong.setFont(f(Font.BOLD, 12));

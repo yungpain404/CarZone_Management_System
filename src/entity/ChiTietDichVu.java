@@ -91,6 +91,7 @@ public class ChiTietDichVu {
     }
 
     public double getDonGia() { return donGiaThucHien; }
+    public void setPhieuSuaChuaRaw(PhieuTiepNhanSuaChua p) { this.phieuSuaChua = p; }
     public void setDichVuRaw(DichVu dv) { this.dichVu = dv; }
     public void setSoLuongRaw(int sl) { this.soLuong = sl; }
     public void setDonGiaThucHienRaw(double dg) { this.donGiaThucHien = dg; }

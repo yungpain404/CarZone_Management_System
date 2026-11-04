@@ -34,6 +34,11 @@ public interface PhieuTiepNhanSuaChuaDao {
     boolean capNhatTrangThai(String maPhieu, TrangThaiPhieu trangThai);
 
     /**
+     * Cập nhật thông tin phiếu tiếp nhận khi còn ở trạng thái CHO_SUA.
+     */
+    boolean capNhatPhieu(PhieuTiepNhanSuaChua phieu, List<ChiTietDichVu> dsDichVu);
+
+    /**
      * Tìm kiếm phiếu tiếp nhận.
      */
     List<PhieuTiepNhanSuaChua> timKiem(String tuKhoa, String maNVTiepNhan, TrangThaiPhieu trangThai);

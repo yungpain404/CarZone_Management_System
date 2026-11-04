@@ -140,6 +140,75 @@ public class PhieuTiepNhanSuaChuaDaoImpl implements PhieuTiepNhanSuaChuaDao {
     }
 
     @Override
+    public boolean capNhatPhieu(PhieuTiepNhanSuaChua phieu, List<ChiTietDichVu> dsDichVu) {
+        String checkSql = "SELECT trangThai FROM PhieuTiepNhanSuaChua WHERE maPhieu = ?";
+        String updateSql = "UPDATE PhieuTiepNhanSuaChua SET bienSoXe = ?, maNVKyThuat = ?, yeuCauBanDau = ? " +
+                           "WHERE maPhieu = ? AND trangThai = 'CHO_SUA'";
+        String deleteDvSql = "DELETE FROM ChiTietDichVu WHERE maPhieu = ?";
+        String insertDvSql = "INSERT INTO ChiTietDichVu (maPhieu, maDV, soLuong, donGiaThucHien, ghiChu) VALUES (?, ?, ?, ?, ?)";
+
+        try (Connection con = DbUtil.getConnection()) {
+            con.setAutoCommit(false);
+
+            // Kiểm tra trạng thái hiện tại
+            try (PreparedStatement psCheck = con.prepareStatement(checkSql)) {
+                psCheck.setString(1, phieu.getMaPhieu());
+                try (ResultSet rs = psCheck.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new IllegalArgumentException("Không tìm thấy phiếu " + phieu.getMaPhieu());
+                    }
+                    String tt = rs.getString("trangThai");
+                    if (!"CHO_SUA".equals(tt)) {
+                        throw new IllegalStateException("Chỉ được phép sửa phiếu khi ở trạng thái Chờ sửa chữa (CHO_SUA).");
+                    }
+                }
+            }
+
+            // Cập nhật thông tin phiếu
+            try (PreparedStatement psUpdate = con.prepareStatement(updateSql)) {
+                psUpdate.setString(1, phieu.getXe().getBienSoXe());
+                if (phieu.getNhanVienSuaChua() != null && phieu.getNhanVienSuaChua().getMaNV() != null && !phieu.getNhanVienSuaChua().getMaNV().isBlank()) {
+                    psUpdate.setString(2, phieu.getNhanVienSuaChua().getMaNV().trim());
+                } else {
+                    psUpdate.setNull(2, Types.VARCHAR);
+                }
+                psUpdate.setString(3, phieu.getYeuCauBanDau());
+                psUpdate.setString(4, phieu.getMaPhieu());
+                int rows = psUpdate.executeUpdate();
+                if (rows == 0) {
+                    con.rollback();
+                    return false;
+                }
+            }
+
+            // Xóa và cập nhật lại danh sách dịch vụ đề nghị
+            try (PreparedStatement psDel = con.prepareStatement(deleteDvSql)) {
+                psDel.setString(1, phieu.getMaPhieu());
+                psDel.executeUpdate();
+            }
+
+            if (dsDichVu != null && !dsDichVu.isEmpty()) {
+                try (PreparedStatement psIns = con.prepareStatement(insertDvSql)) {
+                    for (ChiTietDichVu ct : dsDichVu) {
+                        psIns.setString(1, phieu.getMaPhieu());
+                        psIns.setString(2, ct.getDichVu().getMaDV());
+                        psIns.setInt(3, ct.getSoLuong() > 0 ? ct.getSoLuong() : 1);
+                        psIns.setDouble(4, ct.getDonGiaThucHien());
+                        psIns.setString(5, ct.getGhiChu());
+                        psIns.addBatch();
+                    }
+                    psIns.executeBatch();
+                }
+            }
+
+            con.commit();
+            return true;
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi cập nhật phiếu tiếp nhận: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
     public boolean capNhatTrangThai(String maPhieu, TrangThaiPhieu trangThai) {
         String sql = "UPDATE PhieuTiepNhanSuaChua SET trangThai = ? WHERE maPhieu = ?";
         try (Connection con = DbUtil.getConnection();

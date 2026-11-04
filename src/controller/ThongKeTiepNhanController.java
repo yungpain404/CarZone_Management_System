@@ -1,9 +1,11 @@
 package controller;
 
 import dao.ThongKeTiepNhanDao;
+import dao.ThongKeTiepNhanDao.DoiTraRow;
 import dao.ThongKeTiepNhanDao.SoSanhNamData;
 import dao.ThongKeTiepNhanDao.SoSanhThangData;
 import dao.ThongKeTiepNhanDao.ThongKeData;
+import dao.ThongKeTiepNhanDao.ThongKeDoiTraData;
 import dao.ThongKeTiepNhanDao.TinhHinhXuLyData;
 import dao.impl.ThongKeTiepNhanDaoImpl;
 import enums.VaiTro;
@@ -64,6 +66,14 @@ public class ThongKeTiepNhanController {
     public TinhHinhXuLyData layTinhHinhXuLy() {
         String maNV = layMaNVNeuLaTNV();
         return thongKeDao.layTinhHinhXuLy(maNV);
+    }
+
+    /**
+     * Lấy dữ liệu thống kê đổi trả (Phần 4): hôm nay, tháng này, 7 ngày, phân bố, danh sách gần đây.
+     */
+    public ThongKeDoiTraData layThongKeDoiTra() {
+        String maNV = layMaNVNeuLaTNV();
+        return thongKeDao.layThongKeDoiTra(maNV);
     }
 
     /**

@@ -141,4 +141,70 @@ public class LapPhieuTiepNhanController {
         // Gọi DAO gọi stored procedure sinh mã và lưu
         return phieuDao.lapPhieuTiepNhan(phieu, dsDichVu);
     }
+
+    public boolean capNhatPhieu(String maPhieu, String bienSoXe, String maKTV, String yeuCauKhachHang, String tinhTrangXe, String ghiChuTiepNhan, List<ChiTietDichVu> dsDichVu) {
+        if (yeuCauKhachHang == null || yeuCauKhachHang.isBlank()) {
+            throw new IllegalArgumentException("Vui lòng nhập nội dung yêu cầu của khách hàng.");
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(yeuCauKhachHang.trim());
+        if (tinhTrangXe != null && !tinhTrangXe.isBlank()) {
+            sb.append(" | [Hiện trạng]: ").append(tinhTrangXe.trim());
+        }
+        if (ghiChuTiepNhan != null && !ghiChuTiepNhan.isBlank()) {
+            sb.append(" | [Ghi chú]: ").append(ghiChuTiepNhan.trim());
+        }
+
+        String yeuCauBanDau = sb.toString();
+        if (yeuCauBanDau.length() > 500) {
+            yeuCauBanDau = yeuCauBanDau.substring(0, 500);
+        }
+
+        return capNhatPhieu(maPhieu, bienSoXe, maKTV, yeuCauBanDau, dsDichVu);
+    }
+
+    public boolean capNhatPhieu(String maPhieu, String bienSoXe, String maKTV, String yeuCauBanDau, List<ChiTietDichVu> dsDichVu) {
+        kiemTraQuyen();
+
+        if (maPhieu == null || maPhieu.isBlank()) {
+            throw new IllegalArgumentException("Mã phiếu không hợp lệ.");
+        }
+        if (bienSoXe == null || bienSoXe.isBlank()) {
+            throw new IllegalArgumentException("Vui lòng chọn xe của khách hàng cần tiếp nhận.");
+        }
+        if (yeuCauBanDau == null || yeuCauBanDau.isBlank()) {
+            throw new IllegalArgumentException("Vui lòng nhập nội dung yêu cầu của khách hàng.");
+        }
+
+        PhieuTiepNhanSuaChua phieuCu = phieuDao.timTheoMa(maPhieu.trim());
+        if (phieuCu == null) {
+            throw new IllegalArgumentException("Không tìm thấy phiếu " + maPhieu);
+        }
+        if (phieuCu.getTrangThai() != TrangThaiPhieu.CHO_SUA) {
+            throw new IllegalStateException("Chỉ được phép sửa phiếu khi ở trạng thái Chờ sửa chữa (CHO_SUA).");
+        }
+
+        Xe xe = xeDao.timTheoBienSo(bienSoXe.trim());
+        if (xe == null) {
+            throw new IllegalArgumentException("Không tìm thấy thông tin xe " + bienSoXe + " trong hệ thống.");
+        }
+
+        PhieuTiepNhanSuaChua phieu = new PhieuTiepNhanSuaChua(maPhieu.trim());
+        phieu.setXeRaw(xe);
+        phieu.setYeuCauBanDauRaw(yeuCauBanDau.trim());
+        phieu.setTrangThaiRaw(TrangThaiPhieu.CHO_SUA);
+
+        if (maKTV != null && !maKTV.isBlank()) {
+            NhanVien ktv = nhanVienDao.timTheoMa(maKTV.trim());
+            if (ktv != null) {
+                if (phieuCu.getNhanVienLap() != null && ktv.getMaNV().equals(phieuCu.getNhanVienLap().getMaNV())) {
+                    throw new IllegalArgumentException("Kỹ thuật viên chính phải khác với nhân viên tiếp nhận.");
+                }
+                phieu.setNhanVienSuaChuaRaw(ktv);
+            }
+        }
+
+        return phieuDao.capNhatPhieu(phieu, dsDichVu);
+    }
 }

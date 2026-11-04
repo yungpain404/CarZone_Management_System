@@ -123,6 +123,54 @@ public interface ThongKeTiepNhanDao {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // DTO PHẦN 4: THỐNG KÊ ĐỔI TRẢ
+    // ─────────────────────────────────────────────────────────────────────────
+    class ThongKeDoiTraData {
+        /** Số phiếu đổi trả trong ngày hôm nay */
+        public int soPhieuHomNay;
+        /** Tổng tiền hoàn trả trong ngày hôm nay */
+        public double tienHoanHomNay;
+        /** Số phiếu đổi trả trong tháng hiện tại */
+        public long soPhieuThangNay;
+        /** Tổng tiền hoàn trả trong tháng hiện tại */
+        public double tienHoanThangNay;
+        /** Phân bố hướng xử lý: DOI_MOI, HOAN_TIEN, SUA_LAI_MIEN_PHI */
+        public int soHoanTien;
+        public int soDoiMoi;
+        public int soSuaLai;
+        /** 7 ngày gần nhất: key = dd/MM, value = số phiếu */
+        public Map<String, Integer> xuHuong7Ngay;
+        /** Danh sách phiếu đổi trả gần đây (tối đa 10) */
+        public List<DoiTraRow> danhSachGanDay;
+    }
+
+    class DoiTraRow {
+        public String maPhieuDT;
+        public String ngayLap;
+        public String maHoaDon;
+        public String khachHang;
+        public String bienSo;
+        public String tienHoan;
+        public String huongXuLy; // Tóm tắt các hướng xử lý
+
+        public DoiTraRow(String maPhieuDT, String ngayLap, String maHoaDon,
+                         String khachHang, String bienSo, String tienHoan, String huongXuLy) {
+            this.maPhieuDT = maPhieuDT;
+            this.ngayLap = ngayLap;
+            this.maHoaDon = maHoaDon;
+            this.khachHang = khachHang;
+            this.bienSo = bienSo;
+            this.tienHoan = tienHoan;
+            this.huongXuLy = huongXuLy;
+        }
+    }
+
+    /**
+     * Lấy dữ liệu thống kê đổi trả (Phần 4): hôm nay, tháng này, xu hướng 7 ngày, phân bố hướng xử lý.
+     */
+    ThongKeDoiTraData layThongKeDoiTra(String maNVTiepNhan);
+
     /**
      * Lấy dữ liệu thống kê tiếp nhận theo nhân viên tiếp nhận, khoảng ngày và trạng thái.
      */
