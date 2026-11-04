@@ -109,6 +109,16 @@ public class QuanLyTaiKhoanUI extends JPanel {
         });
     }
 
+    /** Tải trực tiếp hồ sơ chưa có tài khoản khi điều hướng từ KPI Dashboard. */
+    public void locHoSoChuaCoTaiKhoanTuDashboard() {
+        txtTimKiem.setText("");
+        dangXuLy = true; capNhatNut(); lblStatus.setText("Đang tải hồ sơ chưa có tài khoản…");
+        chayNen(controller::layNhanVienChuaCoTaiKhoan, rows -> {
+            ketQua = rows; daTimKiem = true; hienThi(rows);
+            lblStatus.setText(rows.isEmpty() ? "Không có hồ sơ chưa được cấp tài khoản." : rows.size() + " hồ sơ chưa có tài khoản.");
+        });
+    }
+
     private void lamMoi() {
         txtTimKiem.setText(""); ketQua.clear(); daTimKiem = false; model.setRowCount(0);
         lblStatus.setText(""); capNhatNut(); txtTimKiem.requestFocusInWindow();
@@ -195,6 +205,7 @@ public class QuanLyTaiKhoanUI extends JPanel {
 
     private final class AccountDialog extends JDialog {
         private final JComboBox<NhanVien> cboNhanVien = new JComboBox<>();
+        private final JTextField txtMaNhanVien = new JTextField();
         private final JTextField txtUsername = new JTextField();
         private final JTextField txtRole = new JTextField();
         private final JPasswordField txtPassword = new JPasswordField(), txtConfirm = new JPasswordField();
@@ -220,10 +231,19 @@ public class QuanLyTaiKhoanUI extends JPanel {
                 });
                 addField(form, "Nhân viên chưa được cấp tài khoản *", cboNhanVien);
             }
+            NhanVien initial = edit ? selectedEmployee : (NhanVien) cboNhanVien.getSelectedItem();
+            txtMaNhanVien.setEditable(false); txtMaNhanVien.setFocusable(false);
+            txtMaNhanVien.setBackground(new Color(0xF4F7FB));
+            txtMaNhanVien.setText(initial == null ? "—" : initial.getMaNV());
+            if (!edit) addField(form, "Mã nhân viên", txtMaNhanVien);
             txtUsername.setEditable(false); txtUsername.setText(edit ? account.getTenDangNhap() : "—");
-            txtRole.setEditable(false); NhanVien initial = edit ? selectedEmployee : (NhanVien) cboNhanVien.getSelectedItem();
+            txtRole.setEditable(false);
             txtRole.setText(initial == null ? "" : tenVaiTro(initial.getVaiTro()));
-            if (!edit) cboNhanVien.addActionListener(e -> { NhanVien picked = (NhanVien) cboNhanVien.getSelectedItem(); txtRole.setText(picked == null ? "" : tenVaiTro(picked.getVaiTro())); });
+            if (!edit) cboNhanVien.addActionListener(e -> {
+                NhanVien picked = (NhanVien) cboNhanVien.getSelectedItem();
+                txtMaNhanVien.setText(picked == null ? "—" : picked.getMaNV());
+                txtRole.setText(picked == null ? "" : tenVaiTro(picked.getVaiTro()));
+            });
             JPanel details = new JPanel(new GridLayout(1, 2, 12, 0)); details.setOpaque(false);
             details.add(fieldPanel("Tên đăng nhập", txtUsername)); details.add(fieldPanel("Vai trò", txtRole)); addFull(form, details); form.add(Box.createVerticalStrut(14));
             addField(form, "Mật khẩu mới *", txtPassword); addField(form, "Xác nhận mật khẩu *", txtConfirm);

@@ -184,9 +184,10 @@ public class QuanLyDichVuUI extends JPanel {
     }
 
     private void lamMoi() {
+        // Tắt auto-search trước khi reset select để listener không truy vấn toàn bộ dịch vụ.
+        daTimKiem = false;
         txtTimKiem.setText("");
         cboTrangThai.setSelectedIndex(0);
-        daTimKiem = false;
         ketQua = new ArrayList<>();
         clearError();
         lblTrangThai.setText("");
@@ -221,6 +222,14 @@ public class QuanLyDichVuUI extends JPanel {
                 finally { setBusy(false); }
             }
         }.execute();
+    }
+
+    /** Mở danh mục dịch vụ với kết quả tra cứu được chọn từ thanh header. */
+    public void timKiemTuHeader(String tuKhoa) {
+        daTimKiem = false;
+        txtTimKiem.setText(tuKhoa == null ? "" : tuKhoa);
+        cboTrangThai.setSelectedIndex(0);
+        timKiem();
     }
 
     private void hienDanhSach() {
@@ -512,6 +521,7 @@ public class QuanLyDichVuUI extends JPanel {
             addField(fields, g, "Đơn vị tính *", cboDonVi, 0, 2, 1, 1);
             ((JSpinner.NumberEditor) spnDonGia.getEditor()).getFormat().setGroupingUsed(true);
             ((JSpinner.NumberEditor) spnDonGia.getEditor()).getFormat().setMaximumFractionDigits(0);
+            UIInputRules.restrictIntegerSpinner(spnDonGia);
             addField(fields, g, "Đơn giá * (VNĐ)", spnDonGia, 1, 2, 1, 1);
             txtMoTa.setLineWrap(true); txtMoTa.setWrapStyleWord(true); txtMoTa.setFont(new Font("SansSerif", Font.PLAIN, 13));
             JScrollPane description = new JScrollPane(txtMoTa); description.setPreferredSize(new Dimension(400, 78));
