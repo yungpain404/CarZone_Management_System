@@ -1,15 +1,7 @@
 package controller;
 
-import dao.DichVuDao;
-import dao.KhachHangDao;
-import dao.NhanVienDao;
-import dao.PhieuTiepNhanSuaChuaDao;
-import dao.XeDao;
-import dao.impl.DichVuDaoImpl;
-import dao.impl.KhachHangDaoImpl;
-import dao.impl.NhanVienDaoImpl;
-import dao.impl.PhieuTiepNhanSuaChuaDaoImpl;
-import dao.impl.XeDaoImpl;
+import dao.*;
+import dao.impl.*;
 import entity.*;
 import enums.TrangThaiPhieu;
 import enums.VaiTro;
@@ -19,7 +11,7 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * Controller điều phối nghiệp vụ Lập phiếu tiếp nhận – sửa chữa (UC010 - Tiếp nhận viên).
+ * Controller điều phối nghiệp vụ Quản lý & Lập phiếu tiếp nhận – sửa chữa (UC010, UC011 - Tiếp nhận viên).
  */
 public class LapPhieuTiepNhanController {
 
@@ -28,6 +20,8 @@ public class LapPhieuTiepNhanController {
     private final DichVuDao dichVuDao;
     private final NhanVienDao nhanVienDao;
     private final PhieuTiepNhanSuaChuaDao phieuDao;
+    private final ChiTietDichVuDao chiTietDichVuDao;
+    private final ChiTietLinhKienDao chiTietLinhKienDao;
 
     public LapPhieuTiepNhanController() {
         this.khachHangDao = new KhachHangDaoImpl();
@@ -35,13 +29,37 @@ public class LapPhieuTiepNhanController {
         this.dichVuDao = new DichVuDaoImpl();
         this.nhanVienDao = new NhanVienDaoImpl();
         this.phieuDao = new PhieuTiepNhanSuaChuaDaoImpl();
+        this.chiTietDichVuDao = new ChiTietDichVuDaoImpl();
+        this.chiTietLinhKienDao = new ChiTietLinhKienDaoImpl();
     }
 
     private void kiemTraQuyen() {
         VaiTro role = UserSession.getInstance().getVaiTro();
         if (role != VaiTro.TIEP_NHAN_VIEN && role != VaiTro.CHU_CUA_HANG) {
-            throw new SecurityException("Chỉ tiếp nhận viên mới có quyền lập phiếu tiếp nhận sửa chữa.");
+            throw new SecurityException("Chỉ tiếp nhận viên mới có quyền quản lý và lập phiếu tiếp nhận sửa chữa.");
         }
+    }
+
+    public List<PhieuTiepNhanSuaChua> layDanhSachPhieu() {
+        return phieuDao.layTatCa();
+    }
+
+    public List<PhieuTiepNhanSuaChua> timKiemPhieu(String tuKhoa, TrangThaiPhieu trangThai) {
+        return phieuDao.timKiem(tuKhoa, null, trangThai);
+    }
+
+    public PhieuTiepNhanSuaChua layPhieuTheoMa(String maPhieu) {
+        return phieuDao.timTheoMa(maPhieu);
+    }
+
+    public List<ChiTietDichVu> layChiTietDichVu(String maPhieu) {
+        if (maPhieu == null || maPhieu.isBlank()) return List.of();
+        return chiTietDichVuDao.layTheoPhieu(maPhieu);
+    }
+
+    public List<ChiTietLinhKien> layChiTietLinhKien(String maPhieu) {
+        if (maPhieu == null || maPhieu.isBlank()) return List.of();
+        return chiTietLinhKienDao.layTheoPhieu(maPhieu);
     }
 
     public List<KhachHang> layDanhSachKhachHang() {
@@ -59,6 +77,28 @@ public class LapPhieuTiepNhanController {
 
     public List<NhanVien> layDanhSachKyThuatVien() {
         return nhanVienDao.timTheoVaiTro(VaiTro.KY_THUAT_VIEN);
+    }
+
+    public String lapPhieu(String bienSoXe, String maKTV, String yeuCauKhachHang, String tinhTrangXe, String ghiChuTiepNhan, List<ChiTietDichVu> dsDichVu) {
+        if (yeuCauKhachHang == null || yeuCauKhachHang.isBlank()) {
+            throw new IllegalArgumentException("Vui lòng nhập nội dung yêu cầu của khách hàng.");
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(yeuCauKhachHang.trim());
+        if (tinhTrangXe != null && !tinhTrangXe.isBlank()) {
+            sb.append(" | [Hiện trạng]: ").append(tinhTrangXe.trim());
+        }
+        if (ghiChuTiepNhan != null && !ghiChuTiepNhan.isBlank()) {
+            sb.append(" | [Ghi chú]: ").append(ghiChuTiepNhan.trim());
+        }
+
+        String yeuCauBanDau = sb.toString();
+        if (yeuCauBanDau.length() > 500) {
+            yeuCauBanDau = yeuCauBanDau.substring(0, 500);
+        }
+
+        return lapPhieu(bienSoXe, maKTV, yeuCauBanDau, dsDichVu);
     }
 
     public String lapPhieu(String bienSoXe, String maKTV, String yeuCauBanDau, List<ChiTietDichVu> dsDichVu) {

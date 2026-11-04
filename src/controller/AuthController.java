@@ -214,7 +214,7 @@ public class AuthController {
                     new NavigationItem("NAV_DASHBOARD", "📊", "Dashboard", "Trang chủ / Tổng quan tiếp nhận"),
                     new NavigationItem("NAV_THONG_KE_TIEP_NHAN", "📈", "Thống kê tiếp nhận", "Báo cáo / Thống kê tiếp nhận xe"),
                     new NavigationItem("NAV_KHACH_HANG_XE", "👥", "Hồ sơ khách hàng và xe", "Khách hàng / Quản lý khách & xe"),
-                    new NavigationItem("NAV_PHIEU_TIEP_NHAN", "📝", "Lập phiếu tiếp nhận – sửa chữa", "Nghiệp vụ / Tiếp nhận xe"),
+                    new NavigationItem("NAV_PHIEU_TIEP_NHAN", "📝", "Quản lý phiếu tiếp nhận", "Nghiệp vụ / Quản lý phiếu tiếp nhận xe"),
                     new NavigationItem("NAV_HOA_DON", "🧾", "Lập hóa đơn thanh toán", "Thu ngân / Hóa đơn thanh toán"),
                     new NavigationItem("NAV_DOI_TRA", "🔄", "Tạo phiếu đổi trả", "Nghiệp vụ / Đổi trả linh kiện"),
                     new NavigationItem("NAV_TRA_CUU", "🔍", "Tra cứu", "Tra cứu / Tìm kiếm tổng hợp"),
