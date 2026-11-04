@@ -149,3 +149,9 @@
 
 ## Việc kế tiếp (gợi ý, chờ người dùng chốt thứ tự)
 - Phát triển màn hình chức năng chuyên sâu: Tiếp nhận xe / Lập phiếu tiếp nhận sửa chữa (TNV) hoặc Quản lý linh kiện và kho (CCH).
+
+## Tích hợp nhánh (04/11/2026)
+- Đã merge `feature/tan/recipient`, `feature/backup` và `feature/hau/store-owner` vào `develop`.
+- Khi có khác biệt, giữ dashboard, màn hình CCH, tìm kiếm chung và `TraCuuUI` trên `develop`; giữ các màn TNV, thống kê tiếp nhận và sao lưu/phục hồi đã tích hợp.
+- Chuẩn hóa tên các DAO sang hậu tố `DAO`; gộp DAO TNV vào một class cụ thể trong `src/dao/`, không giữ cặp interface/implementation trong `dao.impl`.
+- Kiểm tra `mvn -q compile` thành công sau khi tích hợp.
