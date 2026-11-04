@@ -39,7 +39,7 @@
             <version>3.7</version>
         </dependency>
 
-        <!-- JCalendar cho chọn ngày qua lịch trực quan (không nhập tay) -->
+        <!-- JCalendar cho chọn ngày qua lịch trực quan -->
         <dependency>
             <groupId>com.toedter</groupId>
             <artifactId>jcalendar</artifactId>
