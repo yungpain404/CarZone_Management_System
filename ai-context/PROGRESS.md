@@ -34,6 +34,27 @@
     * Cơ chế "Ai backup đầu tiên thì lấy kết quả người đó": Kiểm tra lịch sử `msdb.dbo.backupset` trước và sau khi nhận khóa; nếu máy khác đã hoàn thành mốc này (FULL < 60p, DIFF < 30p, LOG < 10p, Thoát < 5p), máy sau tự động bỏ qua để tránh ghi đè file trên server.
     * Ghi vết định danh máy trạm và nhân viên thực hiện (`UserSession` + Hostname) vào metadata bản sao lưu trên SQL Server.
     * **Phân quyền vai trò sao lưu (RBAC):** Chỉ chạy hệ thống sao lưu tự động (Quartz Scheduler) và quy trình sao lưu ca làm việc khi thoát trên máy của **Chủ cửa hàng (`VaiTro.CHU_CUA_HANG`)**; các role Tiếp nhận viên và Kỹ thuật viên không chạy lập lịch và thoát ứng dụng bình thường.
+    * **Tính năng Sao lưu & Phục hồi thủ công (`SaoLuuPhucHoiUI.java`):** Dành riêng cho Chủ cửa hàng (`NAV_SAO_LUU_PHUC_HOI`):
+      - Thẻ sao lưu thủ công (FULL/DIFF/LOG) kèm ghi chú tùy chọn, chạy qua `SwingWorker` kèm thông báo chi tiết (dung lượng, file, ms).
+      - Thẻ giám sát trạng thái lập lịch Quartz và thời điểm sao lưu gần nhất.
+      - Bảng lịch sử các bản sao lưu từ `msdb.dbo.backupset` (badge loại, thời gian, kích thước, người/máy tạo, đường dẫn).
+      - Dialog Phục hồi CSDL (`RESTORE DATABASE`) an toàn cao: cảnh báo ghi đè dữ liệu, yêu cầu nhập mã `PHUCHOI` xác nhận, ngắt kết nối các client qua `SINGLE_USER WITH ROLLBACK IMMEDIATE`, restore qua kết nối `master` và đưa về `MULTI_USER`.
+      - **Cơ chế phục hồi chuỗi liên hoàn tự động (SQL Server Restore Chain):**
+        * Giải quyết triệt để lỗi *"The log or differential backup cannot be restored because no files are ready to rollforward"*.
+        * Khi phục hồi từ tệp Transaction Log (`.trn`) hoặc Vi sai (`.bak`), hệ thống tự động truy vấn `msdb.dbo.backupset` theo `backup_set_id`:
+          - FULL: `RESTORE DATABASE WITH REPLACE, RECOVERY`
+          - DIFF: FULL gốc `WITH REPLACE, NORECOVERY` -> DIFF `WITH RECOVERY` (không có `REPLACE`)
+          - LOG: FULL gốc `WITH REPLACE, NORECOVERY` -> các bản LOG tuần tự `WITH NORECOVERY` -> bản LOG đích `WITH RECOVERY` (chuỗi liên hoàn không bị đứt đoạn).
+      - **Giao diện Sao lưu & Phục hồi chuẩn FlatLaf & Figma (`SaoLuuPhucHoiUI`):**
+        * Tích hợp tài nguyên ảnh 3D `img/nav_sao_luu_phuc_hoi.png` cho Sidebar và Header tiêu đề trang `SaoLuuPhucHoiUI`.
+        * Tự động phóng to toàn màn hình (`JFrame.MAXIMIZED_BOTH`) khi đăng nhập thành công vào `MainFrame`.
+        * Căn chỉnh lề chữ, nhịp điệu khoảng cách và padding đồng đều 100% trong Dialog Xác nhận phục hồi (khung cảnh báo đỏ và khung chuỗi khôi phục thông minh dùng `RoundedPanel` với padding trong chuẩn 16px, các ô textfield có padding 12px chống dính mép).
+        * Loại bỏ hoàn toàn emoji Unicode khỏi các nhãn và nút bấm.
+      - **Khắc phục triệt để lỗi icon ô vuông (`□`) và mất chữ:** 
+        + Xóa bỏ toàn bộ ký tự emoji Unicode khỏi tiêu đề, nhãn, nút bấm và dialog (tránh lỗi font hệ điều hành không hiển thị được glyph).
+        + Thêm vector icon 2D chuẩn FlatLaf `DatabaseIcon` (vẽ 3 đĩa trụ CSDL mượt mà bằng `Graphics2D`) riêng biệt cho mục Sao lưu & Phục hồi trong Side Navigation của `MainFrame`.
+        + Tái cấu trúc Card Lập lịch Quartz: thay thế lưới 2 cột bị bóp méo thành 3 hàng full-width (mỗi hàng gồm badge phân loại + mô tả lịch định kỳ + dòng thời gian chạy gần nhất), triệt tiêu hoàn toàn hiện tượng mất chữ/cắt chữ.
+        + Thay thế chấm unicode bằng pill badge bo góc hiển thị trạng thái lập lịch ("Đang hoạt động" / "Đã tạm dừng").
   + Intercept tập trung qua dynamic proxy `AuditConnectionProxy`/`AuditStatementProxy` bọc `DbUtil.getConnection()`, ghi audit log DML kèm thời gian, người dùng (UserSession), số dòng affected, tham số (tự mask mật khẩu/chuỗi nhạy cảm). Tách file `app.log` và `audit.log` qua `AsyncAppender` Logback rolling 30 ngày.
   + Modal `ShutdownDialog` + `AppShutdownManager`: Bắt toàn bộ thao tác thoát trên mọi JFrame (`MainFrame`, `DangNhapUI`, `KhoiDongUI`), chạy DIFF + LOG ca làm việc, hiển thị tiến độ, timeout bảo vệ, chống tắt ngang.
   + Chuẩn hóa trạng thái phiếu sửa chữa KTV: xóa bỏ toàn bộ nhãn sai lệch "Mới phân công" / "Mới", đồng bộ chuẩn 4 trạng thái theo enum (`CHO_SUA` -> "Chờ sửa", `DANG_SUA` -> "Đang sửa", `CHO_LINH_KIEN` -> "Chờ linh kiện", `HOAN_TAT` -> "Hoàn tất") trên KPI card, bảng công việc gần đây, dialog chi tiết phiếu, biểu đồ tiến độ và donut tỷ lệ hoàn thành (`MainFrame.java`, `ThongKeSuaChuaUI.java`).

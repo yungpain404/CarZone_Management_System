@@ -167,6 +167,7 @@ public class MainFrame extends JFrame {
         setTitle("CarZone – " + tenVaiTro + " (" + this.nhanVien.getHoTen() + ")");
         setSize(1170, 800);
         setMinimumSize(new Dimension(1024, 700));
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         getContentPane().setBackground(C_BG);
@@ -414,6 +415,7 @@ public class MainFrame extends JFrame {
             case "NAV_KHUYEN_MAI" -> "nav_khuyen_mai.png";
             case "NAV_NHAN_VIEN" -> "nav_nhan_vien.png";
             case "NAV_TAI_KHOAN" -> "nav_tai_khoan.png";
+            case "NAV_SAO_LUU_PHUC_HOI" -> "nav_sao_luu_phuc_hoi.png";
             case "NAV_TRA_CUU" -> "nav_tra_cuu.png";
             case "NAV_THONG_TIN_CA_NHAN" -> "nav_ho_so.png";
             default -> null;
@@ -425,7 +427,7 @@ public class MainFrame extends JFrame {
     /**
      * Đọc icon từ classpath (/ten_file.png) hoặc fallback file img/ten_file.png.
      */
-    private static Image docIconSidebar(String fileName) {
+    public static Image docIconSidebar(String fileName) {
         if (CACHE_ICON_SIDEBAR.containsKey(fileName))
             return CACHE_ICON_SIDEBAR.get(fileName);
         Image img = null;
@@ -612,6 +614,8 @@ public class MainFrame extends JFrame {
                 pnlContentPanel.add(new QuanLyNhanVienUI(), item.getId());
             } else if ("NAV_TAI_KHOAN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
                 pnlContentPanel.add(new QuanLyTaiKhoanUI(), item.getId());
+            } else if ("NAV_SAO_LUU_PHUC_HOI".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
+                pnlContentPanel.add(new SaoLuuPhucHoiUI(), item.getId());
             } else if ("NAV_TRA_CUU".equals(item.getId())) {
                 pnlContentPanel.add(new TraCuuUI(nhanVien.getVaiTro()), item.getId());
             } else if ("NAV_THONG_TIN_CA_NHAN".equals(item.getId())) {
@@ -1793,8 +1797,10 @@ public class MainFrame extends JFrame {
         pnlCharts.setAlignmentX(Component.CENTER_ALIGNMENT);
         pnlCharts.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
-        pnlCharts.add(taoChartPhieuTheoTrangThaiDynamic(pbChoSua, lblChoSuaVal, pbDangSua, lblDangSuaVal, pbChoLK, lblChoLKVal, pbHoanThanh, lblHoanThanhVal));
-        pnlCharts.add(taoChartTyLeHoanThanhDynamic(lblDonutCenter, lblLegendHT, lblLegendChoDS, lblLegendCLK, donutAngles, donutRef));
+        pnlCharts.add(taoChartPhieuTheoTrangThaiDynamic(pbChoSua, lblChoSuaVal, pbDangSua, lblDangSuaVal, pbChoLK,
+                lblChoLKVal, pbHoanThanh, lblHoanThanhVal));
+        pnlCharts.add(taoChartTyLeHoanThanhDynamic(lblDonutCenter, lblLegendHT, lblLegendChoDS, lblLegendCLK,
+                donutAngles, donutRef));
 
         // Load số liệu 7 ngày gần nhất cho 2 biểu đồ
         new SwingWorker<dao.PhieuTiepNhanSuaChuaDAO.ThongKeKTVData, Void>() {
@@ -1811,14 +1817,23 @@ public class MainFrame extends JFrame {
             protected void done() {
                 try {
                     dao.PhieuTiepNhanSuaChuaDAO.ThongKeKTVData d = get();
-                    int tong = d.tongPhieu(), hoanTat = d.phieuHoanTat(), dangSua = d.phieuDangSua(), choLK = d.phieuChoLinhKien();
+                    int tong = d.tongPhieu(), hoanTat = d.phieuHoanTat(), dangSua = d.phieuDangSua(),
+                            choLK = d.phieuChoLinhKien();
                     int choSua = Math.max(0, tong - hoanTat - dangSua - choLK);
                     int max = Math.max(1, Math.max(Math.max(choSua, dangSua), Math.max(choLK, hoanTat)));
 
-                    pbChoSua.setMaximum(max); pbChoSua.setValue(choSua); lblChoSuaVal.setText(String.valueOf(choSua));
-                    pbDangSua.setMaximum(max); pbDangSua.setValue(dangSua); lblDangSuaVal.setText(String.valueOf(dangSua));
-                    pbChoLK.setMaximum(max); pbChoLK.setValue(choLK); lblChoLKVal.setText(String.valueOf(choLK));
-                    pbHoanThanh.setMaximum(max); pbHoanThanh.setValue(hoanTat); lblHoanThanhVal.setText(String.valueOf(hoanTat));
+                    pbChoSua.setMaximum(max);
+                    pbChoSua.setValue(choSua);
+                    lblChoSuaVal.setText(String.valueOf(choSua));
+                    pbDangSua.setMaximum(max);
+                    pbDangSua.setValue(dangSua);
+                    lblDangSuaVal.setText(String.valueOf(dangSua));
+                    pbChoLK.setMaximum(max);
+                    pbChoLK.setValue(choLK);
+                    lblChoLKVal.setText(String.valueOf(choLK));
+                    pbHoanThanh.setMaximum(max);
+                    pbHoanThanh.setValue(hoanTat);
+                    lblHoanThanhVal.setText(String.valueOf(hoanTat));
 
                     int pctHT = tong > 0 ? (int) Math.round(hoanTat * 100.0 / tong) : 0;
                     int pctChoDS = tong > 0 ? (int) Math.round((choSua + dangSua) * 100.0 / tong) : 0;
@@ -1835,7 +1850,8 @@ public class MainFrame extends JFrame {
                     if (donutRef[0] != null) {
                         donutRef[0].repaint();
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
         }.execute();
 
@@ -1902,7 +1918,8 @@ public class MainFrame extends JFrame {
         grid.add(TraCuuUI.infoCell("Mã phiếu", p.maPhieu()));
         grid.add(TraCuuUI.infoCell("Trạng thái", stTen));
         grid.add(TraCuuUI.infoCell("Biển số xe", p.bienSoXe() + (p.hangModel() != null ? " · " + p.hangModel() : "")));
-        grid.add(TraCuuUI.infoCell("Ngày tiếp nhận", p.ngayTiepNhan() != null ? DATE_FMT.format(p.ngayTiepNhan()) : "—"));
+        grid.add(TraCuuUI.infoCell("Ngày tiếp nhận",
+                p.ngayTiepNhan() != null ? DATE_FMT.format(p.ngayTiepNhan()) : "—"));
         grid.add(TraCuuUI.infoCell("Khách hàng", p.tenKhachHang() != null ? p.tenKhachHang() : "—"));
         grid.add(TraCuuUI.infoCell("Số điện thoại", p.soDienThoai() != null ? p.soDienThoai() : "—"));
         grid.add(TraCuuUI.infoCell("Kỹ thuật viên", p.tenKyThuatVien() != null ? p.tenKyThuatVien() : "—"));
@@ -1936,7 +1953,8 @@ public class MainFrame extends JFrame {
             });
             pnlBtns.add(btnSua);
         } else {
-            JButton btnTraCuu = new RoundedButton("Xem lịch sử sửa chữa ↗", 10, C_PRIMARY, new Color(0x1D4ED8), C_PRIMARY);
+            JButton btnTraCuu = new RoundedButton("Xem lịch sử sửa chữa ↗", 10, C_PRIMARY, new Color(0x1D4ED8),
+                    C_PRIMARY);
             btnTraCuu.setFont(f(Font.BOLD, 12));
             btnTraCuu.setForeground(Color.WHITE);
             btnTraCuu.setPreferredSize(new Dimension(185, 36));
@@ -2394,6 +2412,7 @@ public class MainFrame extends JFrame {
             case "NAV_KHUYEN_MAI" -> "Quản lý các chương trình khuyến mãi của cửa hàng.";
             case "NAV_NHAN_VIEN" -> "Tìm kiếm và quản lý hồ sơ nhân viên.";
             case "NAV_TAI_KHOAN" -> "Tạo tài khoản, đổi mật khẩu và quản lý tài khoản nhân viên.";
+            case "NAV_SAO_LUU_PHUC_HOI" -> "Sao lưu và phục hồi cơ sở dữ liệu hệ thống.";
             case "NAV_TRA_CUU" -> nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG
                     ? "Tra cứu linh kiện, khách hàng và lịch sử sửa chữa."
                     : "Tra cứu theo phạm vi nghiệp vụ của vai trò.";
@@ -3109,6 +3128,72 @@ public class MainFrame extends JFrame {
         }
     }
 
+    /** Icon CSDL (3 đĩa xếp chồng sắc nét theo phong cách CarZone). */
+    public static class DatabaseIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public DatabaseIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        public DatabaseIcon(int size) {
+            this(new Color(0x2563EB), size);
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            int pad = Math.max(2, size / 8);
+            int w = size - pad * 2;
+            int h = size - pad * 2;
+            int px = pad;
+            int py = pad + 1;
+
+            int eh = Math.max(5, h / 3);
+            int gap = Math.max(4, (h - eh) / 2);
+
+            // Nền đĩa trên cùng: xanh nhạt dịu mắt
+            g2.setColor(new Color(0xDB, 0xEA, 0xFE));
+            g2.fillOval(px, py, w, eh);
+
+            // Nét vẽ chính
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            // Đĩa trên cùng (hình oval trọn vẹn)
+            g2.drawOval(px, py, w, eh);
+
+            // Đĩa giữa (vòm cong dưới)
+            g2.drawArc(px, py + gap, w, eh, 180, 180);
+
+            // Đĩa đáy (vòm cong dưới)
+            g2.drawArc(px, py + gap * 2, w, eh, 180, 180);
+
+            // Hai sống lưng nối thẳng đứng
+            int midTopY = py + eh / 2;
+            int midBotY = py + gap * 2 + eh / 2;
+            g2.drawLine(px, midTopY, px, midBotY);
+            g2.drawLine(px + w, midTopY, px + w, midBotY);
+
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() {
+            return size;
+        }
+
+        @Override
+        public int getIconHeight() {
+            return size;
+        }
+    }
+
     /** Icon lịch (calendar-days). */
     public static class CalendarIcon implements Icon {
         private final Color color;
@@ -3172,6 +3257,171 @@ public class MainFrame extends JFrame {
         public int getIconHeight() {
             return size;
         }
+    }
+
+    /** Icon Sao lưu CSDL (Đĩa CSDL + mũi tên tải xuống). */
+    public static class BackupIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public BackupIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            int pad = 1;
+            int w = size - pad * 2;
+            int h = size - pad * 2;
+            int eh = Math.max(3, h / 4);
+
+            g2.drawOval(pad, pad, w, eh);
+            g2.drawArc(pad, pad + h - eh, w, eh, 180, 180);
+            g2.drawLine(pad, pad + eh / 2, pad, pad + h - eh / 2);
+            g2.drawLine(pad + w, pad + eh / 2, pad + w, pad + h - eh / 2);
+
+            int cx = pad + w / 2;
+            int topY = pad + eh + 2;
+            int botY = pad + h - 2;
+            g2.drawLine(cx, topY, cx, botY);
+            g2.drawLine(cx, botY, cx - 2, botY - 3);
+            g2.drawLine(cx, botY, cx + 2, botY - 3);
+
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() { return size; }
+        @Override
+        public int getIconHeight() { return size; }
+    }
+
+    /** Icon Phục hồi CSDL (Đĩa CSDL + mũi tên khôi phục lên). */
+    public static class RestoreIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public RestoreIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            int pad = 1;
+            int w = size - pad * 2;
+            int h = size - pad * 2;
+            int eh = Math.max(3, h / 4);
+
+            g2.drawOval(pad, pad, w, eh);
+            g2.drawArc(pad, pad + h - eh, w, eh, 180, 180);
+            g2.drawLine(pad, pad + eh / 2, pad, pad + h - eh / 2);
+            g2.drawLine(pad + w, pad + eh / 2, pad + w, pad + h - eh / 2);
+
+            int cx = pad + w / 2;
+            int topY = pad + eh + 2;
+            int botY = pad + h - 2;
+            g2.drawLine(cx, topY, cx, botY);
+            g2.drawLine(cx, topY, cx - 2, topY + 3);
+            g2.drawLine(cx, topY, cx + 2, topY + 3);
+
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() { return size; }
+        @Override
+        public int getIconHeight() { return size; }
+    }
+
+    /** Icon Làm mới (Vòng cung mũi tên xoay tròn mượt mà). */
+    public static class RefreshIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public RefreshIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            int pad = 2;
+            int d = size - pad * 2;
+            g2.drawArc(pad, pad, d, d, 40, 280);
+
+            int ax = pad + d - 1;
+            int ay = pad + d / 4;
+            g2.drawLine(ax, ay, ax + 3, ay + 3);
+            g2.drawLine(ax, ay, ax - 3, ay + 3);
+
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() { return size; }
+        @Override
+        public int getIconHeight() { return size; }
+    }
+
+    /** Icon Cảnh báo tam giác (dùng trong Dialog xác nhận nguy hiểm). */
+    public static class AlertTriangleIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public AlertTriangleIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            int pad = 1;
+            int w = size - pad * 2;
+            int h = size - pad * 2;
+
+            int[] xs = { pad + w / 2, pad + w, pad };
+            int[] ys = { pad, pad + h, pad + h };
+            g2.drawPolygon(xs, ys, 3);
+
+            int cx = pad + w / 2;
+            int topY = pad + h / 3;
+            int dotY = pad + h - 3;
+            g2.drawLine(cx, topY, cx, dotY - 4);
+            g2.drawLine(cx, dotY, cx, dotY);
+
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() { return size; }
+        @Override
+        public int getIconHeight() { return size; }
     }
 
     public static class RoundedButton extends JButton {
