@@ -47,6 +47,20 @@
     * **Tính năng Sao lưu & Phục hồi thủ công (`SaoLuuPhucHoiUI.java`):** Dành riêng cho Chủ cửa hàng (`NAV_SAO_LUU_PHUC_HOI`):
       - Thẻ sao lưu thủ công (FULL/DIFF/LOG) kèm ghi chú tùy chọn, chạy qua `SwingWorker` kèm thông báo chi tiết (dung lượng, file, ms).
       - Thẻ giám sát trạng thái lập lịch Quartz và thời điểm sao lưu gần nhất.
+
+## Mới làm (04/11/2026)
+- **Hệ thống Giám sát Hành vi Phi lý & Hàng rào Xác thực Mã PIN Cấp 2 (Behavioral Anomaly & PIN Barrier)**:
+  + Sắp xếp chuẩn vào cấu trúc package hiện có: `enums/LoaiHanhViBatThuong.java`, `ui/PinVerificationDialog.java`, `audit/` (`ThongTinViPham`, `SecurityConfig`, `PhatHienHanhViPhiLy`, `PinVerificationManager`, `AlertNotifier`). Không tạo thêm package gốc `security` bừa bãi.
+  + **Đánh chặn tập trung tại tầng Statement Proxy:** `AuditStatementProxy` chặn ngang mọi câu lệnh SQL ghi dữ liệu trước khi gửi xuống database.
+  + **3 Nhóm hành vi phi lý:**
+    1. *Bulk & Velocity:* Xóa hàng loạt dữ liệu cốt lõi (≥ 3 bản ghi trong < 2 giây); xóa không có `WHERE`; lệnh DDL phá hủy (`DROP`, `TRUNCATE`, `ALTER TABLE ... DROP`).
+    2. *Temporal:* Thao tác xóa/sửa dữ liệu cốt lõi ngoài giờ mở cửa (00:00 - 05:00 sáng).
+    3. *Cascading Danger & High Sensitivity:* Thao tác xóa Chủ thể cốt lõi (`CCH...` / Chủ cửa hàng); can thiệp cấu hình hệ thống / quản trị SQL Server.
+  + **Quy trình vượt rào & Trừng phạt:**
+    * Tạm dừng luồng DB, hiển thị `PinVerificationDialog` trên EDT yêu cầu mã PIN cấp 2 (SHA-256).
+    * Nhập đúng PIN: Cấp quyền ngoại lệ tạm thời trong 60 giây (suppression window).
+    * Nhập sai ≥ 3 lần: Cưỡng chế thoát (Force Logout), hủy toàn bộ giao dịch, kích hoạt sao lưu khẩn cấp (Emergency Log Backup), gửi cảnh báo khẩn cấp tới `ntfy.sh` và Audit Log, đóng toàn bộ Frame về màn hình Đăng nhập.
+  + Cấu hình an ninh bổ sung trong `backup.properties`. Đã kiểm thử logic và biên dịch đạt `mvn -q compile` (0 lỗi).
       - Bảng lịch sử các bản sao lưu từ `msdb.dbo.backupset` (badge loại, thời gian, kích thước, người/máy tạo, đường dẫn).
       - Dialog Phục hồi CSDL (`RESTORE DATABASE`) an toàn cao: cảnh báo ghi đè dữ liệu, yêu cầu nhập mã `PHUCHOI` xác nhận, ngắt kết nối các client qua `SINGLE_USER WITH ROLLBACK IMMEDIATE`, restore qua kết nối `master` và đưa về `MULTI_USER`.
       - **Cơ chế phục hồi chuỗi liên hoàn tự động (SQL Server Restore Chain):**
@@ -155,3 +169,4 @@
 - Khi có khác biệt, giữ dashboard, màn hình CCH, tìm kiếm chung và `TraCuuUI` trên `develop`; giữ các màn TNV, thống kê tiếp nhận và sao lưu/phục hồi đã tích hợp.
 - Chuẩn hóa tên các DAO sang hậu tố `DAO`; gộp DAO TNV vào một class cụ thể trong `src/dao/`, không giữ cặp interface/implementation trong `dao.impl`.
 - Kiểm tra `mvn -q compile` thành công sau khi tích hợp.
+- Pull cập nhật tiếp theo từ `feature/backup`: giữ instance màn CCH trong `MainFrame`, giữ chọn ngày bằng JCalendar và các bộ lọc số trong `UIInputRules`; bổ sung các thay đổi audit/PIN của backup. Đã giải quyết các conflict và `mvn -q compile` thành công.

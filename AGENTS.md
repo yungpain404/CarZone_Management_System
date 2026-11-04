@@ -102,6 +102,17 @@ Mỗi skill là một tệp Markdown thường (có phần đầu `name`/`descri
 - **Quy tắc Kiểm soát Thoát ứng dụng (Centralized Shutdown Handling - BẮT BUỘC)**:
   - Mọi thao tác thoát (nút đóng cửa sổ `X`, nút Đăng xuất, đóng MainFrame hay `System.exit`) đều phải được kiểm soát tập trung qua `AppShutdownManager` và `WindowListener`.
   - **Phân quyền thoát đa máy trạm**: CHỈ máy trạm của **Chủ cửa hàng (`VaiTro.CHU_CUA_HANG`)** mới thực hiện tác vụ sao lưu ca làm việc khi thoát. Các vai trò Tiếp nhận viên và Kỹ thuật viên thoát ngay lập tức mà không chạy sao lưu để tránh xung đột và ghi đè file trên server.
+- **Quy tắc Giám sát Hành vi Phi lý & Hàng rào Xác thực Mã PIN Cấp 2 (Behavioral Anomaly & PIN Barrier - BẮT BUỘC)**:
+  - Khi kẻ tấn công chiếm quyền hoặc có hành vi phá hoại dữ liệu, hệ thống tự động đánh chặn ngang tại tầng `AuditStatementProxy` và UI trước khi câu lệnh xuống CSDL.
+  - **Danh sách 3 nhóm hành vi phi lý bị chặn**:
+    1. *Bất thường tốc độ & số lượng (Bulk & Velocity Anomalies)*: Xóa hàng loạt dữ liệu cốt lõi (≥ 3 bản ghi trong < 2 giây); xóa không kèm `WHERE`; sửa đổi hàng loạt trạng thái tài khoản hoặc câu lệnh DDL phá hủy (`DROP`, `TRUNCATE`, `ALTER TABLE ... DROP`).
+    2. *Bất thường thời gian (Temporal Anomalies)*: Thao tác nhạy cảm (xóa/sửa dữ liệu cốt lõi) vào khung giờ nửa đêm / đóng cửa (mặc định 00:00 - 05:00 sáng).
+    3. *Bất thường cấu trúc & liên kết (Structural & Scope Anomalies)*: Can thiệp cấu hình bảo mật hệ thống; xóa Chủ thể cốt lõi (`CCH...` / Chủ cửa hàng) gây sụp đổ toàn bộ bảng con phụ thuộc (Cascading Danger).
+  - **Cơ chế xác thực Mã PIN cấp 2**:
+    + Tạm dừng lập tức tiến trình, hiển thị modal dialog `PinVerificationDialog` trên EDT thông báo rõ hành vi vi phạm.
+    + Yêu cầu nhập đúng mã PIN bảo mật cấp 2 (băm SHA-256, cấu hình qua `backup.properties` / biến môi trường).
+    + Nhập đúng PIN: Cấp phép miễn trừ tạm thời (`suppression window` 60 giây) và cho phép tiến trình tiếp tục chạy.
+    + Nhập sai quá 3 lần: **CƯỠNG CHẾ KHÓA PHIÊN NGAY LẬP TỨC (Force Logout)**, hủy toàn bộ giao dịch, kích hoạt sao lưu khẩn cấp (`BackupService.thucHienBackup(BackupType.LOG)`), gửi cảnh báo khẩn cấp tới `ntfy.sh` / Audit Log và đóng ứng dụng về màn hình Đăng nhập.
 - **Quy tắc Chuỗi phục hồi CSDL SQL Server (SQL Server Restore Chain - BẮT BUỘC)**:
   - Khi phục hồi một bản sao lưu vi sai (DIFF) hoặc nhật ký giao dịch (LOG), SQL Server bắt buộc cơ sở dữ liệu phải ở chế độ `RESTORING` (được dựng từ bản Full Backup gốc với tùy chọn `NORECOVERY`).
   - Lệnh `RESTORE DATABASE ... WITH REPLACE` **CHỈ DÀNH RIÊNG** cho bản Full Backup đầu tiên. Tuyệt đối KHÔNG có `REPLACE` ở các bản DIFF hoặc LOG tiếp theo (nếu có sẽ ném lỗi `The log or differential backup cannot be restored because no files are ready to rollforward`).

@@ -181,6 +181,7 @@ public class MainFrame extends JFrame {
         setMinimumSize(new Dimension(1024, 700));
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         getContentPane().setBackground(C_BG);
 

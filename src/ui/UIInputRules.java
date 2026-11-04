@@ -61,7 +61,6 @@ public final class UIInputRules {
         }
         return chooser.getDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
-
     /** Chặn ký tự ngoài chữ số ngay khi nhập vào NumberEditor của spinner nguyên. */
     public static void restrictIntegerSpinner(JSpinner spinner) {
         if (!(spinner.getEditor() instanceof JSpinner.NumberEditor editor)) return;

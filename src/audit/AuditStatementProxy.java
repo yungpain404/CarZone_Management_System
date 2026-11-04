@@ -63,6 +63,9 @@ public class AuditStatementProxy implements InvocationHandler {
                 currentSql = sqlArg;
             }
 
+            // Đánh chặn giám sát hành vi phi lý & yêu cầu mã PIN bảo mật cấp 2
+            PhatHienHanhViPhiLy.kiemTraTruocKhiThucThi(currentSql, params);
+
             long start = System.currentTimeMillis();
             try {
                 Object result = method.invoke(target, args);
