@@ -5,12 +5,12 @@ Nguồn: báo cáo `Nhom01_v3_ApplicationDevelopment.docx`, bảng Q&A, và migr
 ## 1. Vai trò và quyền
 | Vai trò (`VaiTro`) | Được làm | Không được |
 |---|---|---|
-| `CHU_CUA_HANG` (duy nhất 1 người, DB có chỉ mục unique) | CRUD dịch vụ, linh kiện, tài khoản/nhân viên, khuyến mãi; duyệt yêu cầu nhập linh kiện và nhập kho; xem báo cáo doanh thu, lịch sử | |
-| `TIEP_NHAN_VIEN` | Quản lý khách hàng, xe, phiếu sửa chữa, hóa đơn, thanh toán, phiếu đổi trả; tra cứu lịch sử; xem thống kê phiếu lập/đổi trả **của mình** | Sửa dịch vụ/linh kiện do kỹ thuật viên ghi |
-| `KY_THUAT_VIEN` | Xem/cập nhật phiếu **được giao**; tạo yêu cầu nhập linh kiện; xử lý đổi trả; tra cứu; xem thống kê dịch vụ/linh kiện đã sửa **của mình** | Xem phiếu người khác; xem số liệu người khác |
+| `CHU_CUA_HANG` (duy nhất 1 người, DB có chỉ mục unique) | CRUD dịch vụ, linh kiện, tài khoản/nhân viên, khuyến mãi; duyệt yêu cầu nhập linh kiện và nhập kho; xem báo cáo doanh thu, lịch sử; **toàn quyền quản trị Sao lưu & Phục hồi CSDL** (thủ công, phục hồi chuỗi liên hoàn, cấu hình & chạy tiến trình tự động Quartz/kết ca) | |
+| `TIEP_NHAN_VIEN` | Quản lý khách hàng, xe, phiếu sửa chữa, hóa đơn, thanh toán, phiếu đổi trả; tra cứu lịch sử; xem thống kê phiếu lập/đổi trả **của mình** | Sửa dịch vụ/linh kiện do kỹ thuật viên ghi; truy cập chức năng Sao lưu & Phục hồi CSDL |
+| `KY_THUAT_VIEN` | Xem/cập nhật phiếu **được giao**; tạo yêu cầu nhập linh kiện; xử lý đổi trả; tra cứu; xem thống kê dịch vụ/linh kiện đã sửa **của mình** | Xem phiếu người khác; xem số liệu người khác; truy cập chức năng Sao lưu & Phục hồi CSDL |
 
 ## 2. Máy trạng thái
-- Phiếu sửa chữa (`TrangThaiPhieu`): `CHO_SUA → DANG_SUA ⇄ CHO_LINH_KIEN`, và `DANG_SUA → HOAN_TAT`. Phiếu `HOAN_TAT` bị khóa (không thêm/sửa/xóa dịch vụ, linh kiện).
+- Phiếu sửa chữa (`TrangThaiPhieu`): `CHO_SUA → DANG_SUA ⇄ CHO_LINH_KIEN`, và `DANG_SUA → HOAN_TAT`. Phiếu `HOAN_TAT` bị khóa (không thêm/sửa/xóa dịch vụ, linh kiện). Không tồn tại trạng thái "Mới phân công" (phiếu phân công cho KTV ban đầu có trạng thái là `CHO_SUA`). KPI "Phiếu cần hoàn thành" = `Tổng phiếu được giao - Phiếu đã hoàn tất`. Form cập nhật phiếu sửa chữa lọc bỏ hoàn toàn các phiếu `HOAN_TAT`.
 - Hóa đơn (`TrangThaiThanhToan`): `CHUA_THANH_TOAN → DA_THANH_TOAN`. Đã thanh toán thì không sửa, không xóa. `thoiGianThanhToan` và `phuongThucTT` chỉ có khi đã thanh toán.
 - Yêu cầu nhập linh kiện (`TrangThaiYeuCau`): tạo ở `CHO_DUYET → DA_DUYET | TU_CHOI`; `DA_DUYET → DA_NHAP_KHO`. Khi xác nhận nhập, Chủ cửa hàng ghi số lượng thực nhận (> 0, được phép khác số lượng yêu cầu); trigger cộng đúng số thực nhận vào tồn kho.
 - `PhuongThucThanhToan`: `TIEN_MAT`, `CHUYEN_KHOAN`. `HuongXuLyDoiTra`: `DOI_MOI`, `HOAN_TIEN`, `SUA_LAI_MIEN_PHI`.

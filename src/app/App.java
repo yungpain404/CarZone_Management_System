@@ -74,6 +74,7 @@ public class App {
 
         SwingUtilities.invokeLater(() -> {
             MainFrame mainFrame = new MainFrame(nhanVien);
+            mainFrame.setExtendedState(JFrame.MAXIMIZED_BOTH);
             mainFrame.setVisible(true);
         });
     }

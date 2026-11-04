@@ -75,3 +75,23 @@ Mục đích là tránh hai bên làm trùng hoặc mâu thuẫn:
 - TUYỆT ĐỐI KHÔNG chạy `javac` đơn lẻ thiếu cờ `-d target/classes` làm sinh `.class` rác vào trong `src/` (mọi build qua `mvn compile`).
 - Lớp tiện ích UI dùng chung (`UIInputRules`) bắt buộc là `public final class` với `public static` methods.
 - Định dạng Locale: Dùng `Locale.forLanguageTag("vi-VN")` thay vì constructor deprecated `new Locale(...)`.
+
+## Kiến trúc Sao lưu & Phục hồi CSDL và Phối hợp Đa máy trạm (Chốt 03/11/2026)
+- **Khóa phân tán đa máy trạm (`sp_getapplock`)**:
+  + Mô hình gara có nhiều máy trạm (CCH, TNV, KTV) cùng kết nối tới máy chủ SQL Server. Để tránh xung đột sao lưu đồng thời (hai máy trạm cùng lúc ghi đè hoặc cùng chạy job Quartz), hệ thống sử dụng khóa phân tán `sp_getapplock` (`Resource = 'CarZone_Backup_Lock'`, `LockMode = 'Exclusive'`, `LockOwner = 'Session'`, timeout 5 giây).
+  + Quy tắc "Đến trước phục vụ trước": Máy nào xin được khóa trước sẽ thực hiện sao lưu. Máy xin khóa sau nếu hết thời gian chờ (timeout) sẽ ghi log và tự động bỏ qua lượt mà không gây tắc nghẽn hay xung đột dữ liệu.
+- **Phân quyền tiến trình nền (Multi-client RBAC Scheduling)**:
+  + Chỉ máy trạm đăng nhập vai trò **`CHU_CUA_HANG`** mới khởi chạy tiến trình lập lịch tự động Quartz (`QuartzScheduler`) và tác vụ sao lưu cuối ca khi đóng ứng dụng (`AppShutdownManager`).
+  + Các máy trạm `TIEP_NHAN_VIEN` và `KY_THUAT_VIEN` khi thoát ứng dụng sẽ đóng ngay mà không kích hoạt sao lưu kết ca, tránh phát sinh các bản sao lưu trùng lặp không cần thiết.
+- **Quy chuẩn Chuỗi phục hồi CSDL SQL Server (SQL Server Restore Chain)**:
+  + Cơ chế xác định chuỗi phục hồi thông minh: Khi chọn một bản sao lưu vi sai (DIFF) hoặc nhật ký giao dịch (LOG) bất kỳ để phục hồi, hệ thống tự động truy vấn bảng lịch sử sao lưu `msdb.dbo.backupset` để bóc tách cây phụ thuộc:
+    `Bản FULL gốc gần nhất -> (Bản DIFF gần nhất nếu có) -> Chuỗi các bản LOG theo thứ tự thời gian tăng dần (backup_set_id ASC) -> Bản đích`.
+  + **Quy tắc cú pháp T-SQL bắt buộc chống lỗi `Msg 4306`**:
+    * Bản FULL đầu tiên: `RESTORE DATABASE CarZone FROM DISK = ? WITH REPLACE, NORECOVERY`.
+    * Các bản trung gian (DIFF hoặc LOG trung gian): `RESTORE DATABASE CarZone FROM DISK = ? WITH NORECOVERY` (hoặc `RESTORE LOG CarZone FROM DISK = ? WITH NORECOVERY`). **TUYỆT ĐỐI KHÔNG CÓ `REPLACE`** vì SQL Server cấm cờ `REPLACE` trên các tệp rollforward kế tiếp.
+    * Bản đích cuối cùng: `WITH RECOVERY` (không có `REPLACE`) để đưa CSDL trở lại trạng thái sẵn sàng (`ONLINE`).
+  + Sau khi phục hồi thành công, tự động làm mới kết nối `DbUtil.getConnection()` và cập nhật giao diện ngay lập tức.
+- **Quy chuẩn Trải nghiệm Người dùng & Giao diện (03/11/2026)**:
+  + Tự động mở toàn màn hình (`JFrame.MAXIMIZED_BOTH`) khi đăng nhập thành công.
+  + Thống nhất hệ thống biểu tượng ảnh 3D (`img/nav_*.png`, ví dụ `nav_sao_luu_phuc_hoi.png`) cho Sidebar và tiêu đề trang, fallback bằng vector icon của `MainFrame`. Cấm dùng emoji Unicode (`💾`, `⚠️`, `🔄`, ...).
+  + Khung Modal Dialog căn chỉnh lề đều đặn: Dùng `RoundedPanel` với insets 16px thay cho `JTextArea`, `JTextField` đệm lề trái 12px để không lệch trục mắt.

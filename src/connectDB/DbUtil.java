@@ -8,29 +8,33 @@ import java.sql.SQLException;
 
 /**
  * Tiện ích kết nối JDBC thuần (DriverManager).
- * Mỗi lần gọi {@link #getConnection()} mở một Connection mới; người gọi chịu trách nhiệm đóng
+ * Mỗi lần gọi {@link #getConnection()} mở một Connection mới; người gọi chịu
+ * trách nhiệm đóng
  * (try-with-resources).
  *
  * <pre>
- *   try (Connection con = DbUtil.getConnection()) {
- *       // dùng con...
- *   }
+ * try (Connection con = DbUtil.getConnection()) {
+ *     // dùng con...
+ * }
  * </pre>
  */
 public final class DbUtil {
 
     private static Boolean online = null;
 
-    private DbUtil() {}
+    private DbUtil() {
+    }
 
     // ── Kiểm tra DB online ────────────────────────────────────────────────────
 
     /**
-     * Kiểm tra nhanh (300 ms) cổng DB có lắng nghe không, tránh treo 30 giây khi DB offline.
+     * Kiểm tra nhanh (300 ms) cổng DB có lắng nghe không, tránh treo 30 giây khi DB
+     * offline.
      * Kết quả được cache trong phiên; reset bằng {@link #resetOnlineCache()}.
      */
     public static boolean isDatabaseOnline() {
-        if (online != null) return online;
+        if (online != null)
+            return online;
         try (Socket s = new Socket()) {
             int port = Integer.parseInt(DatabaseConfig.layCongSql());
             s.connect(new InetSocketAddress("localhost", port), 300);
@@ -41,7 +45,9 @@ public final class DbUtil {
         return online;
     }
 
-    /** Xóa cache trạng thái để lần sau kiểm tra lại (dùng sau khi kết nối thất bại). */
+    /**
+     * Xóa cache trạng thái để lần sau kiểm tra lại (dùng sau khi kết nối thất bại).
+     */
     public static void resetOnlineCache() {
         online = null;
     }
@@ -49,14 +55,16 @@ public final class DbUtil {
     // ── Mở Connection ─────────────────────────────────────────────────────────
 
     /**
-     * Mở và trả về một Connection JDBC mới được bọc Audit Proxy tự động ghi nhật ký.
+     * Mở và trả về một Connection JDBC mới được bọc Audit Proxy tự động ghi nhật
+     * ký.
      */
     public static Connection getConnection() {
         return audit.AuditConnectionProxy.wrap(getRawConnection());
     }
 
     /**
-     * Mở và trả về Connection thuần không bọc proxy (dùng cho nội bộ backup/kiểm tra hệ thống).
+     * Mở và trả về Connection thuần không bọc proxy (dùng cho nội bộ backup/kiểm
+     * tra hệ thống).
      */
     public static Connection getRawConnection() {
         if (!isDatabaseOnline()) {
@@ -66,17 +74,35 @@ public final class DbUtil {
             return DriverManager.getConnection(
                     DatabaseConfig.layJdbcUrl(),
                     "sa",
-                    DatabaseConfig.layMatKhau()
-            );
+                    DatabaseConfig.layMatKhau());
         } catch (SQLException e) {
             throw new RuntimeException("Không thể kết nối cơ sở dữ liệu: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Mở một kết nối raw trực tiếp tới database master (dành riêng cho các thao tác
+     * quản trị như RESTORE DATABASE).
+     */
+    public static Connection getMasterConnection() {
+        if (!isDatabaseOnline()) {
+            throw new RuntimeException("Cơ sở dữ liệu đang ngoại tuyến.");
+        }
+        try {
+            return DriverManager.getConnection(
+                    DatabaseConfig.layJdbcUrlMaster(),
+                    "sa",
+                    DatabaseConfig.layMatKhau());
+        } catch (SQLException e) {
+            throw new RuntimeException("Không thể kết nối tới master database: " + e.getMessage(), e);
         }
     }
 
     // ── Tương thích ngược với code gọi JpaUtil.close() ───────────────────────
 
     /**
-     * Không còn cần thiết (không có pool cần đóng), giữ lại để code UI cũ không lỗi biên dịch.
+     * Không còn cần thiết (không có pool cần đóng), giữ lại để code UI cũ không lỗi
+     * biên dịch.
      */
     public static void close() {
         // no-op: DriverManager không có factory cần đóng
