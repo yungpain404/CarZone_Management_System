@@ -3,6 +3,18 @@
 > Agent đọc file này đầu mỗi phiên và cập nhật khi xong việc. Giữ ngắn, dưới 60 dòng. Trạng thái dưới đây lấy từ hai bản zip ngày 25/10/2026.
 
 ## Đã xong
+- **Cấu hình Gmail quên mật khẩu local:** `GmailSmtpSender` đọc biến môi trường trước, nếu trống sẽ đọc `infra/docker/gmail.local.properties`; tệp mẫu được Git bỏ qua để người dùng tự điền App Password, không lưu bí mật trong mã nguồn.
+- **Sửa luồng và chẩn đoán gửi OTP (05/11/2026):** Link Quên mật khẩu hỏi tên tài khoản trước khi mở trang OTP; lỗi gửi được phân biệt thành xác thực Gmail, kết nối SMTP và Gmail từ chối nhận thư. Khi gửi lỗi, cho phép thử lại ngay thay vì khóa nhầm 60 giây.
+- **Sửa lỗi không bấm được Đặt lại mật khẩu:** Sau khi gửi OTP, trạng thái busy trước đó đã để nút đặt lại ở disabled; bật lại nút theo trạng thái OTP, giới hạn hàng nút theo bề rộng form và co dialog theo vùng màn hình khi chuyển bước.
+- **Tách xác minh OTP và đặt mật khẩu thành hai trang:** OTP được xác minh thật ở controller (đếm tối đa 5 lần sai) trước khi chuyển sang trang đặt mật khẩu; hai trang dùng card/field/button row cùng bề rộng và hộp thoại tự canh giữa, co theo màn hình.
+- **Tinh chỉnh luồng khôi phục:** bỏ nút quay lại OTP sau khi xác minh thành công, căn giữa nút đặt lại mật khẩu; hộp thoại đầu tiên yêu cầu mã nhân viên.
+- **Căn chỉnh thông báo khôi phục:** tự ngắt dòng theo bề rộng và căn giữa từng dòng trong vùng trạng thái cố định; bỏ câu hướng dẫn trùng ở trang tạo mật khẩu.
+- **Gmail nhân viên bắt buộc:** Cột `NhanVien.email` trong V1 là `NOT NULL`, có CHECK không rỗng/đúng dạng email cơ bản; `sp_ThemNhanVien` nhận và kiểm tra email, DAO truyền email cùng giao dịch tạo nhân viên, entity từ chối giá trị trống. Dữ liệu demo dùng 5 Gmail mẫu cố định, không đảm bảo có hộp thư thật.
+- **Khắc phục DB sạch không hiện Gmail (05/11/2026):** Flyway dừng trước V1 vì SQL Server `sp_getapplock` ném lỗi 17750. Khởi động lại SQL Server rồi chạy lại db-init/Flyway đã migrate thành công V1–V5; xác nhận 7 nhân viên có Gmail, tất cả tài khoản hoạt động. Giữ healthcheck Compose ở mức kết nối cơ bản; DAO khôi phục tra đúng `maNV`; UI báo riêng lỗi tra cứu CSDL thay vì kẹt “Đang xác định Gmail”.
+- **Hiển thị số lần nhập OTP sai:** Thông báo cho biết số lần sai trên tổng 5 lần, số lượt còn lại, cảnh báo ở lượt cuối và số lần khi mã bị khóa.
+- **Cưỡng chế thoát khi nhập sai OTP đủ ngưỡng:** Ở lần sai thứ 5, ghi audit và gửi cảnh báo ntfy có nhãn OTP/số lần sai; sau khi gửi xong, hủy phiên và thoát tập trung qua `AppShutdownManager`.
+- **Bổ sung tài khoản mẫu (05/11/2026):** Giữ duy nhất một Chủ cửa hàng và thay hồ sơ seed CCH001 thành Nguyễn Ngọc Hậu theo xác nhận; TNV003 Hồ Nhật Tân và KTV003 Nguyễn Vĩnh Lợi đã được tạo trong DB hiện tại qua stored procedure và thêm vào seed V1. Email theo người dùng, dữ liệu hồ sơ thiếu dùng mock; mật khẩu mẫu `Carzone@123`.
+- **Sửa Flyway checksum V1:** Docker volume cũ giữ checksum V1 cũ và lịch sử V6; đã chạy `flyway repair` rồi áp dụng tạm V7 không mất dữ liệu. Theo yêu cầu, schema cuối cùng được giữ trong V1 và file V7 đã xóa khỏi repo; DB local vẫn ở V7 cho tới khi người dùng tự xóa volume để tạo mới từ V1–V5.
 - Nhánh `develop`: 14 entity (`src/entity`) và 6 enum (`src/enums`), biên dịch được bằng `javac`. `pom.xml`, tài liệu trong `ai-context/`.
 - Nhánh `feature/infrastructure`: `infra/docker/compose.yml` (SQL Server → tạo DB → Flyway), `V1__init_CarZone_Database.sql` (bảng, trigger, stored procedure, view, dữ liệu danh mục/nhân sự), `V2__update_KhachHang_Entity.sql`, seed `CarZone_Demo.sql` (kịch bản khách Nguyễn Văn A).
 
@@ -75,6 +87,13 @@
   + Biên dịch Maven (`mvn compile`) đạt BUILD SUCCESS (108 file, 0 lỗi).
 
 ## Mới làm (04/11/2026)
+- **Khôi phục mật khẩu qua Gmail (Figma “Carzone · Quên mật khẩu”)**:
+  + Dùng tên đăng nhập được nhập tại hộp thoại trước khi mở trang khôi phục; tự gửi mã vào Gmail khôi phục và chỉ hiện email đã che cùng ô OTP trên trang này.
+  + Sau OTP hợp lệ, hiện form nhập mật khẩu mới; gửi lại mã giới hạn 60 giây.
+  + Tăng kích thước hộp thoại khôi phục và mở rộng nút phụ, bọc dòng trạng thái để tránh cắt chữ/tràn giao diện.
+  + Thêm thuộc tính `NhanVien.email` và form quản lý hồ sơ; email bắt buộc qua `NOT NULL`/CHECK ở DB, kiểm tra trong `sp_ThemNhanVien`, entity, controller và UI; DAO truyền email ngay khi tạo nhân viên. Nhân viên demo nhận Gmail mẫu cố định. Không tạo bảng OTP mới. OTP băm và giới hạn gửi lại 60 giây/5 lần sai được giữ trong bộ nhớ tiến trình.
+  + Gửi email qua Gmail SMTP STARTTLS; đọc `CARZONE_GMAIL_USERNAME` và `CARZONE_GMAIL_APP_PASSWORD` từ biến môi trường hoặc `infra/docker/gmail.local.properties` (Git ignore), không đưa mật khẩu ứng dụng vào `.env` đã commit.
+  + Gmail SMTP dùng cấu hình local; Gmail mẫu cố định trong V1 không đảm bảo có hộp thư thật, cần thay bằng Gmail thật để nhận OTP. DB local đã chạy V7 tạm thời, giữ lại Gmail hợp lệ đang có; người dùng sẽ tự xóa volume để dựng DB mới từ V1–V5.
 - **Hệ thống Giám sát Hành vi Phi lý & Hàng rào Xác thực Mã PIN Cấp 2 (Behavioral Anomaly & PIN Barrier)**:
   + Sắp xếp chuẩn vào cấu trúc package hiện có: `enums/LoaiHanhViBatThuong.java`, `ui/PinVerificationDialog.java`, `audit/` (`ThongTinViPham`, `SecurityConfig`, `PhatHienHanhViPhiLy`, `PinVerificationManager`, `AlertNotifier`). Không tạo thêm package gốc `security` bừa bãi.
   + **Đánh chặn tập trung tại tầng Statement Proxy:** `AuditStatementProxy` chặn ngang mọi câu lệnh SQL ghi dữ liệu trước khi gửi xuống database.

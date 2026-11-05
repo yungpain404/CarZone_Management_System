@@ -41,25 +41,25 @@ public class NhanVienController {
         return nhanVien;
     }
 
-    public NhanVien them(String hoTen, LocalDate ngaySinh, String soDienThoai, String cccd,
+    public NhanVien them(String hoTen, LocalDate ngaySinh, String soDienThoai, String email, String cccd,
                          String diaChi, LocalDate ngayVaoLam, VaiTro vaiTro) {
         yeuCauChuCuaHang();
-        NhanVien nhanVien = taoHoSo(null, hoTen, ngaySinh, soDienThoai, cccd, diaChi, ngayVaoLam, vaiTro);
+        NhanVien nhanVien = taoHoSo(null, hoTen, ngaySinh, soDienThoai, email, cccd, diaChi, ngayVaoLam, vaiTro);
         if (!dao.them(nhanVien)) throw new IllegalStateException("Không thể tạo hồ sơ nhân viên.");
         return dao.timTheoMa(nhanVien.getMaNV());
     }
 
-    public NhanVien capNhat(String maNV, String hoTen, LocalDate ngaySinh, String soDienThoai, String cccd,
+    public NhanVien capNhat(String maNV, String hoTen, LocalDate ngaySinh, String soDienThoai, String email, String cccd,
                             String diaChi, LocalDate ngayVaoLam) {
         yeuCauChuCuaHang();
         NhanVien hienTai = timTheoMa(maNV);
-        NhanVien capNhat = taoHoSo(maNV, hoTen, ngaySinh, soDienThoai, cccd, diaChi,
+        NhanVien capNhat = taoHoSo(maNV, hoTen, ngaySinh, soDienThoai, email, cccd, diaChi,
                 ngayVaoLam, hienTai.getVaiTro());
         if (!dao.capNhat(capNhat)) throw new IllegalStateException("Hồ sơ nhân viên không còn tồn tại.");
         return dao.timTheoMa(maNV);
     }
 
-    private static NhanVien taoHoSo(String maNV, String hoTen, LocalDate ngaySinh, String soDienThoai,
+    private static NhanVien taoHoSo(String maNV, String hoTen, LocalDate ngaySinh, String soDienThoai, String email,
                                     String cccd, String diaChi, LocalDate ngayVaoLam, VaiTro vaiTro) {
         NhanVien nhanVien = new NhanVien();
         if (maNV != null) nhanVien.setMaNV(maNV);
@@ -67,6 +67,8 @@ public class NhanVienController {
         nhanVien.setHoTen(hoTen == null ? null : hoTen.trim());
         nhanVien.setNgaySinh(ngaySinh);
         nhanVien.setSoDienThoai(soDienThoai == null ? null : soDienThoai.trim());
+        if (email == null || email.isBlank()) throw new IllegalArgumentException("Vui lòng nhập Gmail của nhân viên.");
+        nhanVien.setEmail(email.trim());
         nhanVien.setCCCD(cccd == null ? null : cccd.trim());
         nhanVien.setDiaChi(diaChi == null || diaChi.isBlank() ? null : diaChi.trim());
         nhanVien.setNgayVaoLam(ngayVaoLam);

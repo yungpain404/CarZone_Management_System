@@ -984,14 +984,28 @@ public class DangNhapUI extends JFrame {
     }
 
     private void xuLyQuenMatKhau() {
-        JOptionPane.showMessageDialog(this,
-                "<html><body style='font-family:sans-serif; width: 300px; padding: 4px;'>"
-                + "<h4 style='color:#2563EB; margin-top:0;'>Hỗ trợ quên mật khẩu</h4>"
-                + "<p>Để đảm bảo an toàn nghiệp vụ gara ô tô, hệ thống không cấp lại mật khẩu tự động qua email hay SMS cá nhân.</p>"
-                + "<p>Vui lòng liên hệ trực tiếp <b>Chủ cửa hàng</b> hoặc <b>Quản trị viên</b> để được cấp lại mật khẩu mới.</p>"
-                + "</body></html>",
-                "Quên mật khẩu",
-                JOptionPane.WARNING_MESSAGE);
+        JTextField tenDangNhap = new JTextField(18);
+        tenDangNhap.setText(tfTenDangNhap.getText().strip());
+        tenDangNhap.setFont(f(Font.PLAIN, 14));
+        tenDangNhap.setPreferredSize(new Dimension(360, 44));
+        tenDangNhap.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(C_INPUT_STROKE, 1, true), new EmptyBorder(0, 12, 0, 12)));
+        JLabel prompt = new JLabel("Nhập mã nhân viên cần khôi phục");
+        prompt.setFont(f(Font.PLAIN, 13)); prompt.setForeground(C_TEXT_LABEL);
+        JPanel promptPanel = new JPanel(new BorderLayout(0, 10));
+        promptPanel.setPreferredSize(new Dimension(360, 76));
+        promptPanel.add(prompt, BorderLayout.NORTH); promptPanel.add(tenDangNhap, BorderLayout.CENTER);
+        int result = JOptionPane.showConfirmDialog(this, promptPanel,
+                "Nhập mã nhân viên để khôi phục mật khẩu", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+        if (result != JOptionPane.OK_OPTION) return;
+        String tenTaiKhoan = tenDangNhap.getText().strip();
+        if (tenTaiKhoan.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập tên tài khoản.",
+                    "Quên mật khẩu", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        new PasswordResetDialog(this, tenTaiKhoan).setVisible(true);
     }
 
     private void xuLyThoat() {
