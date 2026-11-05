@@ -177,6 +177,7 @@ public class LapPhieuTiepNhanUI extends JPanel {
         btnThemPhieu.setFont(f(Font.BOLD, 12));
         btnThemPhieu.setForeground(C_WHITE);
         btnThemPhieu.setPreferredSize(new Dimension(200, 36));
+        btnThemPhieu.setVisible(UserSession.getInstance().getVaiTro() == enums.VaiTro.TIEP_NHAN_VIEN);
         btnThemPhieu.addActionListener(e -> moModalLapPhieu(null, null));
         right.add(btnThemPhieu);
 
@@ -378,6 +379,7 @@ public class LapPhieuTiepNhanUI extends JPanel {
     }
 
     private void moModalLapPhieu(String maKHMoi, String bienSoXeMoi) {
+        if (UserSession.getInstance().getVaiTro() != enums.VaiTro.TIEP_NHAN_VIEN) return;
         Window parent = SwingUtilities.getWindowAncestor(this);
         LapPhieuTiepNhanModalDialog dialog = new LapPhieuTiepNhanModalDialog(parent, maKHMoi, bienSoXeMoi, null);
         dialog.setVisible(true);
@@ -387,6 +389,7 @@ public class LapPhieuTiepNhanUI extends JPanel {
     }
 
     private void moModalSuaPhieu(PhieuTiepNhanSuaChua phieuCanSua) {
+        if (UserSession.getInstance().getVaiTro() != enums.VaiTro.TIEP_NHAN_VIEN) return;
         Window parent = SwingUtilities.getWindowAncestor(this);
         LapPhieuTiepNhanModalDialog dialog = new LapPhieuTiepNhanModalDialog(parent, null, null, phieuCanSua);
         dialog.setVisible(true);
@@ -1192,7 +1195,8 @@ public class LapPhieuTiepNhanUI extends JPanel {
             pnl.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, C_BORDER));
 
             PhieuTiepNhanSuaChua phieu = controller.layPhieuTheoMa(maPhieu);
-            if (phieu != null && phieu.getTrangThai() == TrangThaiPhieu.CHO_SUA) {
+            if (UserSession.getInstance().getVaiTro() == enums.VaiTro.TIEP_NHAN_VIEN
+                    && phieu != null && phieu.getTrangThai() == TrangThaiPhieu.CHO_SUA) {
                 JButton btnSua = new RoundedButton("✏️ Sửa phiếu này", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
                 btnSua.setFont(f(Font.PLAIN, 12));
                 btnSua.setForeground(C_TEXT_MAIN);

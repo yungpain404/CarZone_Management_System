@@ -4,6 +4,8 @@ import controller.LapHoaDonThanhToanController;
 import entity.*;
 import enums.PhuongThucThanhToan;
 import enums.TrangThaiThanhToan;
+import enums.VaiTro;
+import session.UserSession;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -238,6 +240,7 @@ public class LapHoaDonThanhToanUI extends JPanel {
         btnThanhToan.setForeground(C_WHITE);
         btnThanhToan.setPreferredSize(new Dimension(240, 36));
         btnThanhToan.setEnabled(false);
+        btnThanhToan.setVisible(UserSession.getInstance().getVaiTro() == VaiTro.TIEP_NHAN_VIEN);
         btnThanhToan.addActionListener(e -> onMoThanhToan());
         right.add(btnThanhToan);
 
@@ -704,6 +707,7 @@ public class LapHoaDonThanhToanUI extends JPanel {
     }
 
     private void onMoThanhToan() {
+        if (UserSession.getInstance().getVaiTro() != VaiTro.TIEP_NHAN_VIEN) return;
         int row = tblChoTT.getSelectedRow();
         if (row < 0 || row >= dsChoThanhToan.size()) return;
         PhieuTiepNhanSuaChua phieu = dsChoThanhToan.get(row);

@@ -3,6 +3,8 @@ package ui;
 import controller.KhachHangVaXeController;
 import entity.KhachHang;
 import entity.Xe;
+import enums.VaiTro;
+import session.UserSession;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -227,6 +229,7 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
         btnThemKH.setFont(f(Font.BOLD, 12));
         btnThemKH.setPreferredSize(new Dimension(160, 34));
         btnThemKH.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnThemKH.setEnabled(UserSession.getInstance().getVaiTro() == VaiTro.TIEP_NHAN_VIEN);
         btnThemKH.addActionListener(e -> moModalThemKhachHang());
 
         btnSuaKH = new RoundedButton("✏  Sửa thông tin", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
@@ -313,6 +316,7 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
         btnThemXe.setFont(f(Font.BOLD, 12));
         btnThemXe.setPreferredSize(new Dimension(120, 34));
         btnThemXe.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnThemXe.setEnabled(UserSession.getInstance().getVaiTro() == VaiTro.TIEP_NHAN_VIEN);
         btnThemXe.addActionListener(e -> moModalThemXe());
 
         btnSuaXe = new RoundedButton("✏  Sửa xe", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
@@ -329,6 +333,7 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
         btnTaoPhieuTiepNhan.setFont(f(Font.BOLD, 12));
         btnTaoPhieuTiepNhan.setPreferredSize(new Dimension(190, 34));
         btnTaoPhieuTiepNhan.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnTaoPhieuTiepNhan.setVisible(UserSession.getInstance().getVaiTro() == VaiTro.TIEP_NHAN_VIEN);
         btnTaoPhieuTiepNhan.setEnabled(false);
         btnTaoPhieuTiepNhan.addActionListener(e -> chuyenSangLapPhieuTiepNhan());
 
@@ -358,8 +363,9 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
         }
 
         khachHangDangChon = dsKhachHang.get(row);
-        btnSuaKH.setEnabled(true);
-        btnThemXe.setEnabled(true);
+        boolean duocGhi = UserSession.getInstance().getVaiTro() == VaiTro.TIEP_NHAN_VIEN;
+        btnSuaKH.setEnabled(duocGhi);
+        btnThemXe.setEnabled(duocGhi);
         lblXeHeaderTitle.setText("Xe của: " + khachHangDangChon.getHoTen() + " (" + khachHangDangChon.getSoDienThoai() + ")");
 
         // Nạp danh sách xe của khách hàng đang chọn qua SwingWorker
@@ -400,8 +406,9 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
         int row = tblXe.getSelectedRow();
         if (row >= 0 && row < dsXe.size()) {
             xeDangChon = dsXe.get(row);
-            btnSuaXe.setEnabled(true);
-            btnTaoPhieuTiepNhan.setEnabled(true);
+                    boolean duocGhi = UserSession.getInstance().getVaiTro() == VaiTro.TIEP_NHAN_VIEN;
+                    btnSuaXe.setEnabled(duocGhi);
+                    btnTaoPhieuTiepNhan.setEnabled(duocGhi);
         } else {
             xeDangChon = null;
             btnSuaXe.setEnabled(false);
@@ -426,6 +433,7 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
     }
 
     private void chuyenSangLapPhieuTiepNhan() {
+        if (UserSession.getInstance().getVaiTro() != VaiTro.TIEP_NHAN_VIEN) return;
         if (khachHangDangChon == null || xeDangChon == null) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn một xe trong danh sách trước khi tạo phiếu tiếp nhận.", "Thông báo", JOptionPane.WARNING_MESSAGE);
             return;
