@@ -6,6 +6,19 @@
 - Nhánh `develop`: 14 entity (`src/entity`) và 6 enum (`src/enums`), biên dịch được bằng `javac`. `pom.xml`, tài liệu trong `ai-context/`.
 - Nhánh `feature/infrastructure`: `infra/docker/compose.yml` (SQL Server → tạo DB → Flyway), `V1__init_CarZone_Database.sql` (bảng, trigger, stored procedure, view, dữ liệu danh mục/nhân sự), `V2__update_KhachHang_Entity.sql`, seed `CarZone_Demo.sql` (kịch bản khách Nguyễn Văn A).
 
+## Mới làm (05/11/2026)
+- **Tái thiết kế & tích hợp toàn diện Dashboard Tiếp nhận viên mới vào `MainFrame.java`**:
+  + Thay thế phiên bản cũ bằng `TiepNhanVienDashboardPanel` kế thừa `ScrollableContentPanel`, nạp dữ liệu bất đồng bộ qua `SwingWorker` chống đóng băng UI.
+  + Header ca làm việc: Lời nhắc ca trực hôm nay, nút "Làm mới" dữ liệu và bộ 3 phím tắt nhanh (+ Tiếp nhận xe F2, Thu tiền F3, Đổi trả F4, Refresh F5).
+  + 4 Thẻ Stat Cards thông minh: vẽ icon vector 2D FlatLaf (`CarVectorIcon`, `CheckVectorIcon`, `WrenchVectorIcon`, `MoneyVectorIcon`, `AlertTriangleIcon`) thay thế hoàn toàn Unicode emoji tránh lỗi font; thẻ "Cần phân công KTV" tự đổi màu đỏ cảnh báo khi có xe chưa gán thợ; thẻ "Chờ thanh toán" tự đổi xanh lá khi có xe xong chờ thu tiền.
+  + 2 Biểu đồ trực quan số liệu: Biểu đồ thanh tiến trình 4 màu trạng thái xe tại xưởng (`ThanhTienDoXePanel`) kèm 4 ô mini box số liệu/tỷ lệ %; Biểu đồ thanh ngang tải công việc KTV kèm huy hiệu "✓ Sẵn sàng" hoặc số lượng xe đang phụ trách.
+  + Action Center: Khối "Xe đã sửa xong – Chờ thu tiền & giao xe" (60%) kèm nút "Thu tiền ↗" sang thẳng Lập hóa đơn; Khối "Cảnh báo & Việc cần can thiệp" (40%) cảnh báo xe chưa gán KTV và xe chờ linh kiện kèm nút "Xử lý ↗".
+  + Bảng Live xe tại Gara hôm nay: Bảng dữ liệu kèm huy hiệu trạng thái `StatusBadgeRenderer` bo góc mềm và bộ 5 nút lọc nhanh (Tất cả, Chờ sửa, Đang sửa, Chờ linh kiện, Hoàn tất).
+- **Giải quyết triệt để xung đột merge từ `develop`**:
+  + Giữ nguyên và chuẩn hóa theo kiến trúc mới: class DAO đơn trong `src/dao/*DAO.java`, bỏ interface và `dao.impl`.
+  + Tích hợp đầy đủ tính năng Tiếp nhận viên: Quản lý phiếu đổi trả UC012, Thống kê đổi trả Phần 4, chỉnh sửa phiếu chờ sửa, và Dashboard TNV mới.
+  + Biên dịch Maven (`mvn compile`) đạt BUILD SUCCESS (108 file, 0 lỗi).
+
 ## Mới làm (04/11/2026)
 - **Dashboard Chủ cửa hàng:** truy vấn 4 KPI trực tiếp từ SQL, hiển thị trạng thái đang tải/lỗi và thời điểm cập nhật, thêm nút làm mới; giảm danh sách yêu cầu còn 5 dòng và cảnh báo hết hàng còn 3 mục ưu tiên để dashboard thoáng hơn.
 - **Tinh chỉnh Dashboard Chủ cửa hàng:** đưa cả 4 KPI về thẻ trắng, bỏ các dòng mô tả nhỏ; bấm KPI mở danh sách yêu cầu chờ duyệt/đã duyệt, linh kiện hết hàng hoặc hồ sơ chưa có tài khoản với bộ lọc được chạy sẵn.
@@ -47,6 +60,19 @@
     * **Tính năng Sao lưu & Phục hồi thủ công (`SaoLuuPhucHoiUI.java`):** Dành riêng cho Chủ cửa hàng (`NAV_SAO_LUU_PHUC_HOI`):
       - Thẻ sao lưu thủ công (FULL/DIFF/LOG) kèm ghi chú tùy chọn, chạy qua `SwingWorker` kèm thông báo chi tiết (dung lượng, file, ms).
       - Thẻ giám sát trạng thái lập lịch Quartz và thời điểm sao lưu gần nhất.
+
+## Mới làm (05/11/2026)
+- **Tái thiết kế & tích hợp toàn diện Dashboard Tiếp nhận viên mới vào `MainFrame.java`**:
+  + Thay thế phiên bản cũ bằng `TiepNhanVienDashboardPanel` kế thừa `ScrollableContentPanel`, nạp dữ liệu bất đồng bộ qua `SwingWorker` chống đóng băng UI.
+  + Header ca làm việc: Lời nhắc ca trực hôm nay, nút "Làm mới" dữ liệu và bộ 3 phím tắt nhanh (+ Tiếp nhận xe F2, Thu tiền F3, Đổi trả F4, Refresh F5).
+  + 4 Thẻ Stat Cards thông minh: vẽ icon vector 2D FlatLaf (`CarVectorIcon`, `CheckVectorIcon`, `WrenchVectorIcon`, `MoneyVectorIcon`, `AlertTriangleIcon`) thay thế hoàn toàn Unicode emoji tránh lỗi font; thẻ "Cần phân công KTV" tự đổi màu đỏ cảnh báo khi có xe chưa gán thợ; thẻ "Chờ thanh toán" tự đổi xanh lá khi có xe xong chờ thu tiền.
+  + 2 Biểu đồ trực quan số liệu: Biểu đồ thanh tiến trình 4 màu trạng thái xe tại xưởng (`ThanhTienDoXePanel`) kèm 4 ô mini box số liệu/tỷ lệ %; Biểu đồ thanh ngang tải công việc KTV kèm huy hiệu "✓ Sẵn sàng" hoặc số lượng xe đang phụ trách.
+  + Action Center: Khối "Xe đã sửa xong – Chờ thu tiền & giao xe" (60%) kèm nút "Thu tiền ↗" sang thẳng Lập hóa đơn; Khối "Cảnh báo & Việc cần can thiệp" (40%) cảnh báo xe chưa gán KTV và xe chờ linh kiện kèm nút "Xử lý ↗".
+  + Bảng Live xe tại Gara hôm nay: Bảng dữ liệu kèm huy hiệu trạng thái `StatusBadgeRenderer` bo góc mềm và bộ 5 nút lọc nhanh (Tất cả, Chờ sửa, Đang sửa, Chờ linh kiện, Hoàn tất).
+- **Giải quyết triệt để xung đột merge từ `develop`**:
+  + Giữ nguyên và chuẩn hóa theo kiến trúc mới: class DAO đơn trong `src/dao/*DAO.java`, bỏ interface và `dao.impl`.
+  + Tích hợp đầy đủ tính năng Tiếp nhận viên: Quản lý phiếu đổi trả UC012, Thống kê đổi trả Phần 4, chỉnh sửa phiếu chờ sửa, và Dashboard TNV mới.
+  + Biên dịch Maven (`mvn compile`) đạt BUILD SUCCESS (108 file, 0 lỗi).
 
 ## Mới làm (04/11/2026)
 - **Hệ thống Giám sát Hành vi Phi lý & Hàng rào Xác thực Mã PIN Cấp 2 (Behavioral Anomaly & PIN Barrier)**:
