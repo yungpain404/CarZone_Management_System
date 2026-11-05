@@ -8,6 +8,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Tiện ích gửi cảnh báo an ninh khẩn cấp đến kênh giám sát (ntfy.sh / webhook / audit log).
@@ -19,6 +22,11 @@ public final class AlertNotifier {
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(3))
             .build();
+    private static final ExecutorService ALERT_EXECUTOR = Executors.newSingleThreadExecutor(task -> {
+        Thread thread = new Thread(task, "carzone-security-alert-sender");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private AlertNotifier() {}
 
@@ -26,21 +34,30 @@ public final class AlertNotifier {
      * Gửi cảnh báo vi phạm an ninh nghiêm trọng.
      */
     public static void guiCanhBaoKhanCap(ThongTinViPham viPham, int soLanSai, boolean daKhoaPhien) {
+        guiCanhBaoKhanCap(viPham, "PIN", soLanSai, SecurityConfig.getMaxAttempts(), daKhoaPhien);
+    }
+
+    /** Gửi cảnh báo và trả future để các luồng cưỡng chế thoát có thể chờ hoàn tất gửi. */
+    public static CompletableFuture<Void> guiCanhBaoKhanCap(ThongTinViPham viPham, String loaiMa,
+                                                            int soLanSai, int nguong, boolean daKhoaPhien) {
+        String loaiXacThuc = "OTP".equalsIgnoreCase(loaiMa) ? "OTP" : "PIN";
         String tieuDe = "🚨 [CẢNH BÁO BẢO MẬT CARZONE] Phát hiện hành vi phi lý!";
         String noiDung = String.format(
                 "Loại vi phạm: %s\n"
                         + "Chi tiết: %s\n"
                         + "Bảng / Mục tiêu: %s\n"
                         + "Người thực hiện: %s\n"
-                        + "Số lần sai PIN: %d\n"
+                        + "Số lần sai mã %s: %d/%d\n"
                         + "Trạng thái: %s\n"
                         + "Thời điểm: %s",
                 viPham.loai().getMoTa(),
                 viPham.chiTiet(),
                 viPham.tenBang(),
                 viPham.nguoiThucHien(),
+                loaiXacThuc,
                 soLanSai,
-                daKhoaPhien ? "ĐÃ KHÓA PHIÊN & KÍCH HOẠT SAO LƯU KHẨN CẤP" : "ĐANG YÊU CẦU MÃ PIN",
+                nguong,
+                daKhoaPhien ? "ĐÃ KHÓA PHIÊN / ĐÓNG ỨNG DỤNG" : "ĐANG YÊU CẦU MÃ " + loaiXacThuc,
                 viPham.thoiDiem()
         );
 
@@ -48,8 +65,8 @@ public final class AlertNotifier {
         AuditLogger.logSecurityAlert(viPham.loai().name(), viPham.chiTiet(), viPham.nguoiThucHien(), daKhoaPhien);
         log.error("AN NINH: {}\n{}", tieuDe, noiDung);
 
-        // 2. Bắn thông báo ra ntfy.sh (hoặc Telegram webhook) qua thread nền
-        Thread alertThread = new Thread(() -> {
+        // 2. Bắn thông báo ra ntfy.sh (hoặc Telegram webhook) qua thread nền.
+        return CompletableFuture.runAsync(() -> {
             try {
                 String server = SecurityConfig.getNtfyUrl();
                 String topic = SecurityConfig.getNtfyTopic();
@@ -72,10 +89,7 @@ public final class AlertNotifier {
             } catch (Throwable t) {
                 log.warn("Không thể gửi cảnh báo qua ntfy.sh: {}", t.getMessage());
             }
-        }, "carzone-security-alert-sender");
-
-        alertThread.setDaemon(true);
-        alertThread.start();
+        }, ALERT_EXECUTOR);
     }
 }
 

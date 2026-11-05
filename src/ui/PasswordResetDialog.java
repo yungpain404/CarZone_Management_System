@@ -91,8 +91,8 @@ public final class PasswordResetDialog extends JDialog {
         resend.setBorderPainted(false); resend.setContentAreaFilled(false); resend.setForeground(BLUE); resend.setFont(new Font("SansSerif", Font.BOLD, 13)); resend.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)); resend.addActionListener(e -> guiMa());
         resendRow.add(noCode, BorderLayout.WEST); resendRow.add(resend, BorderLayout.EAST); form.add(resendRow); form.add(Box.createVerticalStrut(16));
         JPanel actions = createActionsRow();
-        actions.add(confirmCode); actions.add(Box.createRigidArea(new Dimension(10, 0)));
-        JButton back = button("Quay lại đăng nhập", false); back.addActionListener(e -> dispose()); actions.add(back); form.add(actions);
+        actions.add(Box.createHorizontalGlue()); actions.add(confirmCode); actions.add(Box.createRigidArea(new Dimension(10, 0)));
+        JButton back = button("Quay lại đăng nhập", false); back.addActionListener(e -> dispose()); actions.add(back); actions.add(Box.createHorizontalGlue()); form.add(actions);
         code.addActionListener(e -> xacThucMa());
         return form;
     }
@@ -169,9 +169,39 @@ public final class PasswordResetDialog extends JDialog {
                 try {
                     switch (get()) {
                         case VALIDATED -> showPasswordPage();
-                        case INVALID_CODE -> showStatus("Mã xác thực không đúng. Vui lòng kiểm tra lại.", false);
+                        case INVALID_CODE -> {
+                            int wrong = controller.soLanNhapSai(tenDangNhap);
+                            int remaining = controller.soLanNhapSaiToiDa() - wrong;
+                            String warning = wrong >= controller.soLanNhapSaiToiDa() - 1
+                                    ? " Cảnh báo: mã sẽ bị khóa nếu sai thêm " + remaining + " lần."
+                                    : " Bạn còn " + remaining + " lần thử.";
+                            showStatus("Mã xác thực không chính xác. Số lần nhập sai: " + wrong + "/"
+                                    + controller.soLanNhapSaiToiDa() + "." + warning, false);
+                        }
                         case EXPIRED -> showStatus("Mã đã hết hạn. Hãy gửi lại mã mới.", false);
-                        case LOCKED -> showStatus("Mã xác thực đã bị khóa. Hãy yêu cầu mã mới.", false);
+                        case LOCKED -> {
+                            int wrong = controller.soLanNhapSai(tenDangNhap);
+                            int maxAttempts = controller.soLanNhapSaiToiDa();
+                            showStatus("Mã đã bị khóa sau " + wrong + "/" + maxAttempts
+                                    + " lần nhập sai. Ứng dụng sẽ đóng và gửi cảnh báo bảo mật.", false);
+                            confirmCode.setEnabled(false);
+                            resend.setEnabled(false);
+
+                            audit.ThongTinViPham violation = new audit.ThongTinViPham(
+                                    enums.LoaiHanhViBatThuong.ACCESS_HIGH_SENSITIVITY,
+                                    "Nhập sai mã OTP khôi phục mật khẩu " + wrong + "/" + maxAttempts + " lần.",
+                                    "PasswordResetOTP",
+                                    "OTP_REJECTED",
+                                    tenDangNhap
+                            );
+                            dispose();
+                            audit.AlertNotifier.guiCanhBaoKhanCap(violation, "OTP", wrong, maxAttempts, true)
+                                    .whenComplete((ignored, error) -> javax.swing.SwingUtilities.invokeLater(
+                                            () -> {
+                                                session.UserSession.getInstance().huyPhien();
+                                                backup.AppShutdownManager.handleExit(null);
+                                            }));
+                        }
                         case FAILED -> showStatus("Không thể xác thực mã. Hãy gửi lại mã rồi thử lại.", false);
                         case SUCCESS -> showStatus("", false);
                     }
