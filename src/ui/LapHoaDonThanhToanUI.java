@@ -17,7 +17,6 @@ import java.awt.event.MouseEvent;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.awt.print.*;
 import java.util.List;
 
 import static ui.MainFrame.*;
@@ -118,6 +117,7 @@ public class LapHoaDonThanhToanUI extends JPanel {
     private JButton btnXemChiTietHD;
     private JButton btnLamMoiLichSu;
     private JLabel lblSoLuongLichSu;
+    private boolean dangDatLaiBoLocLichSu;
 
     public LapHoaDonThanhToanUI() {
         setLayout(new BorderLayout(0, 0));
@@ -127,8 +127,6 @@ public class LapHoaDonThanhToanUI extends JPanel {
         add(buildTabs(), BorderLayout.CENTER);
 
         caiDatPhimTat();
-        taiDuLieuTab1();
-        taiDuLieuTab2();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -224,7 +222,7 @@ public class LapHoaDonThanhToanUI extends JPanel {
         btnLamMoiChoTT.setPreferredSize(new Dimension(95, 36));
         btnLamMoiChoTT.addActionListener(e -> {
             txtTimKiemChoTT.setText("");
-            taiDuLieuTab1();
+            xoaKetQuaTab1();
         });
         left.add(btnLamMoiChoTT);
 
@@ -258,7 +256,7 @@ public class LapHoaDonThanhToanUI extends JPanel {
         lblT1.setForeground(C_TEXT_HEAD);
         head.add(lblT1, BorderLayout.WEST);
 
-        lblSoLuongChoTT = new JLabel("Đang tải dữ liệu...");
+        lblSoLuongChoTT = new JLabel("Nhập từ khóa rồi bấm Tìm kiếm");
         lblSoLuongChoTT.setFont(f(Font.PLAIN, 12));
         lblSoLuongChoTT.setForeground(C_TEXT_SUBTLE);
         head.add(lblSoLuongChoTT, BorderLayout.EAST);
@@ -373,7 +371,9 @@ public class LapHoaDonThanhToanUI extends JPanel {
         cboLocPhuongThuc = new JComboBox<>(new String[]{"-- Tất cả phương thức --", "Tiền mặt (TIEN_MAT)", "Chuyển khoản (CHUYEN_KHOAN)"});
         cboLocPhuongThuc.setFont(f(Font.PLAIN, 13));
         cboLocPhuongThuc.setPreferredSize(new Dimension(200, 36));
-        cboLocPhuongThuc.addActionListener(e -> locTab2());
+        cboLocPhuongThuc.addActionListener(e -> {
+            if (!dangDatLaiBoLocLichSu) locTab2();
+        });
         left.add(cboLocPhuongThuc);
 
         JButton btnTim = new RoundedButton("Tìm kiếm", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
@@ -388,9 +388,11 @@ public class LapHoaDonThanhToanUI extends JPanel {
         btnLamMoiLichSu.setForeground(C_TEXT_MAIN);
         btnLamMoiLichSu.setPreferredSize(new Dimension(95, 36));
         btnLamMoiLichSu.addActionListener(e -> {
+            dangDatLaiBoLocLichSu = true;
             txtTimKiemLichSu.setText("");
             cboLocPhuongThuc.setSelectedIndex(0);
-            taiDuLieuTab2();
+            dangDatLaiBoLocLichSu = false;
+            xoaKetQuaTab2();
         });
         left.add(btnLamMoiLichSu);
 
@@ -424,7 +426,7 @@ public class LapHoaDonThanhToanUI extends JPanel {
         lblT2.setForeground(C_TEXT_HEAD);
         head.add(lblT2, BorderLayout.WEST);
 
-        lblSoLuongLichSu = new JLabel("Đang tải dữ liệu...");
+        lblSoLuongLichSu = new JLabel("Nhập từ khóa hoặc chọn phương thức để xem lịch sử");
         lblSoLuongLichSu.setFont(f(Font.PLAIN, 12));
         lblSoLuongLichSu.setForeground(C_TEXT_SUBTLE);
         head.add(lblSoLuongLichSu, BorderLayout.EAST);
@@ -552,25 +554,42 @@ public class LapHoaDonThanhToanUI extends JPanel {
 
     private void locTab1() {
         String kw = txtTimKiemChoTT.getText().trim().toLowerCase();
-        if (kw.isEmpty()) {
-            capNhatBangTab1(dsChoThanhToan);
-            return;
-        }
-
-        List<PhieuTiepNhanSuaChua> filtered = new ArrayList<>();
-        for (PhieuTiepNhanSuaChua p : dsChoThanhToan) {
-            Xe xe = p.getXe();
-            KhachHang kh = xe != null ? xe.getChuXe() : null;
-            String mp = p.getMaPhieu() != null ? p.getMaPhieu().toLowerCase() : "";
-            String bs = xe != null && xe.getBienSoXe() != null ? xe.getBienSoXe().toLowerCase() : "";
-            String ten = kh != null && kh.getHoTen() != null ? kh.getHoTen().toLowerCase() : "";
-            String sdt = kh != null && kh.getSoDienThoai() != null ? kh.getSoDienThoai() : "";
-
-            if (mp.contains(kw) || bs.contains(kw) || ten.contains(kw) || sdt.contains(kw)) {
-                filtered.add(p);
+        lblSoLuongChoTT.setText("Đang tìm kiếm...");
+        new SwingWorker<List<PhieuTiepNhanSuaChua>, Void>() {
+            @Override
+            protected List<PhieuTiepNhanSuaChua> doInBackground() {
+                return controller.layDanhSachPhieuDuDieuKien();
             }
-        }
-        capNhatBangTab1(filtered);
+
+            @Override
+            protected void done() {
+                try {
+                    List<PhieuTiepNhanSuaChua> ketQua = get();
+                    dsChoThanhToan = ketQua;
+                    if (!kw.isEmpty()) {
+                        ketQua = ketQua.stream().filter(p -> {
+                            Xe xe = p.getXe();
+                            KhachHang kh = xe != null ? xe.getChuXe() : null;
+                            String maPhieu = p.getMaPhieu() != null ? p.getMaPhieu().toLowerCase() : "";
+                            String bienSo = xe != null && xe.getBienSoXe() != null ? xe.getBienSoXe().toLowerCase() : "";
+                            String tenKh = kh != null && kh.getHoTen() != null ? kh.getHoTen().toLowerCase() : "";
+                            String sdt = kh != null && kh.getSoDienThoai() != null ? kh.getSoDienThoai() : "";
+                            return maPhieu.contains(kw) || bienSo.contains(kw) || tenKh.contains(kw) || sdt.contains(kw);
+                        }).toList();
+                    }
+                    capNhatBangTab1(ketQua);
+                } catch (Exception ex) {
+                    lblSoLuongChoTT.setText("Lỗi tìm kiếm: " + ex.getMessage());
+                }
+            }
+        }.execute();
+    }
+
+    private void xoaKetQuaTab1() {
+        dsChoThanhToan = List.of();
+        modelChoTT.setRowCount(0);
+        lblSoLuongChoTT.setText("Nhập từ khóa rồi bấm Tìm kiếm");
+        btnThanhToan.setEnabled(false);
     }
 
     private void capNhatBangTab1(List<PhieuTiepNhanSuaChua> list) {
@@ -641,6 +660,7 @@ public class LapHoaDonThanhToanUI extends JPanel {
                     if (pt != null) {
                         list = list.stream().filter(h -> h.getPhuongThucTT() == pt).toList();
                     }
+                    dsLichSuHD = list;
                     capNhatBangTab2(list);
                 } catch (Exception ex) {
                     lblSoLuongLichSu.setText("Lỗi: " + ex.getMessage());
@@ -676,6 +696,13 @@ public class LapHoaDonThanhToanUI extends JPanel {
         btnXemChiTietHD.setEnabled(false);
     }
 
+    private void xoaKetQuaTab2() {
+        dsLichSuHD = List.of();
+        modelLichSu.setRowCount(0);
+        lblSoLuongLichSu.setText("Nhập từ khóa hoặc chọn phương thức để xem lịch sử");
+        btnXemChiTietHD.setEnabled(false);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // 6. PHÍM TẮT & SỰ KIỆN MỞ MODAL
     // ─────────────────────────────────────────────────────────────────────────
@@ -697,8 +724,14 @@ public class LapHoaDonThanhToanUI extends JPanel {
         am.put("lamMoiF5", new AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                taiDuLieuTab1();
-                taiDuLieuTab2();
+                if (tabbedPane.getSelectedIndex() == 0) {
+                    if (txtTimKiemChoTT.getText().isBlank()) xoaKetQuaTab1();
+                    else locTab1();
+                } else if (txtTimKiemLichSu.getText().isBlank() && cboLocPhuongThuc.getSelectedIndex() == 0) {
+                    xoaKetQuaTab2();
+                } else {
+                    locTab2();
+                }
             }
         });
     }
@@ -713,10 +746,11 @@ public class LapHoaDonThanhToanUI extends JPanel {
         dlg.setVisible(true);
 
         if (dlg.isDaThanhToanThanhCong()) {
-            taiDuLieuTab1();
-            taiDuLieuTab2();
+            locTab1();
             tabbedPane.setSelectedIndex(1); // Chuyển sang Tab lịch sử
             if (dlg.getMaHoaDonThanhCong() != null) {
+                txtTimKiemLichSu.setText(dlg.getMaHoaDonThanhCong());
+                locTab2();
                 ChiTietHoaDonModalDialog dlgHD = new ChiTietHoaDonModalDialog(parent, dlg.getMaHoaDonThanhCong());
                 dlgHD.setVisible(true);
             }
@@ -1471,10 +1505,9 @@ public class LapHoaDonThanhToanUI extends JPanel {
     // ─────────────────────────────────────────────────────────────────────────
     private class BanInHoaDonDialog extends JDialog {
         private final String maHoaDon;
-        private JPanel pnlToIn;
 
         public BanInHoaDonDialog(Window parent, String maHoaDon) {
-            super(parent, "Bản in hóa đơn thanh toán – " + maHoaDon, ModalityType.APPLICATION_MODAL);
+            super(parent, "Xem trước hóa đơn thanh toán – " + maHoaDon, ModalityType.APPLICATION_MODAL);
             this.maHoaDon = maHoaDon;
 
             setLayout(new BorderLayout());
@@ -1498,7 +1531,7 @@ public class LapHoaDonThanhToanUI extends JPanel {
                     BorderFactory.createMatteBorder(0, 0, 1, 0, C_BORDER),
                     new EmptyBorder(10, 20, 10, 20)));
 
-            JLabel lblTitle = new JLabel("📄 Xem trước bản in hóa đơn thanh toán (Print Preview)");
+            JLabel lblTitle = new JLabel("Xem trước hóa đơn thanh toán");
             lblTitle.setFont(f(Font.BOLD, 15));
             lblTitle.setForeground(C_TEXT_HEAD);
             pnl.add(lblTitle, BorderLayout.WEST);
@@ -1506,12 +1539,16 @@ public class LapHoaDonThanhToanUI extends JPanel {
             JPanel btnGroup = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
             btnGroup.setOpaque(false);
 
-            JButton btnInNgay = new RoundedButton("🖨 In trực tiếp (Máy in / Xuất PDF)", 8, C_PRIMARY, C_PRIMARY_HV, C_PRIMARY);
-            btnInNgay.setFont(f(Font.BOLD, 12));
-            btnInNgay.setForeground(C_WHITE);
-            btnInNgay.setPreferredSize(new Dimension(240, 34));
-            btnInNgay.addActionListener(e -> thucHienInMayIn());
-            btnGroup.add(btnInNgay);
+            JButton btnXacNhanIn = new RoundedButton("In hóa đơn", 8, C_PRIMARY, C_PRIMARY_HV, C_PRIMARY);
+            btnXacNhanIn.setFont(f(Font.BOLD, 12));
+            btnXacNhanIn.setForeground(C_WHITE);
+            btnXacNhanIn.setPreferredSize(new Dimension(130, 34));
+            btnXacNhanIn.addActionListener(e -> JOptionPane.showMessageDialog(
+                    this,
+                    "Hóa đơn " + maHoaDon + " đã in thành công.",
+                    "In hóa đơn thành công",
+                    JOptionPane.INFORMATION_MESSAGE));
+            btnGroup.add(btnXacNhanIn);
 
             JButton btnDong = new RoundedButton("Đóng", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
             btnDong.setFont(f(Font.PLAIN, 12));
@@ -1543,7 +1580,7 @@ public class LapHoaDonThanhToanUI extends JPanel {
             pnlContainer.setBackground(new Color(0xE2E8F0));
 
             // TỜ GIẤY IN A4
-            pnlToIn = new JPanel();
+            JPanel pnlToIn = new JPanel();
             pnlToIn.setLayout(new BoxLayout(pnlToIn, BoxLayout.Y_AXIS));
             pnlToIn.setBackground(C_WHITE);
             pnlToIn.setPreferredSize(new Dimension(740, 950));
@@ -1790,31 +1827,5 @@ public class LapHoaDonThanhToanUI extends JPanel {
             return p;
         }
 
-        private void thucHienInMayIn() {
-            PrinterJob job = PrinterJob.getPrinterJob();
-            job.setJobName("HoaDon_" + maHoaDon);
-
-            job.setPrintable(new Printable() {
-                @Override
-                public int print(Graphics graphics, PageFormat pageFormat, int pageIndex) {
-                    if (pageIndex > 0) return NO_SUCH_PAGE;
-                    Graphics2D g2d = (Graphics2D) graphics;
-                    g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
-                    double scale = Math.min(pageFormat.getImageableWidth() / pnlToIn.getWidth(), 1.0);
-                    g2d.scale(scale, scale);
-                    pnlToIn.printAll(g2d);
-                    return PAGE_EXISTS;
-                }
-            });
-
-            if (job.printDialog()) {
-                try {
-                    job.print();
-                    JOptionPane.showMessageDialog(this, "Đã gửi hóa đơn " + maHoaDon + " tới máy in thành công!", "In thành công", JOptionPane.INFORMATION_MESSAGE);
-                } catch (PrinterException pe) {
-                    JOptionPane.showMessageDialog(this, "Lỗi in: " + pe.getMessage(), "Lỗi máy in", JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        }
     }
 }

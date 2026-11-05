@@ -57,9 +57,6 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
 
         // Đăng ký phím tắt F2: Tạo phiếu tiếp nhận cho xe đang chọn
         dangKyPhimTatF2();
-
-        // Tải dữ liệu ban đầu
-        taiDanhSachKhachHang(null);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -108,7 +105,7 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
         btnLamMoi.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnLamMoi.addActionListener(e -> {
             txtSearch.setText("");
-            taiDanhSachKhachHang(null);
+            xoaKetQuaTimKiem();
         });
         searchRow.add(btnLamMoi);
 
@@ -162,7 +159,7 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
         lblTitleKH.setForeground(C_TEXT_HEAD);
         pnlHead.add(lblTitleKH, BorderLayout.WEST);
 
-        lblSoLuongKH = new JLabel("0 khách hàng");
+        lblSoLuongKH = new JLabel("Nhập từ khóa rồi bấm Tìm kiếm");
         lblSoLuongKH.setFont(f(Font.PLAIN, 12));
         lblSoLuongKH.setForeground(C_TEXT_SUBTLE);
         pnlHead.add(lblSoLuongKH, BorderLayout.EAST);
@@ -263,7 +260,7 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
         lblXeHeaderTitle.setForeground(C_TEXT_HEAD);
         pnlHead.add(lblXeHeaderTitle, BorderLayout.WEST);
 
-        lblSoLuongXe = new JLabel("0 xe");
+        lblSoLuongXe = new JLabel("Chọn khách hàng để xem xe");
         lblSoLuongXe.setFont(f(Font.PLAIN, 12));
         lblSoLuongXe.setForeground(C_TEXT_SUBTLE);
         pnlHead.add(lblSoLuongXe, BorderLayout.EAST);
@@ -312,6 +309,7 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
         btnThemXe.setForeground(C_WHITE);
         btnThemXe.setFont(f(Font.BOLD, 12));
         btnThemXe.setPreferredSize(new Dimension(120, 34));
+        btnThemXe.setEnabled(false);
         btnThemXe.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnThemXe.addActionListener(e -> moModalThemXe());
 
@@ -483,6 +481,22 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
         }.execute();
     }
 
+    private void xoaKetQuaTimKiem() {
+        dsKhachHang = List.of();
+        dsXe = List.of();
+        khachHangDangChon = null;
+        xeDangChon = null;
+        modelKH.setRowCount(0);
+        modelXe.setRowCount(0);
+        lblSoLuongKH.setText("Nhập từ khóa rồi bấm Tìm kiếm");
+        lblXeHeaderTitle.setText("Danh sách xe của khách hàng");
+        lblSoLuongXe.setText("Chọn khách hàng để xem xe");
+        btnSuaKH.setEnabled(false);
+        btnThemXe.setEnabled(false);
+        btnSuaXe.setEnabled(false);
+        btnTaoPhieuTiepNhan.setEnabled(false);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // MODAL FORM: THÊM / SỬA KHÁCH HÀNG
     // ─────────────────────────────────────────────────────────────────────────
@@ -491,7 +505,7 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
         KhachHangModalDialog dlg = new KhachHangModalDialog(parent, null);
         dlg.setVisible(true);
         if (dlg.isThanhCong()) {
-            taiDanhSachKhachHang(null);
+            taiDanhSachTheoTuKhoaHienTai();
         }
     }
 
@@ -504,8 +518,14 @@ public class QuanLyKhachHangVaXeUI extends JPanel {
         KhachHangModalDialog dlg = new KhachHangModalDialog(parent, khachHangDangChon);
         dlg.setVisible(true);
         if (dlg.isThanhCong()) {
-            taiDanhSachKhachHang(null);
+            taiDanhSachTheoTuKhoaHienTai();
         }
+    }
+
+    private void taiDanhSachTheoTuKhoaHienTai() {
+        String tuKhoa = txtSearch.getText().trim();
+        if (tuKhoa.isEmpty()) xoaKetQuaTimKiem();
+        else taiDanhSachKhachHang(tuKhoa);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

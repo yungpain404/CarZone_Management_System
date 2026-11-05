@@ -58,7 +58,6 @@ public class TaoPhieuDoiTraUI extends JPanel {
         add(buildMainContent(), BorderLayout.CENTER);
 
         caiDatPhimTat();
-        taiDanhSachPhieuDoiTra();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -147,7 +146,7 @@ public class TaoPhieuDoiTraUI extends JPanel {
         btnLamMoi.setPreferredSize(new Dimension(95, 36));
         btnLamMoi.addActionListener(e -> {
             txtTimKiem.setText("");
-            taiDanhSachPhieuDoiTra();
+            xoaKetQuaTimKiem();
         });
         left.add(btnLamMoi);
 
@@ -192,7 +191,7 @@ public class TaoPhieuDoiTraUI extends JPanel {
         lblTitle.setForeground(C_TEXT_HEAD);
         pnlHead.add(lblTitle, BorderLayout.WEST);
 
-        lblSoLuong = new JLabel("Hiển thị 0 phiếu đổi trả");
+        lblSoLuong = new JLabel("Nhập từ khóa rồi bấm Tìm kiếm");
         lblSoLuong.setFont(f(Font.PLAIN, 12));
         lblSoLuong.setForeground(C_TEXT_SUBTLE);
         pnlHead.add(lblSoLuong, BorderLayout.EAST);
@@ -298,6 +297,13 @@ public class TaoPhieuDoiTraUI extends JPanel {
         }.execute();
     }
 
+    private void xoaKetQuaTimKiem() {
+        dsPhieuDoiTra = new ArrayList<>();
+        modelPhieu.setRowCount(0);
+        lblSoLuong.setText("Nhập từ khóa rồi bấm Tìm kiếm");
+        btnXemChiTiet.setEnabled(false);
+    }
+
     private void thucHienLoc() {
         String tuKhoa = txtTimKiem.getText().trim();
         lblSoLuong.setText("Đang tìm kiếm...");
@@ -383,8 +389,8 @@ public class TaoPhieuDoiTraUI extends JPanel {
         am.put("lamMoiF5", new AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                txtTimKiem.setText("");
-                taiDanhSachPhieuDoiTra();
+                if (txtTimKiem.getText().isBlank()) xoaKetQuaTimKiem();
+                else thucHienLoc();
             }
         });
     }
@@ -394,7 +400,8 @@ public class TaoPhieuDoiTraUI extends JPanel {
         TaoPhieuDoiTraModalDialog dialog = new TaoPhieuDoiTraModalDialog(parent);
         dialog.setVisible(true);
         if (dialog.isThanhCong()) {
-            taiDanhSachPhieuDoiTra();
+            if (txtTimKiem.getText().isBlank()) xoaKetQuaTimKiem();
+            else thucHienLoc();
         }
     }
 
