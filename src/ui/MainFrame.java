@@ -639,6 +639,22 @@ public class MainFrame extends JFrame {
         });
     }
 
+        /**
+     * Mở màn hình Quản lý phiếu tiếp nhận và tự động áp dụng bộ lọc trạng thái hoặc từ khóa.
+     */
+    public void moLapPhieuTiepNhanVoiLoc(TrangThaiPhieu trangThai, String tuKhoa) {
+        moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN");
+        SwingUtilities.invokeLater(() -> {
+            if (pnlContentPanel == null) return;
+            for (Component c : pnlContentPanel.getComponents()) {
+                if (c instanceof LapPhieuTiepNhanUI ui) {
+                    ui.apDungBoLocTuNgoai(trangThai, tuKhoa);
+                    return;
+                }
+            }
+        });
+    }
+
     private void napCacPageTheoRole() {
         List<NavigationItem> items = authController.layDanhSachNavigationTheoRole(nhanVien.getVaiTro());
 

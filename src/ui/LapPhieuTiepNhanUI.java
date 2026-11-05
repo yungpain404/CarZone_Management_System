@@ -53,7 +53,9 @@ public class LapPhieuTiepNhanUI extends JPanel {
         add(buildMainContent(), BorderLayout.CENTER);
 
         caiDatPhimTat();
-        taiDanhSachPhieu();
+        // Không tự động load toàn bộ phiếu ban đầu để tránh tải nặng/đơ giao diện.
+        // Bảng để trống, chờ nhân viên chọn bộ lọc hoặc tìm kiếm.
+        lblSoLuong.setText("Vui lòng chọn bộ lọc trạng thái hoặc nhập từ khóa rồi nhấn 'Tìm kiếm' để nạp dữ liệu.");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -123,7 +125,7 @@ public class LapPhieuTiepNhanUI extends JPanel {
             @Override
             public void keyReleased(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                    thucHienLoc();
+                    thucHienTimKiem();
                 }
             }
         });
@@ -138,14 +140,14 @@ public class LapPhieuTiepNhanUI extends JPanel {
         });
         cboLocTrangThai.setFont(f(Font.PLAIN, 13));
         cboLocTrangThai.setPreferredSize(new Dimension(220, 36));
-        cboLocTrangThai.addActionListener(e -> thucHienLoc());
+        cboLocTrangThai.addActionListener(e -> thucHienTimKiem());
         left.add(cboLocTrangThai);
 
         JButton btnTim = new RoundedButton("Tìm kiếm", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
         btnTim.setFont(f(Font.PLAIN, 12));
         btnTim.setForeground(C_TEXT_MAIN);
         btnTim.setPreferredSize(new Dimension(90, 36));
-        btnTim.addActionListener(e -> thucHienLoc());
+        btnTim.addActionListener(e -> thucHienTimKiem());
         left.add(btnTim);
 
         btnLamMoi = new RoundedButton("↺ Làm mới", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
@@ -155,7 +157,10 @@ public class LapPhieuTiepNhanUI extends JPanel {
         btnLamMoi.addActionListener(e -> {
             txtTimKiem.setText("");
             cboLocTrangThai.setSelectedIndex(0);
-            taiDanhSachPhieu();
+            dsPhieu.clear();
+            modelPhieu.setRowCount(0);
+            lblSoLuong.setText("Bảng đã được làm mới (0 phiếu). Vui lòng chọn bộ lọc hoặc tìm kiếm.");
+            btnXemChiTiet.setEnabled(false);
         });
         left.add(btnLamMoi);
 
@@ -265,31 +270,19 @@ public class LapPhieuTiepNhanUI extends JPanel {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 3. TẢI DỮ LIỆU & BỘ LỌC
+    // 3. TẢI DỮ LIỆU & BỘ LỌC (Tối ưu tìm kiếm trực tiếp qua SQL, không lag)
     // ─────────────────────────────────────────────────────────────────────────
-    public void taiDanhSachPhieu() {
-        lblSoLuong.setText("Đang tải dữ liệu...");
-        new SwingWorker<List<PhieuTiepNhanSuaChua>, Void>() {
-            @Override
-            protected List<PhieuTiepNhanSuaChua> doInBackground() {
-                return controller.layDanhSachPhieu();
-            }
+    private boolean dangTimKiem = false;
 
-            @Override
-            protected void done() {
-                try {
-                    dsPhieu = get();
-                    thucHienLoc();
-                } catch (Exception ex) {
-                    lblSoLuong.setText("Lỗi tải dữ liệu: " + ex.getMessage());
-                }
-            }
-        }.execute();
+    public void taiDanhSachPhieu() {
+        thucHienTimKiem();
     }
 
-    private void thucHienLoc() {
-        String kw = txtTimKiem.getText().trim().toLowerCase();
-        int idx = cboLocTrangThai.getSelectedIndex();
+    public void thucHienTimKiem() {
+        if (dangTimKiem) return;
+
+        String kw = txtTimKiem != null ? txtTimKiem.getText().trim() : "";
+        int idx = cboLocTrangThai != null ? cboLocTrangThai.getSelectedIndex() : 0;
 
         TrangThaiPhieu tt = switch (idx) {
             case 1 -> TrangThaiPhieu.CHO_SUA;
@@ -299,30 +292,40 @@ public class LapPhieuTiepNhanUI extends JPanel {
             default -> null;
         };
 
-        modelPhieu.setRowCount(0);
-        int stt = 1;
-        int dem = 0;
+        dangTimKiem = true;
+        lblSoLuong.setText("Đang tìm kiếm dữ liệu...");
+        btnXemChiTiet.setEnabled(false);
 
-        for (PhieuTiepNhanSuaChua p : dsPhieu) {
-            // Lọc trạng thái
-            if (tt != null && p.getTrangThai() != tt) {
-                continue;
+        new SwingWorker<List<PhieuTiepNhanSuaChua>, Void>() {
+            @Override
+            protected List<PhieuTiepNhanSuaChua> doInBackground() {
+                return controller.timKiemPhieu(kw, tt);
             }
 
-            // Lọc từ khóa
-            if (!kw.isEmpty()) {
-                String mp = p.getMaPhieu() != null ? p.getMaPhieu().toLowerCase() : "";
-                String bs = p.getXe() != null && p.getXe().getBienSoXe() != null ? p.getXe().getBienSoXe().toLowerCase() : "";
-                String tenKh = (p.getXe() != null && p.getXe().getChuXe() != null && p.getXe().getChuXe().getHoTen() != null) ?
-                        p.getXe().getChuXe().getHoTen().toLowerCase() : "";
-                String sdt = (p.getXe() != null && p.getXe().getChuXe() != null && p.getXe().getChuXe().getSoDienThoai() != null) ?
-                        p.getXe().getChuXe().getSoDienThoai() : "";
-
-                if (!mp.contains(kw) && !bs.contains(kw) && !tenKh.contains(kw) && !sdt.contains(kw)) {
-                    continue;
+            @Override
+            protected void done() {
+                dangTimKiem = false;
+                try {
+                    dsPhieu = get();
+                    hienThiKetQuaLenBang();
+                } catch (Exception ex) {
+                    lblSoLuong.setText("Lỗi tìm kiếm: " + ex.getMessage());
                 }
             }
+        }.execute();
+    }
 
+    private void hienThiKetQuaLenBang() {
+        modelPhieu.setRowCount(0);
+        int stt = 1;
+
+        if (dsPhieu == null || dsPhieu.isEmpty()) {
+            lblSoLuong.setText("Không tìm thấy phiếu tiếp nhận nào phù hợp với bộ lọc.");
+            btnXemChiTiet.setEnabled(false);
+            return;
+        }
+
+        for (PhieuTiepNhanSuaChua p : dsPhieu) {
             Xe xe = p.getXe();
             KhachHang kh = xe != null ? xe.getChuXe() : null;
             String xeInfo = (xe != null ? (xe.getHangXe() != null ? xe.getHangXe() : "") + " " + (xe.getModel() != null ? xe.getModel() : "") : "--").trim();
@@ -338,11 +341,34 @@ public class LapPhieuTiepNhanUI extends JPanel {
                     p.getNhanVienSuaChua() != null ? p.getNhanVienSuaChua().getHoTen() : "-- Chưa phân công --",
                     p.getTrangThai() != null ? p.getTrangThai().name() : "CHO_SUA"
             });
-            dem++;
         }
 
-        lblSoLuong.setText("Hiển thị " + dem + " / " + dsPhieu.size() + " phiếu tiếp nhận");
+        lblSoLuong.setText("Hiển thị " + dsPhieu.size() + " phiếu tiếp nhận theo bộ lọc");
         btnXemChiTiet.setEnabled(false);
+    }
+
+    /**
+     * Áp dụng bộ lọc từ bên ngoài (ví dụ nhấp vào thẻ KPI trên Dashboard).
+     */
+    public void apDungBoLocTuNgoai(TrangThaiPhieu tt, String tuKhoa) {
+        if (cboLocTrangThai != null) {
+            if (tt != null) {
+                switch (tt) {
+                    case CHO_SUA -> cboLocTrangThai.setSelectedIndex(1);
+                    case DANG_SUA -> cboLocTrangThai.setSelectedIndex(2);
+                    case CHO_LINH_KIEN -> cboLocTrangThai.setSelectedIndex(3);
+                    case HOAN_TAT -> cboLocTrangThai.setSelectedIndex(4);
+                }
+            } else {
+                cboLocTrangThai.setSelectedIndex(0);
+            }
+        }
+
+        if (txtTimKiem != null) {
+            txtTimKiem.setText(tuKhoa != null ? tuKhoa : "");
+        }
+
+        thucHienTimKiem();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
