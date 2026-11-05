@@ -335,7 +335,7 @@ public class ThongKeTiepNhanUI extends JPanel {
 
         pnl.add(createKpiCard("TỔNG PHIẾU TIẾP NHẬN", lblTongPhieuVal, "Phiếu đã lập trong kỳ", true));
         pnl.add(createKpiCard("XE ĐƯỢC TIẾP NHẬN", lblSoXeVal, "Biển số xe khác nhau", false));
-        pnl.add(createKpiCard("KHÁCH HÀNG MỚI", lblKhachMoiVal, "Tổng khách hàng đăng ký", false));
+        pnl.add(createKpiCard("KHÁCH HÀNG CÓ TIẾP NHẬN", lblKhachMoiVal, "Có phiếu trong kỳ đang lọc", false));
         pnl.add(createKpiCard("PHIẾU CHỜ XỬ LÝ", lblChoXuLyVal, "Trạng thái Chờ sửa chữa", false));
 
         return pnl;
@@ -799,7 +799,7 @@ public class ThongKeTiepNhanUI extends JPanel {
 
                     lblTongPhieuVal.setText(INT_FMT.format(data.tongPhieu));
                     lblSoXeVal.setText(INT_FMT.format(data.soXe));
-                    lblKhachMoiVal.setText(INT_FMT.format(data.khachHangMoi));
+                    lblKhachMoiVal.setText(INT_FMT.format(data.soKhachHang));
                     lblChoXuLyVal.setText(INT_FMT.format(data.choXuLy));
 
                     pnlBarChart.setData(data.xuHuongNgay);

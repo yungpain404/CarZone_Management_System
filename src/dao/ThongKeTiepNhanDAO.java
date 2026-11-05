@@ -33,7 +33,7 @@ public class ThongKeTiepNhanDAO {
         }
 
         StringBuilder sql = new StringBuilder(
-                "SELECT p.maPhieu, p.bienSoXe, p.ngayGioTiepNhan, p.trangThai, " +
+                "SELECT p.maPhieu, p.bienSoXe, x.maKH, p.ngayGioTiepNhan, p.trangThai, " +
                 "       kh.hoTen AS tenKhach, nvkt.hoTen AS tenKtv " +
                 "FROM PhieuTiepNhanSuaChua p " +
                 "JOIN Xe x ON p.bienSoXe = x.bienSoXe " +
@@ -58,14 +58,15 @@ public class ThongKeTiepNhanDAO {
             params.add(new Timestamp(cTu.getTimeInMillis()));
         }
         if (denNgay != null) {
-            // Cho đến hết ngày (23:59:59.999)
+            // Lấy toàn bộ ngày cuối bằng khoảng nửa mở để không bỏ sót phần mili-giây cuối ngày.
             Calendar cDen = Calendar.getInstance();
             cDen.setTime(denNgay);
-            cDen.set(Calendar.HOUR_OF_DAY, 23);
-            cDen.set(Calendar.MINUTE, 59);
-            cDen.set(Calendar.SECOND, 59);
-            cDen.set(Calendar.MILLISECOND, 999);
-            sql.append("AND p.ngayGioTiepNhan <= ? ");
+            cDen.set(Calendar.HOUR_OF_DAY, 0);
+            cDen.set(Calendar.MINUTE, 0);
+            cDen.set(Calendar.SECOND, 0);
+            cDen.set(Calendar.MILLISECOND, 0);
+            cDen.add(Calendar.DAY_OF_MONTH, 1);
+            sql.append("AND p.ngayGioTiepNhan < ? ");
             params.add(new Timestamp(cDen.getTimeInMillis()));
         }
         if (trangThai != null && !trangThai.isBlank() && !trangThai.contains("Tất cả")) {
@@ -82,6 +83,7 @@ public class ThongKeTiepNhanDAO {
         sql.append("ORDER BY p.ngayGioTiepNhan DESC");
 
         Set<String> setXe = new HashSet<>();
+        Set<String> setKhachHang = new HashSet<>();
         try (Connection con = DbUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql.toString())) {
             for (int i = 0; i < params.size(); i++) {
@@ -91,6 +93,7 @@ public class ThongKeTiepNhanDAO {
                 while (rs.next()) {
                     String ma = rs.getString("maPhieu");
                     String bienSo = rs.getString("bienSoXe");
+                    String maKH = rs.getString("maKH");
                     Timestamp ts = rs.getTimestamp("ngayGioTiepNhan");
                     String tt = rs.getString("trangThai");
                     String kh = rs.getString("tenKhach");
@@ -99,6 +102,7 @@ public class ThongKeTiepNhanDAO {
 
                     data.tongPhieu++;
                     if (bienSo != null) setXe.add(bienSo);
+                    if (maKH != null) setKhachHang.add(maKH);
 
                     String ttLabel = switch (tt) {
                         case "CHO_SUA" -> "Chờ sửa chữa";
@@ -121,15 +125,7 @@ public class ThongKeTiepNhanDAO {
                 }
             }
             data.soXe = setXe.size();
-
-            // Đếm khách hàng mới
-            String countKhSql = "SELECT COUNT(*) FROM KhachHang";
-            try (PreparedStatement psKh = con.prepareStatement(countKhSql);
-                 ResultSet rsKh = psKh.executeQuery()) {
-                if (rsKh.next()) {
-                    data.khachHangMoi = rsKh.getInt(1);
-                }
-            }
+            data.soKhachHang = setKhachHang.size();
 
         } catch (SQLException e) {
             System.err.println("Lỗi thống kê tiếp nhận: " + e.getMessage());
@@ -404,7 +400,7 @@ public class ThongKeTiepNhanDAO {
 public static class ThongKeData {
         public int tongPhieu;
         public int soXe;
-        public int khachHangMoi;
+        public int soKhachHang;
         public int choXuLy;
 
         // Map ngày (dd/MM) -> số lượng phiếu
