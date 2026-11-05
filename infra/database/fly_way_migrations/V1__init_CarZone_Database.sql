@@ -86,6 +86,7 @@ CREATE TABLE NhanVien (
     soDienThoai          VARCHAR(11)    NOT NULL,
     CCCD                 VARCHAR(12)    NOT NULL,
     diaChi               NVARCHAR(200)  NULL,
+    email                VARCHAR(254)   NOT NULL,
     ngayVaoLam           DATE           NOT NULL CONSTRAINT DF_NhanVien_ngayVaoLam DEFAULT (CAST(GETDATE() AS DATE)),
     vaiTro               VARCHAR(20)    NOT NULL,
     tuoi                 AS (DATEDIFF(YEAR, ngaySinh, GETDATE()) - CASE WHEN DATEADD(YEAR, DATEDIFF(YEAR, ngaySinh, GETDATE()), ngaySinh) > CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END),
@@ -98,6 +99,7 @@ CREATE TABLE NhanVien (
     CONSTRAINT CK_NhanVien_HoTen CHECK (LEN(LTRIM(RTRIM(hoTen))) > 0),
     CONSTRAINT UQ_NhanVien_soDienThoai UNIQUE (soDienThoai),
     CONSTRAINT CK_NhanVien_SDT CHECK (soDienThoai NOT LIKE '%[^0-9]%' AND LEN(soDienThoai) BETWEEN 10 AND 11 AND soDienThoai LIKE '0%'),
+    CONSTRAINT CK_NhanVien_Email CHECK (LEN(LTRIM(RTRIM(email))) BETWEEN 3 AND 254 AND email LIKE '%_@_%._%'),
     CONSTRAINT UQ_NhanVien_CCCD UNIQUE (CCCD),
     CONSTRAINT CK_NhanVien_CCCD CHECK (CCCD NOT LIKE '%[^0-9]%' AND LEN(CCCD) = 12),
     CONSTRAINT CK_NhanVien_DuTuoi CHECK (ngaySinh <= DATEADD(YEAR, -18, ngayVaoLam))
@@ -802,6 +804,7 @@ CREATE PROCEDURE sp_ThemNhanVien
     @diaChi       NVARCHAR(200) = NULL,
     @ngayVaoLam   DATE = NULL,
     @vaiTro       VARCHAR(20),
+    @email        VARCHAR(254),
     @maNV         VARCHAR(10) OUTPUT
 AS
 BEGIN
@@ -812,6 +815,11 @@ BEGIN
     IF @prefix IS NULL
     BEGIN
         ;THROW 50221, N'Vai trò nhân viên không hợp lệ.', 1;
+    END;
+
+    IF @email IS NULL OR LEN(LTRIM(RTRIM(@email))) NOT BETWEEN 3 AND 254 OR @email NOT LIKE '%_@_%._%'
+    BEGIN
+        ;THROW 50223, N'Gmail nhân viên không hợp lệ hoặc đang để trống.', 1;
     END;
 
     DECLARE @stt INT;
@@ -829,8 +837,8 @@ BEGIN
 
     SET @maNV = @prefix + RIGHT('000' + CAST(@stt AS VARCHAR(3)), 3);
 
-    INSERT INTO NhanVien (maNV, hoTen, ngaySinh, soDienThoai, CCCD, diaChi, ngayVaoLam, vaiTro)
-    VALUES (@maNV, @hoTen, @ngaySinh, @soDienThoai, @CCCD, @diaChi, ISNULL(@ngayVaoLam, CAST(GETDATE() AS DATE)), @vaiTro);
+    INSERT INTO NhanVien (maNV, hoTen, ngaySinh, soDienThoai, CCCD, diaChi, ngayVaoLam, vaiTro, email)
+    VALUES (@maNV, @hoTen, @ngaySinh, @soDienThoai, @CCCD, @diaChi, ISNULL(@ngayVaoLam, CAST(GETDATE() AS DATE)), @vaiTro, LTRIM(RTRIM(@email)));
 
     COMMIT TRANSACTION;
 END;
@@ -1108,23 +1116,36 @@ INSERT INTO LinhKien (maLK, tenLK, donGia, donViTinh, soLuongTon) VALUES
  ('LK00002', N'Má phanh (bộ)', 450000, N'bộ',   5),
  ('LK00003', N'Dầu phanh',     120000, N'chai', 12);
 
--- Nhân sự (1 chủ cửa hàng, 2 tiếp nhận viên, 2 kỹ thuật viên)
+-- Nhân sự mẫu (1 chủ cửa hàng, 3 tiếp nhận viên, 3 kỹ thuật viên)
 -- maNV do sp_ThemNhanVien tự sinh theo vai trò (CCH/TNV/KTV + 3 số); tenDangNhap do sp_TaoTaiKhoan tự sinh tương tự
-DECLARE @nv VARCHAR(10), @tk VARCHAR(50), @matKhauMau VARCHAR(255) = CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', 'Carzone@123'), 2);
+DECLARE @nv VARCHAR(10), @tk VARCHAR(50), @email VARCHAR(254), @matKhauMau VARCHAR(255) = CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', 'Carzone@123'), 2);
 
-EXEC sp_ThemNhanVien N'Trần Minh Quân', '1980-05-12', '0901000001', '079080000001', N'Gò Vấp, TP.HCM',    '2018-01-02', 'CHU_CUA_HANG',   @nv OUTPUT;
+SET @email = 'nguyenngochau092@gmail.com';
+EXEC sp_ThemNhanVien N'Nguyễn Ngọc Hậu', '1983-07-19', '0397889349', '079083000006', N'Phường 8, Quận 3, TP.HCM', '2024-05-01', 'CHU_CUA_HANG', @email, @nv OUTPUT;
 EXEC sp_TaoTaiKhoan @maNV = @nv, @matKhau = @matKhauMau, @tenDangNhap = @tk OUTPUT;
 
-EXEC sp_ThemNhanVien N'Lê Thị Hoa',     '1995-03-20', '0901000002', '079095000002', N'Tân Bình, TP.HCM',  '2021-06-01', 'TIEP_NHAN_VIEN', @nv OUTPUT;
+SET @email = 'carzone.tnv001.4c9d72@gmail.com';
+EXEC sp_ThemNhanVien N'Lê Thị Hoa',     '1995-03-20', '0901000002', '079095000002', N'Tân Bình, TP.HCM',  '2021-06-01', 'TIEP_NHAN_VIEN', @email, @nv OUTPUT;
 EXEC sp_TaoTaiKhoan @maNV = @nv, @matKhau = @matKhauMau, @tenDangNhap = @tk OUTPUT;
 
-EXEC sp_ThemNhanVien N'Phạm Ngọc Lan',  '1997-09-08', '0901000003', '079097000003', N'Quận 12, TP.HCM',   '2022-02-15', 'TIEP_NHAN_VIEN', @nv OUTPUT;
+SET @email = 'carzone.tnv002.1b7e53@gmail.com';
+EXEC sp_ThemNhanVien N'Phạm Ngọc Lan',  '1997-09-08', '0901000003', '079097000003', N'Quận 12, TP.HCM',   '2022-02-15', 'TIEP_NHAN_VIEN', @email, @nv OUTPUT;
 EXEC sp_TaoTaiKhoan @maNV = @nv, @matKhau = @matKhauMau, @tenDangNhap = @tk OUTPUT;
 
-EXEC sp_ThemNhanVien N'Vũ Thanh Tùng',  '1990-11-25', '0901000004', '079090000004', N'Bình Thạnh, TP.HCM','2019-08-01', 'KY_THUAT_VIEN',  @nv OUTPUT;
+SET @email = 'carzone.ktv001.9a3f26@gmail.com';
+EXEC sp_ThemNhanVien N'Vũ Thanh Tùng',  '1990-11-25', '0901000004', '079090000004', N'Bình Thạnh, TP.HCM','2019-08-01', 'KY_THUAT_VIEN',  @email, @nv OUTPUT;
 EXEC sp_TaoTaiKhoan @maNV = @nv, @matKhau = @matKhauMau, @tenDangNhap = @tk OUTPUT;
 
-EXEC sp_ThemNhanVien N'Đỗ Văn Hùng',    '1988-07-14', '0901000005', '079088000005', N'Thủ Đức, TP.HCM',   '2020-03-10', 'KY_THUAT_VIEN',  @nv OUTPUT;
+SET @email = 'carzone.ktv002.6d0c84@gmail.com';
+EXEC sp_ThemNhanVien N'Đỗ Văn Hùng',    '1988-07-14', '0901000005', '079088000005', N'Thủ Đức, TP.HCM',   '2020-03-10', 'KY_THUAT_VIEN',  @email, @nv OUTPUT;
+EXEC sp_TaoTaiKhoan @maNV = @nv, @matKhau = @matKhauMau, @tenDangNhap = @tk OUTPUT;
+
+SET @email = 'honhattan2020kg@gmail.com';
+EXEC sp_ThemNhanVien N'Hồ Nhật Tân',      '1998-02-14', '0901000006', '079098000006', N'An Bình, Rạch Giá, Kiên Giang', '2023-08-15', 'TIEP_NHAN_VIEN', @email, @nv OUTPUT;
+EXEC sp_TaoTaiKhoan @maNV = @nv, @matKhau = @matKhauMau, @tenDangNhap = @tk OUTPUT;
+
+SET @email = 'josjnnvl@gmail.com';
+EXEC sp_ThemNhanVien N'Nguyễn Vĩnh Lợi',  '1994-10-06', '0559889949', '079094000007', N'Phường An Hải Bắc, Sơn Trà, Đà Nẵng', '2022-11-01', 'KY_THUAT_VIEN', @email, @nv OUTPUT;
 EXEC sp_TaoTaiKhoan @maNV = @nv, @matKhau = @matKhauMau, @tenDangNhap = @tk OUTPUT;
 GO
 

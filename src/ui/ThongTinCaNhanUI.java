@@ -157,6 +157,7 @@ public class ThongTinCaNhanUI extends JPanel {
         fields.add(createInfoField("Tên đăng nhập", username));
         fields.add(createInfoField("Vai trò hệ thống", AuthController.layTenVaiTro(nv.getVaiTro())));
         fields.add(createInfoField("Số điện thoại", nv.getSoDienThoai()));
+        fields.add(createInfoField("Gmail khôi phục", nv.getEmail()));
         fields.add(createInfoField("CCCD", nv.getCCCD()));
         fields.add(createInfoField("Ngày sinh", nv.getNgaySinh() == null ? null : nv.getNgaySinh().format(LOCAL_DATE_FMT)));
         fields.add(createInfoField("Ngày vào làm", nv.getNgayVaoLam() == null ? null : nv.getNgayVaoLam().format(LOCAL_DATE_FMT)));
