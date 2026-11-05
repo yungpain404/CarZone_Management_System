@@ -163,6 +163,17 @@ public final class AuditLogger {
     }
 
     /**
+     * Ghi audit log cho sự kiện cảnh báo an ninh và hành vi phi lý.
+     */
+    public static void logSecurityAlert(String anomalyType, String detail, String user, boolean locked) {
+        try {
+            AUDIT.error("SECURITY_ALERT | USER: {} | TYPE: [{}] | DETAIL: {} | LOCK_STATUS: {}",
+                    user != null ? user : layNguoiDungHienTai(), anomalyType, detail,
+                    locked ? "LOCKED_AND_LOGGED_OUT" : "CHALLENGED_WITH_PIN");
+        } catch (Throwable ignored) {}
+    }
+
+    /**
      * Che các giá trị nhạy cảm trong tham số PreparedStatement.
      */
     public static String maskParams(Map<Integer, Object> params) {

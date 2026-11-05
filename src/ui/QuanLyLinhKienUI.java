@@ -144,9 +144,28 @@ public class QuanLyLinhKienUI extends JPanel {
         }.execute();
     }
 
+    /** Hiển thị ngay danh sách linh kiện hết hàng từ KPI Dashboard. */
+    public void locHetHangTuDashboard() {
+        daTimKiem = false;
+        txtTimKiem.setText("");
+        cboKinhDoanh.setSelectedIndex(0);
+        cboTonKho.setSelectedItem("Hết hàng");
+        timKiem();
+    }
+
+    /** Mở danh mục linh kiện với kết quả tra cứu được chọn từ thanh header. */
+    public void timKiemTuHeader(String tuKhoa) {
+        daTimKiem=false;
+        txtTimKiem.setText(tuKhoa==null?"":tuKhoa);
+        cboKinhDoanh.setSelectedIndex(0);cboTonKho.setSelectedIndex(0);
+        timKiem();
+    }
+
     private void lamMoi() {
+        // Reset cờ trước các select vì listener tự tìm kiếm khi đã từng có kết quả.
+        daTimKiem=false;
         txtTimKiem.setText(""); cboKinhDoanh.setSelectedIndex(0); cboTonKho.setSelectedIndex(0);
-        ketQua=new ArrayList<>();daTimKiem=false;clearError();hienTrangThaiRong();
+        ketQua=new ArrayList<>();clearError();hienTrangThaiRong();
         lblStatus.setText("");
     }
 
@@ -279,6 +298,7 @@ public class QuanLyLinhKienUI extends JPanel {
             addField(fields,g,"Tên linh kiện *",txtTen,0,1,2);
             cboDonVi.setEditable(true);addField(fields,g,"Đơn vị tính *",cboDonVi,0,2,1);
             ((JSpinner.NumberEditor)spnDonGia.getEditor()).getFormat().setGroupingUsed(true);((JSpinner.NumberEditor)spnDonGia.getEditor()).getFormat().setMaximumFractionDigits(0);
+            UIInputRules.restrictIntegerSpinner(spnDonGia);UIInputRules.restrictIntegerSpinner(spnTon);
             addField(fields,g,"Đơn giá bán * (VNĐ)",spnDonGia,1,2,1);
             addField(fields,g,adding?"Tồn ban đầu * (≥ 0)":"Tồn kho hiện tại",spnTon,0,3,1);
             if(!adding)spnTon.setEnabled(false);

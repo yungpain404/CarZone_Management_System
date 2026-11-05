@@ -74,6 +74,28 @@ public class KhuyenMaiDAO {
         }
     }
 
+    /** Khuyến mãi đang có hiệu lực để chọn khi lập hóa đơn. */
+    public List<KhuyenMai> layKhuyenMaiHieuLuc() {
+        return layDanhSach("WHERE ngayBatDau <= GETDATE() AND ngayKetThuc >= GETDATE() ORDER BY ngayBatDau DESC, maKM");
+    }
+
+    public List<KhuyenMai> layTatCa() {
+        return layDanhSach("ORDER BY ngayBatDau DESC, maKM");
+    }
+
+    private List<KhuyenMai> layDanhSach(String dieuKien) {
+        String sql = "SELECT maKM, maNV, tenChuongTrinh, mucGiamPhanTram, ngayBatDau, ngayKetThuc, ghiChu "
+                + "FROM KhuyenMai " + dieuKien;
+        List<KhuyenMai> result = new ArrayList<>();
+        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) result.add(mapKhuyenMai(rs));
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi lấy danh sách khuyến mãi: " + e.getMessage(), e);
+        }
+    }
+
     /** Kiểm tra xem chương trình đã được gắn vào hóa đơn chưa. */
     public boolean daApDungHoaDon(String maKM) {
         try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(

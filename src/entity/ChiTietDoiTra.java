@@ -22,6 +22,10 @@ public class ChiTietDoiTra {
     private double donGia;
     private HuongXuLyDoiTra huongXuLy;
 
+    // Thuộc tính hiển thị mở rộng (không lưu trực tiếp cột mới vào DB)
+    private String tenHangMuc;
+    private String donViTinh;
+
     public ChiTietDoiTra() {
         soLuong = 1;
     }
@@ -52,6 +56,7 @@ public class ChiTietDoiTra {
         if (stt <= 0 || stt > Short.MAX_VALUE) throw new IllegalArgumentException("Số thứ tự dòng đổi trả không hợp lệ.");
     	this.stt = stt;
     }
+    public void setSttRaw(int stt) { this.stt = stt; }
     public String getMaPhieu() {
     	return maPhieu;
     }
@@ -61,6 +66,27 @@ public class ChiTietDoiTra {
     public String getMaLK() {
     	return maLK;
     }
+
+    public void setMaPhieuRaw(String maPhieu) { this.maPhieu = maPhieu; }
+    public void setMaDVRaw(String maDV) { this.maDV = maDV; }
+    public void setMaLKRaw(String maLK) { this.maLK = maLK; }
+
+    public String getTenHangMuc() {
+        return tenHangMuc;
+    }
+
+    public void setTenHangMuc(String tenHangMuc) {
+        this.tenHangMuc = tenHangMuc;
+    }
+
+    public String getDonViTinh() {
+        return donViTinh;
+    }
+
+    public void setDonViTinh(String donViTinh) {
+        this.donViTinh = donViTinh;
+    }
+
     /** Chọn dòng dịch vụ của phiếu sửa chữa gốc; tự bỏ chọn linh kiện. */
     public void chonDichVu(String maPhieu, String maDV) {
         if (maPhieu == null || maPhieu.isBlank() || maDV == null || maDV.isBlank()) throw new IllegalArgumentException("Phải chọn dịch vụ cần đổi trả.");
@@ -82,6 +108,7 @@ public class ChiTietDoiTra {
         if (soLuong <= 0) throw new IllegalArgumentException("Số lượng đổi trả phải lớn hơn 0.");
     	this.soLuong = soLuong;
     }
+    public void setSoLuongRaw(int soLuong) { this.soLuong = soLuong; }
     public double getDonGia() {
     	return donGia;
     }
@@ -89,6 +116,7 @@ public class ChiTietDoiTra {
         if (!Double.isFinite(donGia) || donGia < 0) throw new IllegalArgumentException("Đơn giá không hợp lệ.");
     	this.donGia = donGia;
     }
+    public void setDonGiaRaw(double donGia) { this.donGia = donGia; }
     public HuongXuLyDoiTra getHuongXuLy() {
     	return huongXuLy;
     }
@@ -96,22 +124,25 @@ public class ChiTietDoiTra {
         if (huongXuLy == null) throw new IllegalArgumentException("Hướng xử lý đổi trả không hợp lệ.");
     	this.huongXuLy = huongXuLy;
     }
+    public void setHuongXuLyRaw(HuongXuLyDoiTra huongXuLy) { this.huongXuLy = huongXuLy; }
 
     /** Thuộc tính suy diễn: chỉ tính tiền khi hoàn tiền (trùng cột tính toán thanhTien trong DB). */
     public double getThanhTien() {
         return huongXuLy == HuongXuLyDoiTra.HOAN_TIEN ? soLuong * donGia : 0;
     }
 
+    // ── Raw setters dùng trong DAO khi map từ ResultSet ───────────────────────
+    public void setTenHangMucRaw(String ten) { this.tenHangMuc = ten; }
+    public void setDonViTinhRaw(String dvt) { this.donViTinh = dvt; }
+
     @Override public int hashCode() {
-    	return Objects.hash(phieuDT, stt);
+    	return Objects.hash(phieuDT != null ? phieuDT.getMaPhieuDT() : null, stt);
     }
     @Override public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-        ChiTietDoiTra o = (ChiTietDoiTra) obj;
-        return stt == o.stt && Objects.equals(phieuDT, o.phieuDT);
-    }
-    @Override public String toString() {
-    	return "ChiTietDoiTra [" + "phieuDT=" + (phieuDT == null ? null : phieuDT.getMaPhieuDT()) + ", " + "stt=" + stt + ", " + "maPhieu=" + maPhieu + ", " + "maDV=" + maDV + ", " + "maLK=" + maLK + ", " + "soLuong=" + soLuong + ", " + "donGia=" + donGia + ", " + "huongXuLy=" + huongXuLy + "]";
+        if (!(obj instanceof ChiTietDoiTra o)) return false;
+        String thisMa = phieuDT != null ? phieuDT.getMaPhieuDT() : null;
+        String thatMa = o.phieuDT != null ? o.phieuDT.getMaPhieuDT() : null;
+        return Objects.equals(thisMa, thatMa) && stt == o.stt;
     }
 }

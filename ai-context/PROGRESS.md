@@ -3,8 +3,42 @@
 > Agent đọc file này đầu mỗi phiên và cập nhật khi xong việc. Giữ ngắn, dưới 60 dòng. Trạng thái dưới đây lấy từ hai bản zip ngày 25/10/2026.
 
 ## Đã xong
+- **Cấu hình Gmail quên mật khẩu local:** `GmailSmtpSender` đọc biến môi trường trước, nếu trống sẽ đọc `infra/docker/gmail.local.properties`; tệp mẫu được Git bỏ qua để người dùng tự điền App Password, không lưu bí mật trong mã nguồn.
+- **Sửa luồng và chẩn đoán gửi OTP (05/11/2026):** Link Quên mật khẩu hỏi tên tài khoản trước khi mở trang OTP; lỗi gửi được phân biệt thành xác thực Gmail, kết nối SMTP và Gmail từ chối nhận thư. Khi gửi lỗi, cho phép thử lại ngay thay vì khóa nhầm 60 giây.
+- **Sửa lỗi không bấm được Đặt lại mật khẩu:** Sau khi gửi OTP, trạng thái busy trước đó đã để nút đặt lại ở disabled; bật lại nút theo trạng thái OTP, giới hạn hàng nút theo bề rộng form và co dialog theo vùng màn hình khi chuyển bước.
+- **Tách xác minh OTP và đặt mật khẩu thành hai trang:** OTP được xác minh thật ở controller (đếm tối đa 5 lần sai) trước khi chuyển sang trang đặt mật khẩu; hai trang dùng card/field/button row cùng bề rộng và hộp thoại tự canh giữa, co theo màn hình.
+- **Tinh chỉnh luồng khôi phục:** bỏ nút quay lại OTP sau khi xác minh thành công, căn giữa nút đặt lại mật khẩu; hộp thoại đầu tiên yêu cầu mã nhân viên.
+- **Căn chỉnh thông báo khôi phục:** tự ngắt dòng theo bề rộng và căn giữa từng dòng trong vùng trạng thái cố định; bỏ câu hướng dẫn trùng ở trang tạo mật khẩu.
+- **Gmail nhân viên bắt buộc:** Cột `NhanVien.email` trong V1 là `NOT NULL`, có CHECK không rỗng/đúng dạng email cơ bản; `sp_ThemNhanVien` nhận và kiểm tra email, DAO truyền email cùng giao dịch tạo nhân viên, entity từ chối giá trị trống. Dữ liệu demo dùng 5 Gmail mẫu cố định, không đảm bảo có hộp thư thật.
+- **Khắc phục DB sạch không hiện Gmail (05/11/2026):** Flyway dừng trước V1 vì SQL Server `sp_getapplock` ném lỗi 17750. Khởi động lại SQL Server rồi chạy lại db-init/Flyway đã migrate thành công V1–V5; xác nhận 7 nhân viên có Gmail, tất cả tài khoản hoạt động. Giữ healthcheck Compose ở mức kết nối cơ bản; DAO khôi phục tra đúng `maNV`; UI báo riêng lỗi tra cứu CSDL thay vì kẹt “Đang xác định Gmail”.
+- **Hiển thị số lần nhập OTP sai:** Thông báo cho biết số lần sai trên tổng 5 lần, số lượt còn lại, cảnh báo ở lượt cuối và số lần khi mã bị khóa.
+- **Cưỡng chế thoát khi nhập sai OTP đủ ngưỡng:** Ở lần sai thứ 5, ghi audit và gửi cảnh báo ntfy có nhãn OTP/số lần sai; sau khi gửi xong, hủy phiên và thoát tập trung qua `AppShutdownManager`.
+- **Bổ sung tài khoản mẫu (05/11/2026):** Giữ duy nhất một Chủ cửa hàng và thay hồ sơ seed CCH001 thành Nguyễn Ngọc Hậu theo xác nhận; TNV003 Hồ Nhật Tân và KTV003 Nguyễn Vĩnh Lợi đã được tạo trong DB hiện tại qua stored procedure và thêm vào seed V1. Email theo người dùng, dữ liệu hồ sơ thiếu dùng mock; mật khẩu mẫu `Carzone@123`.
+- **Sửa Flyway checksum V1:** Docker volume cũ giữ checksum V1 cũ và lịch sử V6; đã chạy `flyway repair` rồi áp dụng tạm V7 không mất dữ liệu. Theo yêu cầu, schema cuối cùng được giữ trong V1 và file V7 đã xóa khỏi repo; DB local vẫn ở V7 cho tới khi người dùng tự xóa volume để tạo mới từ V1–V5.
 - Nhánh `develop`: 14 entity (`src/entity`) và 6 enum (`src/enums`), biên dịch được bằng `javac`. `pom.xml`, tài liệu trong `ai-context/`.
 - Nhánh `feature/infrastructure`: `infra/docker/compose.yml` (SQL Server → tạo DB → Flyway), `V1__init_CarZone_Database.sql` (bảng, trigger, stored procedure, view, dữ liệu danh mục/nhân sự), `V2__update_KhachHang_Entity.sql`, seed `CarZone_Demo.sql` (kịch bản khách Nguyễn Văn A).
+
+## Mới làm (05/11/2026)
+- **Tái thiết kế & tích hợp toàn diện Dashboard Tiếp nhận viên mới vào `MainFrame.java`**:
+  + Thay thế phiên bản cũ bằng `TiepNhanVienDashboardPanel` kế thừa `ScrollableContentPanel`, nạp dữ liệu bất đồng bộ qua `SwingWorker` chống đóng băng UI.
+  + Header ca làm việc: Lời nhắc ca trực hôm nay, nút "Làm mới" dữ liệu và bộ 3 phím tắt nhanh (+ Tiếp nhận xe F2, Thu tiền F3, Đổi trả F4, Refresh F5).
+  + 4 Thẻ Stat Cards thông minh: vẽ icon vector 2D FlatLaf (`CarVectorIcon`, `CheckVectorIcon`, `WrenchVectorIcon`, `MoneyVectorIcon`, `AlertTriangleIcon`) thay thế hoàn toàn Unicode emoji tránh lỗi font; thẻ "Cần phân công KTV" tự đổi màu đỏ cảnh báo khi có xe chưa gán thợ; thẻ "Chờ thanh toán" tự đổi xanh lá khi có xe xong chờ thu tiền.
+  + 2 Biểu đồ trực quan số liệu: Biểu đồ thanh tiến trình 4 màu trạng thái xe tại xưởng (`ThanhTienDoXePanel`) kèm 4 ô mini box số liệu/tỷ lệ %; Biểu đồ thanh ngang tải công việc KTV kèm huy hiệu "✓ Sẵn sàng" hoặc số lượng xe đang phụ trách.
+  + Action Center: Khối "Xe đã sửa xong – Chờ thu tiền & giao xe" (60%) kèm nút "Thu tiền ↗" sang thẳng Lập hóa đơn; Khối "Cảnh báo & Việc cần can thiệp" (40%) cảnh báo xe chưa gán KTV và xe chờ linh kiện kèm nút "Xử lý ↗".
+  + Bảng Live xe tại Gara hôm nay: Bảng dữ liệu kèm huy hiệu trạng thái `StatusBadgeRenderer` bo góc mềm và bộ 5 nút lọc nhanh (Tất cả, Chờ sửa, Đang sửa, Chờ linh kiện, Hoàn tất).
+- **Giải quyết triệt để xung đột merge từ `develop`**:
+  + Giữ nguyên và chuẩn hóa theo kiến trúc mới: class DAO đơn trong `src/dao/*DAO.java`, bỏ interface và `dao.impl`.
+  + Tích hợp đầy đủ tính năng Tiếp nhận viên: Quản lý phiếu đổi trả UC012, Thống kê đổi trả Phần 4, chỉnh sửa phiếu chờ sửa, và Dashboard TNV mới.
+  + Biên dịch Maven (`mvn compile`) đạt BUILD SUCCESS (108 file, 0 lỗi).
+
+## Mới làm (04/11/2026)
+- **Dashboard Chủ cửa hàng:** truy vấn 4 KPI trực tiếp từ SQL, hiển thị trạng thái đang tải/lỗi và thời điểm cập nhật, thêm nút làm mới; giảm danh sách yêu cầu còn 5 dòng và cảnh báo hết hàng còn 3 mục ưu tiên để dashboard thoáng hơn.
+- **Tinh chỉnh Dashboard Chủ cửa hàng:** đưa cả 4 KPI về thẻ trắng, bỏ các dòng mô tả nhỏ; bấm KPI mở danh sách yêu cầu chờ duyệt/đã duyệt, linh kiện hết hàng hoặc hồ sơ chưa có tài khoản với bộ lọc được chạy sẵn.
+- **Ràng buộc số và chọn ngày CCH:** spinner giá dịch vụ/linh kiện, tồn ban đầu, phần trăm khuyến mãi và số nhập kho chặn ký tự chữ/khoảng trắng khi gõ; ngày sinh/ngày vào làm và ngày bắt đầu/kết thúc khuyến mãi dùng JCalendar popup, không nhập tay.
+- **Sửa ba lỗi UI CCH:** tìm kiếm header Enter hiện gợi ý các màn theo quyền và cho chọn điều hướng; spinner tiền/phần trăm/tồn/số lượng dùng `NumberFormatter` nghiêm ngặt; form thêm nhân viên truy vấn mã kế tiếp để hiển thị, form tạo tài khoản luôn hiện mã hồ sơ nhân viên đã chọn.
+- **Nút Làm mới danh mục dịch vụ/linh kiện:** hạ cờ trạng thái tìm kiếm trước khi reset combobox; tránh listener tự chạy truy vấn toàn bộ danh mục, kết quả trở lại 0 phần tử.
+- **Làm gọn bảng yêu cầu trên Dashboard CCH:** bỏ dấu điều hướng `>` ở cuối từng dòng và bỏ dải đếm bốn trạng thái bên dưới bảng.
+- **Tìm kiếm header dịch vụ/linh kiện:** nối thanh tìm kiếm MainFrame tới TraCuuController, hiển thị gợi ý dữ liệu thật theo mã/tên và điều hướng tới danh mục đã lọc theo vai trò; truy vấn chạy nền.
 
 ## Mới làm (30/10/2026)
 - **Quy tắc UI:** cập nhật `AGENTS.md` và skill `swing-screen`: không thêm breadcrumb/path phân cấp trên bất kỳ trang nào; dùng Side Navigation và tiêu đề hiện tại để định vị.
@@ -35,6 +69,61 @@
     * Cơ chế "Ai backup đầu tiên thì lấy kết quả người đó": Kiểm tra lịch sử `msdb.dbo.backupset` trước và sau khi nhận khóa; nếu máy khác đã hoàn thành mốc này (FULL < 60p, DIFF < 30p, LOG < 10p, Thoát < 5p), máy sau tự động bỏ qua để tránh ghi đè file trên server.
     * Ghi vết định danh máy trạm và nhân viên thực hiện (`UserSession` + Hostname) vào metadata bản sao lưu trên SQL Server.
     * **Phân quyền vai trò sao lưu (RBAC):** Chỉ chạy hệ thống sao lưu tự động (Quartz Scheduler) và quy trình sao lưu ca làm việc khi thoát trên máy của **Chủ cửa hàng (`VaiTro.CHU_CUA_HANG`)**; các role Tiếp nhận viên và Kỹ thuật viên không chạy lập lịch và thoát ứng dụng bình thường.
+    * **Tính năng Sao lưu & Phục hồi thủ công (`SaoLuuPhucHoiUI.java`):** Dành riêng cho Chủ cửa hàng (`NAV_SAO_LUU_PHUC_HOI`):
+      - Thẻ sao lưu thủ công (FULL/DIFF/LOG) kèm ghi chú tùy chọn, chạy qua `SwingWorker` kèm thông báo chi tiết (dung lượng, file, ms).
+      - Thẻ giám sát trạng thái lập lịch Quartz và thời điểm sao lưu gần nhất.
+
+## Mới làm (05/11/2026)
+- **Tái thiết kế & tích hợp toàn diện Dashboard Tiếp nhận viên mới vào `MainFrame.java`**:
+  + Thay thế phiên bản cũ bằng `TiepNhanVienDashboardPanel` kế thừa `ScrollableContentPanel`, nạp dữ liệu bất đồng bộ qua `SwingWorker` chống đóng băng UI.
+  + Header ca làm việc: Lời nhắc ca trực hôm nay, nút "Làm mới" dữ liệu và bộ 3 phím tắt nhanh (+ Tiếp nhận xe F2, Thu tiền F3, Đổi trả F4, Refresh F5).
+  + 4 Thẻ Stat Cards thông minh: vẽ icon vector 2D FlatLaf (`CarVectorIcon`, `CheckVectorIcon`, `WrenchVectorIcon`, `MoneyVectorIcon`, `AlertTriangleIcon`) thay thế hoàn toàn Unicode emoji tránh lỗi font; thẻ "Cần phân công KTV" tự đổi màu đỏ cảnh báo khi có xe chưa gán thợ; thẻ "Chờ thanh toán" tự đổi xanh lá khi có xe xong chờ thu tiền.
+  + 2 Biểu đồ trực quan số liệu: Biểu đồ thanh tiến trình 4 màu trạng thái xe tại xưởng (`ThanhTienDoXePanel`) kèm 4 ô mini box số liệu/tỷ lệ %; Biểu đồ thanh ngang tải công việc KTV kèm huy hiệu "✓ Sẵn sàng" hoặc số lượng xe đang phụ trách.
+  + Action Center: Khối "Xe đã sửa xong – Chờ thu tiền & giao xe" (60%) kèm nút "Thu tiền ↗" sang thẳng Lập hóa đơn; Khối "Cảnh báo & Việc cần can thiệp" (40%) cảnh báo xe chưa gán KTV và xe chờ linh kiện kèm nút "Xử lý ↗".
+  + Bảng Live xe tại Gara hôm nay: Bảng dữ liệu kèm huy hiệu trạng thái `StatusBadgeRenderer` bo góc mềm và bộ 5 nút lọc nhanh (Tất cả, Chờ sửa, Đang sửa, Chờ linh kiện, Hoàn tất).
+- **Giải quyết triệt để xung đột merge từ `develop`**:
+  + Giữ nguyên và chuẩn hóa theo kiến trúc mới: class DAO đơn trong `src/dao/*DAO.java`, bỏ interface và `dao.impl`.
+  + Tích hợp đầy đủ tính năng Tiếp nhận viên: Quản lý phiếu đổi trả UC012, Thống kê đổi trả Phần 4, chỉnh sửa phiếu chờ sửa, và Dashboard TNV mới.
+  + Biên dịch Maven (`mvn compile`) đạt BUILD SUCCESS (108 file, 0 lỗi).
+
+## Mới làm (04/11/2026)
+- **Khôi phục mật khẩu qua Gmail (Figma “Carzone · Quên mật khẩu”)**:
+  + Dùng tên đăng nhập được nhập tại hộp thoại trước khi mở trang khôi phục; tự gửi mã vào Gmail khôi phục và chỉ hiện email đã che cùng ô OTP trên trang này.
+  + Sau OTP hợp lệ, hiện form nhập mật khẩu mới; gửi lại mã giới hạn 60 giây.
+  + Tăng kích thước hộp thoại khôi phục và mở rộng nút phụ, bọc dòng trạng thái để tránh cắt chữ/tràn giao diện.
+  + Thêm thuộc tính `NhanVien.email` và form quản lý hồ sơ; email bắt buộc qua `NOT NULL`/CHECK ở DB, kiểm tra trong `sp_ThemNhanVien`, entity, controller và UI; DAO truyền email ngay khi tạo nhân viên. Nhân viên demo nhận Gmail mẫu cố định. Không tạo bảng OTP mới. OTP băm và giới hạn gửi lại 60 giây/5 lần sai được giữ trong bộ nhớ tiến trình.
+  + Gửi email qua Gmail SMTP STARTTLS; đọc `CARZONE_GMAIL_USERNAME` và `CARZONE_GMAIL_APP_PASSWORD` từ biến môi trường hoặc `infra/docker/gmail.local.properties` (Git ignore), không đưa mật khẩu ứng dụng vào `.env` đã commit.
+  + Gmail SMTP dùng cấu hình local; Gmail mẫu cố định trong V1 không đảm bảo có hộp thư thật, cần thay bằng Gmail thật để nhận OTP. DB local đã chạy V7 tạm thời, giữ lại Gmail hợp lệ đang có; người dùng sẽ tự xóa volume để dựng DB mới từ V1–V5.
+- **Hệ thống Giám sát Hành vi Phi lý & Hàng rào Xác thực Mã PIN Cấp 2 (Behavioral Anomaly & PIN Barrier)**:
+  + Sắp xếp chuẩn vào cấu trúc package hiện có: `enums/LoaiHanhViBatThuong.java`, `ui/PinVerificationDialog.java`, `audit/` (`ThongTinViPham`, `SecurityConfig`, `PhatHienHanhViPhiLy`, `PinVerificationManager`, `AlertNotifier`). Không tạo thêm package gốc `security` bừa bãi.
+  + **Đánh chặn tập trung tại tầng Statement Proxy:** `AuditStatementProxy` chặn ngang mọi câu lệnh SQL ghi dữ liệu trước khi gửi xuống database.
+  + **3 Nhóm hành vi phi lý:**
+    1. *Bulk & Velocity:* Xóa hàng loạt dữ liệu cốt lõi (≥ 3 bản ghi trong < 2 giây); xóa không có `WHERE`; lệnh DDL phá hủy (`DROP`, `TRUNCATE`, `ALTER TABLE ... DROP`).
+    2. *Temporal:* Thao tác xóa/sửa dữ liệu cốt lõi ngoài giờ mở cửa (00:00 - 05:00 sáng).
+    3. *Cascading Danger & High Sensitivity:* Thao tác xóa Chủ thể cốt lõi (`CCH...` / Chủ cửa hàng); can thiệp cấu hình hệ thống / quản trị SQL Server.
+  + **Quy trình vượt rào & Trừng phạt:**
+    * Tạm dừng luồng DB, hiển thị `PinVerificationDialog` trên EDT yêu cầu mã PIN cấp 2 (SHA-256).
+    * Nhập đúng PIN: Cấp quyền ngoại lệ tạm thời trong 60 giây (suppression window).
+    * Nhập sai ≥ 3 lần: Cưỡng chế thoát (Force Logout), hủy toàn bộ giao dịch, kích hoạt sao lưu khẩn cấp (Emergency Log Backup), gửi cảnh báo khẩn cấp tới `ntfy.sh` và Audit Log, đóng toàn bộ Frame về màn hình Đăng nhập.
+  + Cấu hình an ninh bổ sung trong `backup.properties`. Đã kiểm thử logic và biên dịch đạt `mvn -q compile` (0 lỗi).
+      - Bảng lịch sử các bản sao lưu từ `msdb.dbo.backupset` (badge loại, thời gian, kích thước, người/máy tạo, đường dẫn).
+      - Dialog Phục hồi CSDL (`RESTORE DATABASE`) an toàn cao: cảnh báo ghi đè dữ liệu, yêu cầu nhập mã `PHUCHOI` xác nhận, ngắt kết nối các client qua `SINGLE_USER WITH ROLLBACK IMMEDIATE`, restore qua kết nối `master` và đưa về `MULTI_USER`.
+      - **Cơ chế phục hồi chuỗi liên hoàn tự động (SQL Server Restore Chain):**
+        * Giải quyết triệt để lỗi *"The log or differential backup cannot be restored because no files are ready to rollforward"*.
+        * Khi phục hồi từ tệp Transaction Log (`.trn`) hoặc Vi sai (`.bak`), hệ thống tự động truy vấn `msdb.dbo.backupset` theo `backup_set_id`:
+          - FULL: `RESTORE DATABASE WITH REPLACE, RECOVERY`
+          - DIFF: FULL gốc `WITH REPLACE, NORECOVERY` -> DIFF `WITH RECOVERY` (không có `REPLACE`)
+          - LOG: FULL gốc `WITH REPLACE, NORECOVERY` -> các bản LOG tuần tự `WITH NORECOVERY` -> bản LOG đích `WITH RECOVERY` (chuỗi liên hoàn không bị đứt đoạn).
+      - **Giao diện Sao lưu & Phục hồi chuẩn FlatLaf & Figma (`SaoLuuPhucHoiUI`):**
+        * Tích hợp tài nguyên ảnh 3D `img/nav_sao_luu_phuc_hoi.png` cho Sidebar và Header tiêu đề trang `SaoLuuPhucHoiUI`.
+        * Tự động phóng to toàn màn hình (`JFrame.MAXIMIZED_BOTH`) khi đăng nhập thành công vào `MainFrame`.
+        * Căn chỉnh lề chữ, nhịp điệu khoảng cách và padding đồng đều 100% trong Dialog Xác nhận phục hồi (khung cảnh báo đỏ và khung chuỗi khôi phục thông minh dùng `RoundedPanel` với padding trong chuẩn 16px, các ô textfield có padding 12px chống dính mép).
+        * Loại bỏ hoàn toàn emoji Unicode khỏi các nhãn và nút bấm.
+      - **Khắc phục triệt để lỗi icon ô vuông (`□`) và mất chữ:** 
+        + Xóa bỏ toàn bộ ký tự emoji Unicode khỏi tiêu đề, nhãn, nút bấm và dialog (tránh lỗi font hệ điều hành không hiển thị được glyph).
+        + Thêm vector icon 2D chuẩn FlatLaf `DatabaseIcon` (vẽ 3 đĩa trụ CSDL mượt mà bằng `Graphics2D`) riêng biệt cho mục Sao lưu & Phục hồi trong Side Navigation của `MainFrame`.
+        + Tái cấu trúc Card Lập lịch Quartz: thay thế lưới 2 cột bị bóp méo thành 3 hàng full-width (mỗi hàng gồm badge phân loại + mô tả lịch định kỳ + dòng thời gian chạy gần nhất), triệt tiêu hoàn toàn hiện tượng mất chữ/cắt chữ.
+        + Thay thế chấm unicode bằng pill badge bo góc hiển thị trạng thái lập lịch ("Đang hoạt động" / "Đã tạm dừng").
   + Intercept tập trung qua dynamic proxy `AuditConnectionProxy`/`AuditStatementProxy` bọc `DbUtil.getConnection()`, ghi audit log DML kèm thời gian, người dùng (UserSession), số dòng affected, tham số (tự mask mật khẩu/chuỗi nhạy cảm). Tách file `app.log` và `audit.log` qua `AsyncAppender` Logback rolling 30 ngày.
   + Modal `ShutdownDialog` + `AppShutdownManager`: Bắt toàn bộ thao tác thoát trên mọi JFrame (`MainFrame`, `DangNhapUI`, `KhoiDongUI`), chạy DIFF + LOG ca làm việc, hiển thị tiến độ, timeout bảo vệ, chống tắt ngang.
   + Chuẩn hóa trạng thái phiếu sửa chữa KTV: xóa bỏ toàn bộ nhãn sai lệch "Mới phân công" / "Mới", đồng bộ chuẩn 4 trạng thái theo enum (`CHO_SUA` -> "Chờ sửa", `DANG_SUA` -> "Đang sửa", `CHO_LINH_KIEN` -> "Chờ linh kiện", `HOAN_TAT` -> "Hoàn tất") trên KPI card, bảng công việc gần đây, dialog chi tiết phiếu, biểu đồ tiến độ và donut tỷ lệ hoàn thành (`MainFrame.java`, `ThongKeSuaChuaUI.java`).
@@ -105,3 +194,33 @@
     * Lớp thực thi đặt trong subpackage `dao.impl`: [TaiKhoanDaoImpl](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/impl/TaiKhoanDaoImpl.java), [NhanVienDaoImpl](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/impl/NhanVienDaoImpl.java), [HoaDonDaoImpl](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/impl/HoaDonDaoImpl.java), [ChiTietHoaDonDaoImpl](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/impl/ChiTietHoaDonDaoImpl.java), [PasswordResetDaoImpl](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/dao/impl/PasswordResetDaoImpl.java). *(Cấu trúc này đã thay đổi ngày 30/10/2026: gộp hết về `src/dao/`, xem mục 30/10.)*
   + Chuyển đổi [DashboardController](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/controller/DashboardController.java), [AuthController](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/controller/AuthController.java), [DashboardUI](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/DashboardUI.java), [MainFrame](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/MainFrame.java), [KhoiDongUI](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/KhoiDongUI.java) sang JDBC thuần qua `DbUtil`.
   + Kiểm thử biên dịch toàn dự án: `mvn clean compile` thành công 100% (46 source files, 0 error).
+## Mới làm (03/11/2026 - Hoàn thiện toàn bộ phân hệ Tiếp nhận viên TNV)
+- **DAO & Controllers**: Tích hợp các nghiệp vụ tiếp nhận, thanh toán, đổi trả, khách hàng/xe và thống kê vào tầng JDBC theo cấu trúc DAO hiện hành (một class thực thi duy nhất cho mỗi nhóm dữ liệu). Controllers: KhachHangVaXeController, LapPhieuTiepNhanController, LapHoaDonThanhToanController, TaoPhieuDoiTraController, TraCuuController, ThongKeTiepNhanController.
+- **Giao diện UI (Figma 100%)**:
+  + QuanLyKhachHangVaXeUI (UC016): Quản lý 2 cột Khách hàng & Xe, tìm kiếm, thêm/sửa, nạp xe theo KH.
+  + LapPhieuTiepNhanUI (UC010): Lập phiếu tiếp nhận, phân công KTV, thêm dịch vụ đề nghị, tính tiền tạm tính.
+  + LapHoaDonThanhToanUI (UC014, UC015): Lập hóa đơn từ phiếu HOAN_TAT, áp dụng khuyến mãi, popup thanh toán tiền mặt/chuyển khoản có mã giao dịch.
+  + TaoPhieuDoiTraUI (UC012): Đổi trả hóa đơn trong 7 ngày, chọn dịch vụ/linh kiện, chọn hướng xử lý (HOAN_TIEN, DOI_MOI, SUA_LAI_MIEN_PHI).
+  + TraCuuUI (UC007): Dùng chung một màn hình theo vai trò, phân quyền các tab cho CCH/TNV/KTV.
+  + ThongKeTiepNhanUI (UC013): Nâng cấp 3 phần dashboard, bộ chọn ngày DatePickerField popup lịch, lọc khi bấm nút, reset chuẩn.
+- **Tích hợp MainFrame**: Đăng ký toàn bộ các trang TNV vào MainFrame.java, gắn navigation item NAV_THONG_KE_TIEP_NHAN, fix lỗi SQL join/where trong DashboardController.
+- **Biên dịch**: mvn compile thành công 100% (77 source files, 0 error).
+
+## Việc kế tiếp (gợi ý, chờ người dùng chốt thứ tự)
+- Phát triển màn hình chức năng chuyên sâu: Tiếp nhận xe / Lập phiếu tiếp nhận sửa chữa (TNV) hoặc Quản lý linh kiện và kho (CCH).
+
+## Tích hợp nhánh (04/11/2026)
+- Đã merge `feature/tan/recipient`, `feature/backup` và `feature/hau/store-owner` vào `develop`.
+- Khi có khác biệt, giữ dashboard, màn hình CCH, tìm kiếm chung và `TraCuuUI` trên `develop`; giữ các màn TNV, thống kê tiếp nhận và sao lưu/phục hồi đã tích hợp.
+- Chuẩn hóa tên các DAO sang hậu tố `DAO`; gộp DAO TNV vào một class cụ thể trong `src/dao/`, không giữ cặp interface/implementation trong `dao.impl`.
+- Kiểm tra `mvn -q compile` thành công sau khi tích hợp.
+- Pull cập nhật tiếp theo từ `feature/backup`: giữ instance màn CCH trong `MainFrame`, giữ chọn ngày bằng JCalendar và các bộ lọc số trong `UIInputRules`; bổ sung các thay đổi audit/PIN của backup. Đã giải quyết các conflict và `mvn -q compile` thành công.
+
+- **Gắn UI phân quyền vào Quản lý tài khoản (05/11/2026):** thêm nút Phân quyền và dialog bật/tắt quyền chỉ cho Tiếp nhận viên/Kỹ thuật viên; lưu qua controller/DAO vào QuyenChucNang, báo rõ nếu thiếu migration V6. Đồng thời bỏ lại cột Thao tác theo yêu cầu trước đó.
+
+- **Hoàn thiện phân quyền theo vai trò (05/11/2026):** cấu hình chỉ gồm Tiếp nhận viên và Kỹ thuật viên; quyền được tải từ DB khi đăng nhập, menu lọc theo quyền và MainFrame chặn điều hướng tới module bị thu hồi. Chủ cửa hàng giữ toàn quyền.
+
+- **Hiển thị email trong Quản lý nhân viên (05/11/2026):** thêm cột Email vào bảng kết quả và giữ renderer trạng thái tài khoản ở cột cuối; email lấy từ trường nhân viên đã được DAO map.
+- **Tinh gọn nút màn quản trị hồ sơ/tài khoản (05/11/2026):** bỏ nút Quay lại ở Quản lý nhân viên và Quản lý tài khoản; bỏ Tra cứu và Tạo tài khoản khỏi Quản lý nhân viên (cả thanh tác vụ và chi tiết hồ sơ). Tạo tài khoản vẫn thao tác tại màn Quản lý tài khoản.
+- **Căn lại card cảnh báo Dashboard CCH (05/11/2026):** đặt card cảnh báo hết hàng trong cột căn NORTH để giữ chiều cao theo nội dung thay vì bị kéo bằng bảng yêu cầu; các hàng linh kiện giữ chiều cao tự nhiên, tránh tạo khoảng trắng lớn giữa các mã.
+- **Chuyển phân quyền từ vai trò sang tài khoản (05/11/2026):** thêm migration V7 lưu tập quyền cho từng tài khoản; dialog chọn hồ sơ hiện tại, toàn bộ màn hình TNV/KTV hoặc màn hình tùy chỉnh. Quyền chéo vai trò mở trang ở chế độ xem, giữ kiểm tra vai trò khi ghi nghiệp vụ; thống kê tiếp nhận của người không phải CCH được giới hạn theo mã người đăng nhập.
