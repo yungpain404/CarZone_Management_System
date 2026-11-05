@@ -75,3 +75,40 @@ Mục đích là tránh hai bên làm trùng hoặc mâu thuẫn:
 - TUYỆT ĐỐI KHÔNG chạy `javac` đơn lẻ thiếu cờ `-d target/classes` làm sinh `.class` rác vào trong `src/` (mọi build qua `mvn compile`).
 - Lớp tiện ích UI dùng chung (`UIInputRules`) bắt buộc là `public final class` với `public static` methods.
 - Định dạng Locale: Dùng `Locale.forLanguageTag("vi-VN")` thay vì constructor deprecated `new Locale(...)`.
+
+## Kiến trúc Sao lưu & Phục hồi CSDL và Phối hợp Đa máy trạm (Chốt 03/11/2026)
+- **Khóa phân tán đa máy trạm (`sp_getapplock`)**:
+  + Mô hình gara có nhiều máy trạm (CCH, TNV, KTV) cùng kết nối tới máy chủ SQL Server. Để tránh xung đột sao lưu đồng thời (hai máy trạm cùng lúc ghi đè hoặc cùng chạy job Quartz), hệ thống sử dụng khóa phân tán `sp_getapplock` (`Resource = 'CarZone_Backup_Lock'`, `LockMode = 'Exclusive'`, `LockOwner = 'Session'`, timeout 5 giây).
+  + Quy tắc "Đến trước phục vụ trước": Máy nào xin được khóa trước sẽ thực hiện sao lưu. Máy xin khóa sau nếu hết thời gian chờ (timeout) sẽ ghi log và tự động bỏ qua lượt mà không gây tắc nghẽn hay xung đột dữ liệu.
+- **Phân quyền tiến trình nền (Multi-client RBAC Scheduling)**:
+  + Chỉ máy trạm đăng nhập vai trò **`CHU_CUA_HANG`** mới khởi chạy tiến trình lập lịch tự động Quartz (`QuartzScheduler`) và tác vụ sao lưu cuối ca khi đóng ứng dụng (`AppShutdownManager`).
+  + Các máy trạm `TIEP_NHAN_VIEN` và `KY_THUAT_VIEN` khi thoát ứng dụng sẽ đóng ngay mà không kích hoạt sao lưu kết ca, tránh phát sinh các bản sao lưu trùng lặp không cần thiết.
+- **Quy chuẩn Chuỗi phục hồi CSDL SQL Server (SQL Server Restore Chain)**:
+  + Cơ chế xác định chuỗi phục hồi thông minh: Khi chọn một bản sao lưu vi sai (DIFF) hoặc nhật ký giao dịch (LOG) bất kỳ để phục hồi, hệ thống tự động truy vấn bảng lịch sử sao lưu `msdb.dbo.backupset` để bóc tách cây phụ thuộc:
+    `Bản FULL gốc gần nhất -> (Bản DIFF gần nhất nếu có) -> Chuỗi các bản LOG theo thứ tự thời gian tăng dần (backup_set_id ASC) -> Bản đích`.
+  + **Quy tắc cú pháp T-SQL bắt buộc chống lỗi `Msg 4306`**:
+    * Bản FULL đầu tiên: `RESTORE DATABASE CarZone FROM DISK = ? WITH REPLACE, NORECOVERY`.
+    * Các bản trung gian (DIFF hoặc LOG trung gian): `RESTORE DATABASE CarZone FROM DISK = ? WITH NORECOVERY` (hoặc `RESTORE LOG CarZone FROM DISK = ? WITH NORECOVERY`). **TUYỆT ĐỐI KHÔNG CÓ `REPLACE`** vì SQL Server cấm cờ `REPLACE` trên các tệp rollforward kế tiếp.
+    * Bản đích cuối cùng: `WITH RECOVERY` (không có `REPLACE`) để đưa CSDL trở lại trạng thái sẵn sàng (`ONLINE`).
+  + Sau khi phục hồi thành công, tự động làm mới kết nối `DbUtil.getConnection()` và cập nhật giao diện ngay lập tức.
+- **Quy chuẩn Trải nghiệm Người dùng & Giao diện (03/11/2026)**:
+  + Tự động mở toàn màn hình (`JFrame.MAXIMIZED_BOTH`) khi đăng nhập thành công.
+  + Thống nhất hệ thống biểu tượng ảnh 3D (`img/nav_*.png`, ví dụ `nav_sao_luu_phuc_hoi.png`) cho Sidebar và tiêu đề trang, fallback bằng vector icon của `MainFrame`. Cấm dùng emoji Unicode (`💾`, `⚠️`, `🔄`, ...).
+  + Khung Modal Dialog căn chỉnh lề đều đặn: Dùng `RoundedPanel` với insets 16px thay cho `JTextArea`, `JTextField` đệm lề trái 12px để không lệch trục mắt.
+
+## Giám sát Hành vi Phi lý & Hàng rào Bảo mật Mã PIN Cấp 2 (Chốt 04/11/2026)
+- **Đánh chặn tập trung tại Tầng Proxy JDBC**: Tích hợp `PhatHienHanhViPhiLy.kiemTraTruocKhiThucThi` ngay trong `AuditStatementProxy`. Mọi câu lệnh SQL ghi dữ liệu (`INSERT`, `UPDATE`, `DELETE`, `DDL`) từ tất cả các DAO đều được giám sát tự động mà không cần can thiệp từng DAO đơn lẻ.
+- **3 Nhóm Hành vi Phi lý được bảo vệ**:
+  1. *Bulk & Velocity*: Xóa hàng loạt dữ liệu cốt lõi (≥ 3 bản ghi trong < 2 giây); xóa không có `WHERE`; DDL phá hủy (`DROP`, `TRUNCATE`, `ALTER TABLE ... DROP`).
+  2. *Temporal*: Thao tác xóa/sửa dữ liệu cốt lõi ngoài giờ hành chính (00:00 - 05:00 sáng).
+  3. *Structural & Cascading Danger*: Xóa tài khoản / hồ sơ Chủ cửa hàng `CCH...` gây sụp đổ toàn bộ dữ liệu phụ thuộc; truy cập can thiệp tài nguyên quản trị SQL Server.
+- **Cơ chế Vượt rào & Trừng phạt (PIN Barrier Workflow)**:
+  + Tạm dừng luồng DB đang chạy, hiển thị `PinVerificationDialog` trên EDT yêu cầu mã PIN cấp 2 (băm SHA-256).
+  + Đúng PIN: Mở khóa, thêm bảng vào `whitelist` tạm thời 60 giây (suppression window) để không bị hỏi lại.
+  + Sai PIN ≥ 3 lần: Cưỡng chế thoát (Force Logout), hủy giao dịch, kích hoạt sao lưu khẩn cấp (`BackupService.thucHienBackup(BackupType.LOG)`), gửi cảnh báo khẩn cấp tới `ntfy.sh` và Audit Log, đóng toàn bộ Frame về màn hình Đăng nhập.
+
+## Quyền truy cập riêng theo tài khoản (Chốt 05/11/2026)
+- Chủ cửa hàng cấu hình quyền cho **một tài khoản nhân viên cụ thể**, không thay đổi cấu hình quyền dùng chung của vai trò.
+- Tài khoản có thể dùng tập quyền theo hồ sơ hiện tại, toàn bộ màn hình TNV/KTV, hoặc tập màn hình tùy chỉnh.
+- Cấp màn hình của vai trò khác là **chỉ xem**; controller và DB vẫn áp dụng vai trò hồ sơ cho thao tác ghi nghiệp vụ. Mã nhân viên, tên đăng nhập và lịch sử giao dịch không bị đổi.
+- Đây là quyền truy cập ứng dụng, không phải quy trình chuyển đổi hồ sơ nhân sự giữa KTV và TNV. Ràng buộc DB gắn vai trò với mã nhân viên và lưu lịch sử bằng mã đó.

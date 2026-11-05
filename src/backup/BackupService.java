@@ -11,27 +11,37 @@ import java.net.InetAddress;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Dịch vụ điều phối sao lưu CSDL SQL Server (Full, Differential, Transaction Log).
+ * Dịch vụ điều phối sao lưu CSDL SQL Server (Full, Differential, Transaction
+ * Log).
  * Hỗ trợ môi trường ĐA MÁY TRẠM (Tiếp nhận viên, Kỹ thuật viên, Chủ cửa hàng):
- *  1. Khóa phân tán trên SQL Server qua sp_getapplock (chống xung đột giữa các máy trạm).
- *  2. "Ai backup đầu tiên thì lấy của người đó": Tự động kiểm tra lịch sử trên msdb.dbo.backupset,
- *     nếu mốc này đã có máy trạm khác thực hiện trước thì lấy kết quả và bỏ qua, không ghi đè file.
- *  3. Khóa cục bộ ReentrantLock công bằng để bảo vệ luồng nội bộ trên từng máy.
- *  4. Áp dụng thứ tự ưu tiên: Full > Diff > Log.
+ * 1. Khóa phân tán trên SQL Server qua sp_getapplock (chống xung đột giữa các
+ * máy trạm).
+ * 2. "Ai backup đầu tiên thì lấy của người đó": Tự động kiểm tra lịch sử trên
+ * msdb.dbo.backupset,
+ * nếu mốc này đã có máy trạm khác thực hiện trước thì lấy kết quả và bỏ qua,
+ * không ghi đè file.
+ * 3. Khóa cục bộ ReentrantLock công bằng để bảo vệ luồng nội bộ trên từng máy.
+ * 4. Áp dụng thứ tự ưu tiên: Full > Diff > Log.
  */
 public class BackupService {
 
     private static final Logger log = LoggerFactory.getLogger("app");
     private static volatile BackupService instance;
 
-    /** Tên tài nguyên khóa phân tán dùng chung cho toàn bộ hệ thống CarZone trên SQL Server. */
+    /**
+     * Tên tài nguyên khóa phân tán dùng chung cho toàn bộ hệ thống CarZone trên SQL
+     * Server.
+     */
     private static final String APP_LOCK_RESOURCE = "CarZone_Backup_Distributed_Lock";
 
     /** Khóa dùng chung nội bộ JVM chống chạy chồng chéo giữa các luồng cục bộ. */
@@ -48,7 +58,8 @@ public class BackupService {
 
     private boolean recoveryModelWarningLogged = false;
 
-    private BackupService() {}
+    private BackupService() {
+    }
 
     public static BackupService getInstance() {
         if (instance == null) {
@@ -70,18 +81,20 @@ public class BackupService {
             long phutTruoc,
             String tenTep,
             String duongDan,
-            long dungLuong
-    ) {
+            long dungLuong) {
         /**
-         * Kiểm tra xem bản backup này có đủ mới để đại diện cho mốc lịch hiện tại hay không.
-         * Nếu đã có máy khác thực hiện trong khoảng thời gian này, máy hiện tại không cần chạy lại.
+         * Kiểm tra xem bản backup này có đủ mới để đại diện cho mốc lịch hiện tại hay
+         * không.
+         * Nếu đã có máy khác thực hiện trong khoảng thời gian này, máy hiện tại không
+         * cần chạy lại.
          */
         public boolean hopLeTrongKhoang(BackupType type) {
-            if (phutTruoc < 0) return false;
+            if (phutTruoc < 0)
+                return false;
             return switch (type) {
                 case FULL -> phutTruoc < 60; // Trong vòng 60 phút (mốc Full cách nhau 12 tiếng)
                 case DIFF -> phutTruoc < 30; // Trong vòng 30 phút (mốc Diff cách nhau 4 tiếng)
-                case LOG  -> phutTruoc < 10; // Trong vòng 10 phút (mốc Log cách nhau 15 phút)
+                case LOG -> phutTruoc < 10; // Trong vòng 10 phút (mốc Log cách nhau 15 phút)
             };
         }
     }
@@ -94,7 +107,8 @@ public class BackupService {
      * Kiểm tra điều kiện CSDL khi ứng dụng khởi động:
      * 1. Nạp mốc thời gian backup gần nhất từ msdb.dbo.backupset.
      * 2. Kiểm tra Recovery Model (phải là FULL/BULK_LOGGED).
-     * 3. Nếu chưa từng có bản Full, tự động chạy 1 bản Full trước khi các job khác kích hoạt.
+     * 3. Nếu chưa từng có bản Full, tự động chạy 1 bản Full trước khi các job khác
+     * kích hoạt.
      */
     public void khoiTaoStartup() {
         log.info("Bắt đầu kiểm tra trạng thái CSDL và lịch sử sao lưu tại khởi động...");
@@ -116,15 +130,17 @@ public class BackupService {
             String recoveryModel = layRecoveryModel(con, dbName);
             if (!"FULL".equalsIgnoreCase(recoveryModel) && !"BULK_LOGGED".equalsIgnoreCase(recoveryModel)) {
                 log.warn("CẢNH BÁO: CSDL [{}] đang ở chế độ Recovery Model '{}'. "
-                                + "Sao lưu Transaction Log yêu cầu FULL hoặc BULK_LOGGED. "
-                                + "Hệ thống KHÔNG tự đổi cấu hình. Vui lòng chạy câu lệnh SQL: ALTER DATABASE [{}] SET RECOVERY FULL;",
+                        + "Sao lưu Transaction Log yêu cầu FULL hoặc BULK_LOGGED. "
+                        + "Hệ thống KHÔNG tự đổi cấu hình. Vui lòng chạy câu lệnh SQL: ALTER DATABASE [{}] SET RECOVERY FULL;",
                         dbName, recoveryModel, dbName);
                 recoveryModelWarningLogged = true;
             }
 
             // 3. Kiểm tra đã có bản Full nào chưa
             if (lastFullBackupTime <= 0) {
-                log.warn("CSDL [{}] chưa từng có bản Full Backup nào! Tiến hành tạo bản Full ban đầu ngay tại khởi động...", dbName);
+                log.warn(
+                        "CSDL [{}] chưa từng có bản Full Backup nào! Tiến hành tạo bản Full ban đầu ngay tại khởi động...",
+                        dbName);
                 BackupResult r = thucHienBackup(BackupType.FULL);
                 if (r.success()) {
                     log.info("Tạo bản Full ban đầu thành công: {}", r.fileName());
@@ -146,7 +162,8 @@ public class BackupService {
             String rm = layRecoveryModel(con, dbName);
             if (!"FULL".equalsIgnoreCase(rm) && !"BULK_LOGGED".equalsIgnoreCase(rm)) {
                 if (!recoveryModelWarningLogged) {
-                    log.warn("Bỏ qua sao lưu Log: CSDL [{}] đang ở Recovery Model '{}'. Cần: ALTER DATABASE [{}] SET RECOVERY FULL;",
+                    log.warn(
+                            "Bỏ qua sao lưu Log: CSDL [{}] đang ở Recovery Model '{}'. Cần: ALTER DATABASE [{}] SET RECOVERY FULL;",
                             dbName, rm, dbName);
                     recoveryModelWarningLogged = true;
                 }
@@ -170,17 +187,20 @@ public class BackupService {
 
     /**
      * Thực hiện sao lưu CSDL theo loại (FULL, DIFF, LOG).
-     * Áp dụng quy tắc: "Ai backup đầu tiên thì lấy của người đó, các máy sau bỏ qua để tránh đè dữ liệu".
+     * Áp dụng quy tắc: "Ai backup đầu tiên thì lấy của người đó, các máy sau bỏ qua
+     * để tránh đè dữ liệu".
      */
     public BackupResult thucHienBackup(BackupType type) {
         long startTime = System.currentTimeMillis();
         String dbName = DatabaseConfig.layTenDatabase();
 
-        // BƯỚC 1: Kiểm tra nhanh trước xem trên máy chủ đã có máy trạm khác backup mốc này chưa
+        // BƯỚC 1: Kiểm tra nhanh trước xem trên máy chủ đã có máy trạm khác backup mốc
+        // này chưa
         try (Connection checkCon = DbUtil.getRawConnection()) {
             ThongTinBackupGanNhat info = layThongTinBackupGanNhatServer(checkCon, dbName, type);
             if (info != null && info.hopLeTrongKhoang(type)) {
-                log.info("[Multi-Client] Đã có máy trạm khác thực hiện backup {} lúc {} (cách đây {} phút) trên server. Bỏ qua để tránh bị đè dữ liệu.",
+                log.info(
+                        "[Multi-Client] Đã có máy trạm khác thực hiện backup {} lúc {} (cách đây {} phút) trên server. Bỏ qua để tránh bị đè dữ liệu.",
                         type.getTenHienThi(), info.thoiDiem(), info.phutTruoc());
                 capNhatTimestampCucBo(type, info.thoiDiem().getTime());
                 return BackupResult.thanhCong(type, info.tenTep(), info.duongDan(), info.dungLuong(), 0);
@@ -207,14 +227,17 @@ public class BackupService {
                 }
             }
 
-            // BƯỚC 3: Quản lý khóa phân tán trên SQL Server (chống xung đột giữa các máy trạm TNV, KTV, CCH)
+            // BƯỚC 3: Quản lý khóa phân tán trên SQL Server (chống xung đột giữa các máy
+            // trạm TNV, KTV, CCH)
             try (Connection distCon = DbUtil.getRawConnection()) {
                 int timeoutMs = (type == BackupType.LOG) ? 200 : (10 * 60 * 1000); // Log: 200ms; Full/Diff: 10 phút
                 boolean serverLockAcquired = xinKhoaServer(distCon, timeoutMs);
                 if (!serverLockAcquired) {
                     if (type == BackupType.LOG) {
-                        log.warn("[Multi-Client] Bỏ qua mốc sao lưu Log: Máy trạm khác đang thực hiện sao lưu trên server.");
-                        return BackupResult.thatBai(type, null, null, 0, "Bỏ qua do server đang bận sao lưu từ máy khác");
+                        log.warn(
+                                "[Multi-Client] Bỏ qua mốc sao lưu Log: Máy trạm khác đang thực hiện sao lưu trên server.");
+                        return BackupResult.thatBai(type, null, null, 0,
+                                "Bỏ qua do server đang bận sao lưu từ máy khác");
                     } else {
                         String err = "Timeout khi chờ khóa phân tán trên server để sao lưu " + type.getTenHienThi();
                         log.error(err);
@@ -224,10 +247,12 @@ public class BackupService {
 
                 try {
                     // BƯỚC 4: Double-checked locking trên Server
-                    // Sau khi nhận khóa server, kiểm tra lại xem máy vừa giữ khóa trước đó có vừa hoàn tất backup mốc này không
+                    // Sau khi nhận khóa server, kiểm tra lại xem máy vừa giữ khóa trước đó có vừa
+                    // hoàn tất backup mốc này không
                     ThongTinBackupGanNhat info = layThongTinBackupGanNhatServer(distCon, dbName, type);
                     if (info != null && info.hopLeTrongKhoang(type)) {
-                        log.info("[Multi-Client] Máy trạm đầu tiên đã hoàn thành backup {} lúc {} (cách đây {} phút). Lấy kết quả từ máy đó, bỏ qua để tránh ghi đè.",
+                        log.info(
+                                "[Multi-Client] Máy trạm đầu tiên đã hoàn thành backup {} lúc {} (cách đây {} phút). Lấy kết quả từ máy đó, bỏ qua để tránh ghi đè.",
                                 type.getTenHienThi(), info.thoiDiem(), info.phutTruoc());
                         capNhatTimestampCucBo(type, info.thoiDiem().getTime());
                         return BackupResult.thanhCong(type, info.tenTep(), info.duongDan(), info.dungLuong(), 0);
@@ -239,7 +264,8 @@ public class BackupService {
                                 "CSDL chưa đủ điều kiện (cần Recovery Model FULL và đã có bản Full)");
                     }
 
-                    // BƯỚC 6: Máy này là máy ĐẦU TIÊN -> Thực thi câu lệnh BACKUP thật trên SQL Server
+                    // BƯỚC 6: Máy này là máy ĐẦU TIÊN -> Thực thi câu lệnh BACKUP thật trên SQL
+                    // Server
                     return thucThiSqlBackup(type, dbName);
 
                 } finally {
@@ -356,6 +382,7 @@ public class BackupService {
 
     /**
      * Xin khóa độc quyền trên SQL Server qua thủ tục sp_getapplock.
+     * 
      * @param con       Connection mở tới SQL Server
      * @param timeoutMs Thời gian chờ khóa (mili-giây)
      * @return true nếu lấy được khóa, false nếu hết hạn chờ hoặc lỗi
@@ -388,7 +415,8 @@ public class BackupService {
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, APP_LOCK_RESOURCE);
             ps.execute();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -396,13 +424,14 @@ public class BackupService {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Lấy thông tin bản backup gần nhất của loại tương ứng từ msdb.dbo.backupset trên SQL Server.
+     * Lấy thông tin bản backup gần nhất của loại tương ứng từ msdb.dbo.backupset
+     * trên SQL Server.
      */
     public ThongTinBackupGanNhat layThongTinBackupGanNhatServer(Connection con, String dbName, BackupType type) {
         String typeFilter = switch (type) {
             case FULL -> "bs.type = 'D'";
             case DIFF -> "bs.type IN ('D', 'I')";
-            case LOG  -> "bs.type IN ('D', 'I', 'L')";
+            case LOG -> "bs.type IN ('D', 'I', 'L')";
         };
 
         String sql = "SELECT TOP 1 bs.type, bs.backup_finish_date, "
@@ -437,14 +466,16 @@ public class BackupService {
     }
 
     private String layRecoveryModel(Connection con, String dbName) {
-        try (PreparedStatement ps = con.prepareStatement("SELECT recovery_model_desc FROM sys.databases WHERE name = ?")) {
+        try (PreparedStatement ps = con
+                .prepareStatement("SELECT recovery_model_desc FROM sys.databases WHERE name = ?")) {
             ps.setString(1, dbName);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getString(1);
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
         return "UNKNOWN";
     }
 
@@ -460,7 +491,8 @@ public class BackupService {
                     return d != null ? d.getTime() : 0;
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
         return 0;
     }
 
@@ -477,14 +509,18 @@ public class BackupService {
                     return rs.getLong(1);
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
         return -1;
     }
 
     /**
-     * Kiểm tra xem có bản sao lưu nào vừa thành công trong vòng X phút gần đây không.
-     * TRUY VẤN TRỰC TIẾP TRÊN MÁY CHỦ CSDL để đồng bộ trạng thái giữa tất cả các máy trạm:
-     * Nếu tiếp nhận viên, kỹ thuật viên hoặc chủ cửa hàng đã có máy thoát trước và backup thành công,
+     * Kiểm tra xem có bản sao lưu nào vừa thành công trong vòng X phút gần đây
+     * không.
+     * TRUY VẤN TRỰC TIẾP TRÊN MÁY CHỦ CSDL để đồng bộ trạng thái giữa tất cả các
+     * máy trạm:
+     * Nếu tiếp nhận viên, kỹ thuật viên hoặc chủ cửa hàng đã có máy thoát trước và
+     * backup thành công,
      * các máy thoát sau sẽ nhận biết ngay và thoát tức thì, không backup lặp lại.
      */
     public boolean vuaCoBackupGanDay() {
@@ -504,7 +540,8 @@ public class BackupService {
                         long diffSec = rs.getLong("diff_sec");
                         if (diffSec >= 0 && diffSec < (thresholdMin * 60L)) {
                             Date finishDate = rs.getTimestamp("backup_finish_date");
-                            log.info("[Multi-Client] Trên SQL Server đã có bản sao lưu lúc {} (cách đây {} giây bởi máy trạm khác hoặc tiến trình trước). Bỏ qua sao lưu khi thoát.",
+                            log.info(
+                                    "[Multi-Client] Trên SQL Server đã có bản sao lưu lúc {} (cách đây {} giây bởi máy trạm khác hoặc tiến trình trước). Bỏ qua sao lưu khi thoát.",
                                     finishDate, diffSec);
                             return true;
                         }
@@ -512,7 +549,8 @@ public class BackupService {
                 }
             }
         } catch (Throwable t) {
-            log.warn("Không thể truy vấn lịch sử backup từ SQL Server: {} – chuyển sang kiểm tra bộ nhớ cục bộ.", t.getMessage());
+            log.warn("Không thể truy vấn lịch sử backup từ SQL Server: {} – chuyển sang kiểm tra bộ nhớ cục bộ.",
+                    t.getMessage());
         }
 
         // 2. Fallback kiểm tra bộ nhớ RAM cục bộ
@@ -529,7 +567,7 @@ public class BackupService {
         switch (type) {
             case FULL -> lastFullBackupTime = timestamp;
             case DIFF -> lastDiffBackupTime = timestamp;
-            case LOG  -> lastLogBackupTime = timestamp;
+            case LOG -> lastLogBackupTime = timestamp;
         }
     }
 
@@ -537,14 +575,16 @@ public class BackupService {
         String host = "workstation";
         try {
             host = InetAddress.getLocalHost().getHostName();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
 
         String user = "SYSTEM";
         try {
             if (UserSession.getInstance().daDangNhap()) {
                 user = UserSession.getInstance().getMaNV();
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
 
         return user + "@" + host;
     }
@@ -563,5 +603,589 @@ public class BackupService {
 
     public ReentrantLock getBackupLock() {
         return backupLock;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TÁC VỤ SAO LƯU & PHỤC HỒI THỦ CÔNG DÀNH CHO CHỦ CỬA HÀNG
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Lấy danh sách toàn bộ các bản sao lưu đã thực hiện từ msdb.dbo.backupset.
+     */
+    public java.util.List<BanSaoLuuItem> layDanhSachBanSaoLuu() {
+        java.util.List<BanSaoLuuItem> list = new java.util.ArrayList<>();
+        String dbName = DatabaseConfig.layTenDatabase();
+        String sql = "SELECT bs.backup_set_id, bs.database_name, bs.type, bs.backup_finish_date, "
+                + "bs.backup_size, bmf.physical_device_name, bs.name AS backup_name "
+                + "FROM msdb.dbo.backupset bs "
+                + "LEFT JOIN msdb.dbo.backupmediafamily bmf ON bs.media_set_id = bmf.media_set_id "
+                + "WHERE bs.database_name = ? AND bs.type IN ('D', 'I', 'L') "
+                + "ORDER BY bs.backup_finish_date DESC";
+
+        try (Connection con = DbUtil.getRawConnection();
+                PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, dbName);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    long id = rs.getLong("backup_set_id");
+                    String db = rs.getString("database_name");
+                    String tStr = rs.getString("type");
+                    BackupType type = switch (tStr == null ? "" : tStr) {
+                        case "D" -> BackupType.FULL;
+                        case "I" -> BackupType.DIFF;
+                        case "L" -> BackupType.LOG;
+                        default -> null;
+                    };
+                    Date date = rs.getTimestamp("backup_finish_date");
+                    long size = rs.getLong("backup_size");
+                    String path = rs.getString("physical_device_name");
+                    String name = rs.getString("backup_name");
+                    String fileName = path;
+                    if (path != null) {
+                        int idx = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+                        if (idx >= 0)
+                            fileName = path.substring(idx + 1);
+                    }
+                    list.add(new BanSaoLuuItem(id, db, type, date, size, path, fileName, name));
+                }
+            }
+        } catch (Throwable t) {
+            log.error("Lỗi truy vấn danh sách bản sao lưu: {}", t.getMessage(), t);
+        }
+        return list;
+    }
+
+    /**
+     * Thực hiện sao lưu thủ công theo yêu cầu của Chủ cửa hàng.
+     */
+    public BackupResult thucHienSaoLuuThuCong(BackupType type, String ghiChu) {
+        if (!UserSession.getInstance().coVaiTro(enums.VaiTro.CHU_CUA_HANG)) {
+            return BackupResult.thatBai(type, null, null, 0,
+                    "Chỉ Chủ cửa hàng mới có quyền thực hiện sao lưu thủ công!");
+        }
+
+        long startTime = System.currentTimeMillis();
+        String dbName = DatabaseConfig.layTenDatabase();
+
+        boolean localLockAcquired = false;
+        try {
+            localLockAcquired = backupLock.tryLock(10, TimeUnit.MINUTES);
+            if (!localLockAcquired) {
+                return BackupResult.thatBai(type, null, null, System.currentTimeMillis() - startTime,
+                        "Hệ thống đang bận thực hiện sao lưu khác. Vui lòng thử lại sau.");
+            }
+
+            try (Connection distCon = DbUtil.getRawConnection()) {
+                boolean serverLockAcquired = xinKhoaServer(distCon, 30_000);
+                if (!serverLockAcquired) {
+                    return BackupResult.thatBai(type, null, null, System.currentTimeMillis() - startTime,
+                            "Máy chủ đang bận thực hiện sao lưu khác. Vui lòng thử lại sau.");
+                }
+
+                try {
+                    if (type == BackupType.LOG && !kiemTraDieuKienBackupLog()) {
+                        return BackupResult.thatBai(type, null, null, System.currentTimeMillis() - startTime,
+                                "CSDL chưa đủ điều kiện (cần Recovery Model FULL và đã có bản Full)");
+                    }
+
+                    return thucThiSqlBackupThuCong(type, dbName, ghiChu);
+                } finally {
+                    nhanKhoaServer(distCon);
+                }
+            }
+        } catch (Throwable t) {
+            log.error("Lỗi sao lưu thủ công: {}", t.getMessage(), t);
+            return BackupResult.thatBai(type, null, null, System.currentTimeMillis() - startTime, t.getMessage());
+        } finally {
+            if (localLockAcquired) {
+                backupLock.unlock();
+            }
+        }
+    }
+
+    private BackupResult thucThiSqlBackupThuCong(BackupType type, String dbName, String ghiChu) {
+        long start = System.currentTimeMillis();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmm");
+        String timestamp = sdf.format(new Date());
+
+        String prefix = switch (type) {
+            case FULL -> "DB_MANUAL_FULL_";
+            case DIFF -> "DB_MANUAL_DIFF_";
+            case LOG -> "DB_MANUAL_LOG_";
+        };
+        String fileName = prefix + timestamp + "." + type.getDuoiTep();
+        String subDir = BackupConfig.getSubdirectory(type);
+        String fullPath = subDir + "/" + fileName;
+
+        String clientIdentity = layDinhDanhMayTram();
+        String backupName = "CarZone MANUAL " + type.name() + " by " + clientIdentity
+                + (ghiChu != null && !ghiChu.isBlank() ? " (" + ghiChu.trim() + ")" : "");
+
+        try (Connection con = DbUtil.getRawConnection()) {
+            try (PreparedStatement psDir = con.prepareStatement("EXEC master.sys.xp_create_subdir ?")) {
+                psDir.setString(1, subDir);
+                psDir.execute();
+            } catch (Throwable ignored) {
+            }
+
+            String sql = switch (type) {
+                case FULL -> "BACKUP DATABASE [" + dbName + "] TO DISK = ? WITH INIT, CHECKSUM, NAME = ?";
+                case DIFF -> "BACKUP DATABASE [" + dbName + "] TO DISK = ? WITH DIFFERENTIAL, INIT, CHECKSUM, NAME = ?";
+                case LOG -> "BACKUP LOG [" + dbName + "] TO DISK = ? WITH INIT, CHECKSUM, NAME = ?";
+            };
+
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setString(1, fullPath);
+                ps.setString(2, backupName);
+                ps.setQueryTimeout(300);
+                ps.execute();
+            }
+
+            long duration = System.currentTimeMillis() - start;
+            long fileSize = layDungLuongBackupMoiNhat(con, dbName, fullPath);
+
+            capNhatTimestampCucBo(type, System.currentTimeMillis());
+            log.info("Sao lưu thủ công {} thành công! File: {} ({}), thời gian: {}ms",
+                    type.getTenHienThi(), fileName, AuditLogger.formatDungLuong(fileSize), duration);
+
+            AuditLogger.logBackupOperation("MANUAL_" + type.name(), dbName, fullPath, fileSize, duration, true, null);
+            return BackupResult.thanhCong(type, fileName, fullPath, fileSize, duration);
+
+        } catch (Throwable t) {
+            long duration = System.currentTimeMillis() - start;
+            log.error("Sao lưu thủ công {} thất bại: {}", type.getTenHienThi(), t.getMessage(), t);
+            AuditLogger.logBackupOperation("MANUAL_" + type.name(), dbName, fullPath, -1, duration, false,
+                    t.getMessage());
+            return BackupResult.thatBai(type, fileName, fullPath, duration, t.getMessage());
+        }
+    }
+
+    public record RestoreStep(
+            String loai,          // "FULL", "DIFF", "LOG"
+            String duongDan,      // Đường dẫn file sao lưu
+            boolean recovery,     // true: WITH RECOVERY, false: WITH NORECOVERY
+            String moTa           // Diễn giải từng bước
+    ) {}
+
+    /**
+     * Tự động xác định chuỗi phục hồi hợp lệ theo chuẩn Microsoft SQL Server:
+     * - FULL: 1 bước (RESTORE DATABASE WITH REPLACE, RECOVERY)
+     * - DIFF: 2 bước (RESTORE FULL gốc WITH REPLACE, NORECOVERY -> RESTORE DIFF WITH RECOVERY [KHÔNG có REPLACE])
+     * - LOG: Chuỗi liên hoàn từ bản FULL gốc (RESTORE FULL gốc WITH REPLACE, NORECOVERY -> các bản LOG liên tiếp WITH NORECOVERY -> bản LOG đích WITH RECOVERY)
+     */
+    public List<RestoreStep> xacDinhChuoiPhucHoi(Connection masterCon, String dbName, String targetPath) throws SQLException {
+        List<RestoreStep> steps = new ArrayList<>();
+        if (targetPath == null || targetPath.isBlank()) {
+            return steps;
+        }
+
+        String fileName = targetPath;
+        int idx = Math.max(targetPath.lastIndexOf('/'), targetPath.lastIndexOf('\\'));
+        if (idx >= 0) {
+            fileName = targetPath.substring(idx + 1);
+        }
+
+        // 1. Tra cứu thông tin của file chỉ định trong msdb.dbo.backupset
+        String sqlFindTarget = "SELECT TOP 1 bs.backup_set_id, bs.type, bs.backup_finish_date, bmf.physical_device_name "
+                + "FROM msdb.dbo.backupset bs "
+                + "JOIN msdb.dbo.backupmediafamily bmf ON bs.media_set_id = bmf.media_set_id "
+                + "WHERE (bs.database_name = ? OR ? = '') "
+                + "  AND (bmf.physical_device_name = ? OR bmf.physical_device_name LIKE ? OR bmf.physical_device_name LIKE ?) "
+                + "ORDER BY bs.backup_set_id DESC";
+
+        String targetType = null;
+        long targetSetId = -1;
+        String canonicalTargetPath = targetPath;
+
+        try (PreparedStatement ps = masterCon.prepareStatement(sqlFindTarget)) {
+            ps.setString(1, dbName);
+            ps.setString(2, dbName);
+            ps.setString(3, targetPath);
+            ps.setString(4, "%/" + fileName);
+            ps.setString(5, "%\\" + fileName);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    targetSetId = rs.getLong("backup_set_id");
+                    targetType = rs.getString("type");
+                    canonicalTargetPath = rs.getString("physical_device_name");
+                }
+            }
+        }
+
+        // Tìm kiếm dự phòng theo tên tệp nếu đường dẫn tuyệt đối bị lệch giữa host và container
+        if (targetType == null) {
+            String sqlFallback = "SELECT TOP 1 bs.backup_set_id, bs.type, bs.backup_finish_date, bmf.physical_device_name "
+                    + "FROM msdb.dbo.backupset bs "
+                    + "JOIN msdb.dbo.backupmediafamily bmf ON bs.media_set_id = bmf.media_set_id "
+                    + "WHERE bmf.physical_device_name LIKE ? "
+                    + "ORDER BY bs.backup_set_id DESC";
+            try (PreparedStatement ps = masterCon.prepareStatement(sqlFallback)) {
+                ps.setString(1, "%" + fileName);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        targetSetId = rs.getLong("backup_set_id");
+                        targetType = rs.getString("type");
+                        canonicalTargetPath = rs.getString("physical_device_name");
+                    }
+                }
+            }
+        }
+
+        // Trường hợp không tìm thấy trong msdb (file copy ngoài vào):
+        if (targetType == null) {
+            if (fileName.toLowerCase().endsWith(".trn") || fileName.toLowerCase().endsWith(".log")) {
+                throw new SQLException("Không tìm thấy thông tin của tệp Transaction Log [" + fileName + "] trong lịch sử msdb để dựng chuỗi phục hồi. "
+                        + "Vui lòng chọn bản sao lưu trực tiếp từ bảng lịch sử trên giao diện.");
+            } else {
+                steps.add(new RestoreStep("FULL", targetPath, true, "Phục hồi cơ sở dữ liệu (.bak)"));
+                return steps;
+            }
+        }
+
+        // Trường hợp A: Bản FULL ('D')
+        if ("D".equalsIgnoreCase(targetType)) {
+            steps.add(new RestoreStep("FULL", canonicalTargetPath, true, "Phục hồi toàn phần bản Full Backup"));
+            return steps;
+        }
+
+        // Trường hợp B: Bản DIFF ('I')
+        if ("I".equalsIgnoreCase(targetType)) {
+            // Cần bản FULL gần nhất trước mốc DIFF này (dựa vào backup_set_id)
+            String sqlBaseFull = "SELECT TOP 1 bmf.physical_device_name "
+                    + "FROM msdb.dbo.backupset bs "
+                    + "JOIN msdb.dbo.backupmediafamily bmf ON bs.media_set_id = bmf.media_set_id "
+                    + "WHERE (bs.database_name = ? OR ? = '') AND bs.type = 'D' AND bs.backup_set_id < ? "
+                    + "ORDER BY bs.backup_set_id DESC";
+
+            String baseFullPath = null;
+            try (PreparedStatement ps = masterCon.prepareStatement(sqlBaseFull)) {
+                ps.setString(1, dbName);
+                ps.setString(2, dbName);
+                ps.setLong(3, targetSetId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        baseFullPath = rs.getString("physical_device_name");
+                    }
+                }
+            }
+
+            if (baseFullPath == null) {
+                throw new SQLException("Không tìm thấy bản sao lưu FULL gốc trong msdb để làm mốc phục hồi vi sai (Differential).");
+            }
+
+            steps.add(new RestoreStep("FULL", baseFullPath, false, "Phục hồi bản FULL gốc (chế độ chờ NORECOVERY)"));
+            steps.add(new RestoreStep("DIFF", canonicalTargetPath, true, "Phục hồi bản vi sai DIFF (hoàn tất RECOVERY)"));
+            return steps;
+        }
+
+        // Trường hợp C: Bản LOG ('L')
+        if ("L".equalsIgnoreCase(targetType)) {
+            // 1. Tìm bản FULL gần nhất trước mốc LOG này (dựa vào backup_set_id)
+            String sqlBaseFull = "SELECT TOP 1 bs.backup_set_id, bs.backup_finish_date, bmf.physical_device_name "
+                    + "FROM msdb.dbo.backupset bs "
+                    + "JOIN msdb.dbo.backupmediafamily bmf ON bs.media_set_id = bmf.media_set_id "
+                    + "WHERE (bs.database_name = ? OR ? = '') AND bs.type = 'D' AND bs.backup_set_id < ? "
+                    + "ORDER BY bs.backup_set_id DESC";
+
+            long baseFullSetId = -1;
+            String baseFullPath = null;
+            try (PreparedStatement ps = masterCon.prepareStatement(sqlBaseFull)) {
+                ps.setString(1, dbName);
+                ps.setString(2, dbName);
+                ps.setLong(3, targetSetId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        baseFullSetId = rs.getLong("backup_set_id");
+                        baseFullPath = rs.getString("physical_device_name");
+                    }
+                }
+            }
+
+            if (baseFullPath == null) {
+                throw new SQLException("Không tìm thấy bản sao lưu FULL gốc trong msdb để làm mốc phục hồi chuỗi nhật ký (Transaction Log).");
+            }
+
+            // Bước 1: Phục hồi FULL gốc ở trạng thái NORECOVERY
+            steps.add(new RestoreStep("FULL", baseFullPath, false, "Phục hồi bản FULL gốc (chế độ chờ NORECOVERY)"));
+
+            // 2. Lấy toàn bộ các bản LOG từ sau baseFullSetId đến targetSetId theo đúng thứ tự backup_set_id ASC
+            String sqlLogs = "SELECT bs.backup_set_id, bmf.physical_device_name "
+                    + "FROM msdb.dbo.backupset bs "
+                    + "JOIN msdb.dbo.backupmediafamily bmf ON bs.media_set_id = bmf.media_set_id "
+                    + "WHERE (bs.database_name = ? OR ? = '') AND bs.type = 'L' "
+                    + "  AND bs.backup_set_id > ? AND bs.backup_set_id <= ? "
+                    + "ORDER BY bs.backup_set_id ASC";
+
+            List<String> logPaths = new ArrayList<>();
+            try (PreparedStatement ps = masterCon.prepareStatement(sqlLogs)) {
+                ps.setString(1, dbName);
+                ps.setString(2, dbName);
+                ps.setLong(3, baseFullSetId);
+                ps.setLong(4, targetSetId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String p = rs.getString("physical_device_name");
+                        if (p != null && !p.isBlank() && !logPaths.contains(p)) {
+                            logPaths.add(p);
+                        }
+                    }
+                }
+            }
+
+            if (!logPaths.contains(canonicalTargetPath)) {
+                logPaths.add(canonicalTargetPath);
+            }
+
+            for (int i = 0; i < logPaths.size(); i++) {
+                boolean isFinal = (i == logPaths.size() - 1);
+                String path = logPaths.get(i);
+                steps.add(new RestoreStep("LOG", path, isFinal,
+                        "Phục hồi chuỗi nhật ký LOG [" + (i + 1) + "/" + logPaths.size() + "] "
+                                + (isFinal ? "(hoàn tất RECOVERY)" : "(chế độ chờ NORECOVERY)")));
+            }
+
+            return steps;
+        }
+
+        // Mặc định
+        steps.add(new RestoreStep("FULL", canonicalTargetPath, true, "Phục hồi CSDL"));
+        return steps;
+    }
+
+    /**
+     * Thực hiện phục hồi cơ sở dữ liệu từ tệp sao lưu chỉ định.
+     * Tự động điều phối chuỗi phục hồi: FULL gốc -> DIFF trung gian -> các LOG tuần tự.
+     */
+    public RestoreResult thucHienPhucHoi(String duongDanTepBak) {
+        if (!UserSession.getInstance().coVaiTro(enums.VaiTro.CHU_CUA_HANG)) {
+            return RestoreResult.thatBai(duongDanTepBak, 0, "Chỉ Chủ cửa hàng mới có quyền phục hồi cơ sở dữ liệu!");
+        }
+        if (duongDanTepBak == null || duongDanTepBak.isBlank()) {
+            return RestoreResult.thatBai(null, 0, "Đường dẫn tệp sao lưu không được để trống!");
+        }
+
+        long start = System.currentTimeMillis();
+        String dbName = DatabaseConfig.layTenDatabase();
+        log.warn("CHỦ CỬA HÀNG YÊU CẦU PHỤC HỒI CSDL [{}] TỪ TỆP: {}", dbName, duongDanTepBak);
+
+        boolean localLockAcquired = false;
+        try {
+            localLockAcquired = backupLock.tryLock(15, TimeUnit.MINUTES);
+            if (!localLockAcquired) {
+                return RestoreResult.thatBai(duongDanTepBak, 0, "Hệ thống đang bận thực hiện tác vụ khác.");
+            }
+
+            // Dùng kết nối master để thực hiện restore
+            try (Connection masterCon = DbUtil.getMasterConnection()) {
+                // 1. Phân tích chuỗi phục hồi tự động
+                List<RestoreStep> steps = xacDinhChuoiPhucHoi(masterCon, dbName, duongDanTepBak);
+                if (steps.isEmpty()) {
+                    return RestoreResult.thatBai(duongDanTepBak, 0, "Không xác định được các bước phục hồi phù hợp.");
+                }
+
+                // 2. Chuyển database sang SINGLE_USER WITH ROLLBACK IMMEDIATE để ngắt toàn bộ phiên kết nối khác
+                log.info("Đang chuyển CSDL [{}] sang SINGLE_USER để ngắt kết nối...", dbName);
+                try (Statement st = masterCon.createStatement()) {
+                    st.execute("ALTER DATABASE [" + dbName + "] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
+                }
+
+                // 3. Thực thi tuần tự từng bước trong chuỗi phục hồi
+                for (int i = 0; i < steps.size(); i++) {
+                    RestoreStep step = steps.get(i);
+                    String sql;
+                    if ("FULL".equalsIgnoreCase(step.loai())) {
+                        sql = "RESTORE DATABASE [" + dbName + "] FROM DISK = ? WITH REPLACE, "
+                                + (step.recovery() ? "RECOVERY" : "NORECOVERY");
+                    } else if ("DIFF".equalsIgnoreCase(step.loai())) {
+                        sql = "RESTORE DATABASE [" + dbName + "] FROM DISK = ? WITH "
+                                + (step.recovery() ? "RECOVERY" : "NORECOVERY");
+                    } else { // LOG
+                        sql = "RESTORE LOG [" + dbName + "] FROM DISK = ? WITH "
+                                + (step.recovery() ? "RECOVERY" : "NORECOVERY");
+                    }
+
+                    log.info("Thực thi bước [{}/{}]: {} (File: {})", i + 1, steps.size(), step.moTa(), step.duongDan());
+                    try (PreparedStatement ps = masterCon.prepareStatement(sql)) {
+                        ps.setString(1, step.duongDan());
+                        ps.setQueryTimeout(600); // 10 phút timeout
+                        ps.execute();
+                    }
+                }
+
+                // 4. Chuyển database về MULTI_USER
+                log.info("Phục hồi thành công toàn bộ chuỗi! Chuyển CSDL [{}] về MULTI_USER...", dbName);
+                try (Statement st = masterCon.createStatement()) {
+                    st.execute("ALTER DATABASE [" + dbName + "] SET MULTI_USER");
+                }
+
+                long duration = System.currentTimeMillis() - start;
+                log.info("Phục hồi CSDL [{}] hoàn tất thành công trong {}ms với {} bước!", dbName, duration, steps.size());
+                AuditLogger.logBackupOperation("RESTORE", dbName, duongDanTepBak, 0, duration, true, null);
+
+                return RestoreResult.thanhCong(duongDanTepBak, duration);
+
+            } catch (Throwable t) {
+                // Đảm bảo cố gắng đưa DB về MULTI_USER nếu có lỗi
+                try (Connection rescueCon = DbUtil.getMasterConnection();
+                     Statement st = rescueCon.createStatement()) {
+                    st.execute("ALTER DATABASE [" + dbName + "] SET MULTI_USER");
+                } catch (Throwable ignored) {}
+
+                long duration = System.currentTimeMillis() - start;
+                String err = "Lỗi khi phục hồi CSDL: " + t.getMessage();
+                log.error(err, t);
+                AuditLogger.logBackupOperation("RESTORE", dbName, duongDanTepBak, -1, duration, false, t.getMessage());
+                return RestoreResult.thatBai(duongDanTepBak, duration, err);
+            }
+
+        } catch (Throwable t) {
+            long duration = System.currentTimeMillis() - start;
+            return RestoreResult.thatBai(duongDanTepBak, duration, t.getMessage());
+        } finally {
+            if (localLockAcquired) {
+                backupLock.unlock();
+            }
+        }
+    }
+
+    /**
+     * Tự động tìm bản sao lưu an toàn gần nhất trước thời điểm sự cố và thực hiện khôi phục CSDL.
+     * Được kích hoạt khi:
+     * 1. Phát hiện vi phạm an ninh nghiêm trọng / kẻ tấn công nhập sai mã PIN quá 3 lần.
+     * 2. Phát hiện dữ liệu bị phá hoại hoặc biến đổi bất thường vượt ngưỡng báo động.
+     *
+     * @param lyDo         Mô tả nguyên nhân kích hoạt phục hồi tự động
+     * @param thoiDiemSuCo Mốc thời gian bắt đầu sự cố để tìm bản sao lưu sạch trước đó
+     * @return RestoreResult kết quả thực thi
+     */
+    public RestoreResult thucHienPhucHoiTuDong(String lyDo, Date thoiDiemSuCo) {
+        long start = System.currentTimeMillis();
+        String dbName = DatabaseConfig.layTenDatabase();
+        log.error(">>> KÍCH HOẠT QUY TRÌNH TỰ ĐỘNG PHỤC HỒI CSDL (AUTO-RESTORE) <<< Lý do: {}", lyDo);
+
+        boolean localLockAcquired = false;
+        try {
+            localLockAcquired = backupLock.tryLock(15, TimeUnit.MINUTES);
+            if (!localLockAcquired) {
+                return RestoreResult.thatBai(null, 0, "Không thể Auto-Restore: Hệ thống đang bận tác vụ khác.");
+            }
+
+            try (Connection masterCon = DbUtil.getMasterConnection()) {
+                // 1. Tìm bản sao lưu an toàn gần nhất trước thời điểm sự cố
+                String targetPath = null;
+                Date mocGio = (thoiDiemSuCo != null) ? thoiDiemSuCo : new Date();
+
+                String sqlFind = "SELECT TOP 1 bmf.physical_device_name "
+                        + "FROM msdb.dbo.backupset bs "
+                        + "JOIN msdb.dbo.backupmediafamily bmf ON bs.media_set_id = bmf.media_set_id "
+                        + "WHERE bs.database_name = ? AND bs.type IN ('D', 'I', 'L') "
+                        + "  AND bs.backup_finish_date <= ? "
+                        + "ORDER BY bs.backup_finish_date DESC";
+
+                try (PreparedStatement ps = masterCon.prepareStatement(sqlFind)) {
+                    ps.setString(1, dbName);
+                    ps.setTimestamp(2, new java.sql.Timestamp(mocGio.getTime()));
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            targetPath = rs.getString(1);
+                        }
+                    }
+                }
+
+                // Nếu không có bản nào trước mốc giờ chỉ định, lấy bản backup gần nhất có sẵn
+                if (targetPath == null) {
+                    String sqlFallback = "SELECT TOP 1 bmf.physical_device_name "
+                            + "FROM msdb.dbo.backupset bs "
+                            + "JOIN msdb.dbo.backupmediafamily bmf ON bs.media_set_id = bmf.media_set_id "
+                            + "WHERE bs.database_name = ? AND bs.type IN ('D', 'I') "
+                            + "ORDER BY bs.backup_finish_date DESC";
+                    try (PreparedStatement ps = masterCon.prepareStatement(sqlFallback)) {
+                        ps.setString(1, dbName);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                targetPath = rs.getString(1);
+                            }
+                        }
+                    }
+                }
+
+                if (targetPath == null) {
+                    String err = "Auto-Restore thất bại: Không tìm thấy bất kỳ bản sao lưu hợp lệ nào trong msdb!";
+                    log.error(err);
+                    return RestoreResult.thatBai(null, 0, err);
+                }
+
+                log.warn("Auto-Restore đã chọn bản sao lưu an toàn: {} để khôi phục CSDL [{}]", targetPath, dbName);
+
+                // 2. Phân tích chuỗi phục hồi thông minh (FULL -> DIFF -> LOGs)
+                List<RestoreStep> steps = xacDinhChuoiPhucHoi(masterCon, dbName, targetPath);
+                if (steps.isEmpty()) {
+                    return RestoreResult.thatBai(targetPath, 0, "Không dựng được chuỗi phục hồi tự động.");
+                }
+
+                // 3. Chuyển database sang SINGLE_USER WITH ROLLBACK IMMEDIATE để ngắt toàn bộ phiên kết nối
+                log.info("[Auto-Restore] Ngắt toàn bộ kết nối khác tới CSDL [{}]...", dbName);
+                try (Statement st = masterCon.createStatement()) {
+                    st.execute("ALTER DATABASE [" + dbName + "] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
+                }
+
+                // 4. Thực thi chuỗi phục hồi
+                for (int i = 0; i < steps.size(); i++) {
+                    RestoreStep step = steps.get(i);
+                    String sql;
+                    if ("FULL".equalsIgnoreCase(step.loai())) {
+                        sql = "RESTORE DATABASE [" + dbName + "] FROM DISK = ? WITH REPLACE, "
+                                + (step.recovery() ? "RECOVERY" : "NORECOVERY");
+                    } else if ("DIFF".equalsIgnoreCase(step.loai())) {
+                        sql = "RESTORE DATABASE [" + dbName + "] FROM DISK = ? WITH "
+                                + (step.recovery() ? "RECOVERY" : "NORECOVERY");
+                    } else { // LOG
+                        sql = "RESTORE LOG [" + dbName + "] FROM DISK = ? WITH "
+                                + (step.recovery() ? "RECOVERY" : "NORECOVERY");
+                    }
+
+                    log.info("[Auto-Restore] Thực thi bước [{}/{}]: {} (File: {})",
+                            i + 1, steps.size(), step.moTa(), step.duongDan());
+                    try (PreparedStatement ps = masterCon.prepareStatement(sql)) {
+                        ps.setString(1, step.duongDan());
+                        ps.setQueryTimeout(600);
+                        ps.execute();
+                    }
+                }
+
+                // 5. Mở lại MULTI_USER
+                log.info("[Auto-Restore] Khôi phục thành công! Chuyển CSDL [{}] về MULTI_USER...", dbName);
+                try (Statement st = masterCon.createStatement()) {
+                    st.execute("ALTER DATABASE [" + dbName + "] SET MULTI_USER");
+                }
+
+                long duration = System.currentTimeMillis() - start;
+                log.warn(">>> AUTO-RESTORE THÀNH CÔNG RỰC RỠ trong {}ms! CSDL đã được đưa về trạng thái an toàn. <<<", duration);
+                AuditLogger.logBackupOperation("AUTO_RESTORE", dbName, targetPath, 0, duration, true, lyDo);
+
+                return RestoreResult.thanhCong(targetPath, duration);
+
+            } catch (Throwable t) {
+                // Đảm bảo cố gắng đưa DB về MULTI_USER nếu có lỗi
+                try (Connection rescueCon = DbUtil.getMasterConnection();
+                     Statement st = rescueCon.createStatement()) {
+                    st.execute("ALTER DATABASE [" + dbName + "] SET MULTI_USER");
+                } catch (Throwable ignored) {}
+
+                long duration = System.currentTimeMillis() - start;
+                String err = "Lỗi khi Auto-Restore: " + t.getMessage();
+                log.error(err, t);
+                AuditLogger.logBackupOperation("AUTO_RESTORE", dbName, null, -1, duration, false, err);
+                return RestoreResult.thatBai(null, duration, err);
+            }
+
+        } catch (Throwable t) {
+            long duration = System.currentTimeMillis() - start;
+            return RestoreResult.thatBai(null, duration, t.getMessage());
+        } finally {
+            if (localLockAcquired) {
+                backupLock.unlock();
+            }
+        }
     }
 }

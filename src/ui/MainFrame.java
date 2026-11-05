@@ -9,9 +9,13 @@ import controller.AuthController;
 import controller.AuthController.NavigationItem;
 import controller.DashboardController;
 import controller.DashboardController.*;
+import controller.TraCuuController;
 import entity.NhanVien;
+import entity.DichVu;
+import entity.LinhKien;
 
 import enums.VaiTro;
+import enums.TrangThaiPhieu;
 import session.UserSession;
 
 import javax.imageio.ImageIO;
@@ -19,6 +23,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
@@ -30,12 +35,15 @@ import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.SimpleDateFormat;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * MainFrame: Khung giao diện chính của toàn bộ hệ thống CarZone.
@@ -134,12 +142,18 @@ public class MainFrame extends JFrame {
     private final NhanVien nhanVien;
     private final AuthController authController = new AuthController();
     private final DashboardController dashboardController = new DashboardController();
+    private final TraCuuController traCuuController = new TraCuuController();
 
     private CardLayout contentCardLayout;
     private JPanel pnlContentPanel;
     private final Map<String, JButton> mapNavButtons = new HashMap<>();
     private String activeNavId = "NAV_DASHBOARD";
     private CapNhatPhieuSuaChuaUI capNhatPhieuUI;
+    private XuLyYeuCauLinhKienUI xuLyYeuCauCCHUI;
+    private QuanLyDichVuUI quanLyDichVuCCHUI;
+    private QuanLyLinhKienUI quanLyLinhKienCCHUI;
+    private QuanLyTaiKhoanUI quanLyTaiKhoanCCHUI;
+    private TraCuuUI traCuuUI;
 
     // Header dynamic components
     private JLabel lblHeaderUserName;
@@ -167,15 +181,21 @@ public class MainFrame extends JFrame {
         setTitle("CarZone – " + tenVaiTro + " (" + this.nhanVien.getHoTen() + ")");
         setSize(1170, 800);
         setMinimumSize(new Dimension(1024, 700));
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         getContentPane().setBackground(C_BG);
 
-        // Icon ứng dụng
-        ImageIcon appIcon = loadLogoImage(32, 32);
-        if (appIcon != null) {
-            setIconImage(appIcon.getImage());
+        // Icon ứng dụng cho Title bar và Windows Taskbar
+        ImageIcon appIcon32 = loadSquareAppIcon(32);
+        ImageIcon appIcon64 = loadSquareAppIcon(64);
+        ImageIcon appIcon16 = loadSquareAppIcon(16);
+        if (appIcon32 != null) {
+            setIconImage(appIcon32.getImage());
+            if (appIcon16 != null && appIcon64 != null) {
+                setIconImages(List.of(appIcon16.getImage(), appIcon32.getImage(), appIcon64.getImage()));
+            }
         }
 
         addWindowListener(new WindowAdapter() {
@@ -268,6 +288,7 @@ public class MainFrame extends JFrame {
         };
 
         searchBox = new HeaderSearchBox(searchPlaceholder);
+        searchBox.setHandlers(this::hienThiGoiYTimKiem, this::chonGoiYTimKiem);
         pnlRight.add(searchBox);
 
         // ── Nhóm link nhanh Help / About (gap 4px) ───────────────────────────
@@ -406,15 +427,15 @@ public class MainFrame extends JFrame {
     private static String iconTheoNavId(String navId) {
         return switch (navId) {
             case "NAV_DASHBOARD" -> "nav_dashboard.png";
-            case "NAV_THONG_KE" -> "nav_thong_ke.png";
-            case "NAV_PHIEU_PHAN_CONG" -> "nav_yeu_cau.png";
-            case "NAV_CAP_NHAT_SUA_CHUA" -> "nav_dich_vu.png";
-            case "NAV_QUAN_LY_DICH_VU" -> "nav_dich_vu.png";
+            case "NAV_THONG_KE", "NAV_THONG_KE_TIEP_NHAN", "NAV_HOA_DON" -> "nav_thong_ke.png";
+            case "NAV_PHIEU_PHAN_CONG", "NAV_PHIEU_TIEP_NHAN" -> "nav_yeu_cau.png";
+            case "NAV_QUAN_LY_DICH_VU", "NAV_CAP_NHAT_SUA_CHUA" -> "nav_dich_vu.png";
             case "NAV_LINH_KIEN_KHO" -> "nav_kho.png";
-            case "NAV_YC_LINH_KIEN" -> "nav_kho.png";
-            case "NAV_KHUYEN_MAI" -> "nav_khuyen_mai.png";
-            case "NAV_NHAN_VIEN" -> "nav_nhan_vien.png";
+            case "NAV_YC_LINH_KIEN" -> "nav_yeu_cau.png";
+            case "NAV_KHUYEN_MAI", "NAV_DOI_TRA" -> "nav_khuyen_mai.png";
+            case "NAV_NHAN_VIEN", "NAV_KHACH_HANG_XE" -> "nav_nhan_vien.png";
             case "NAV_TAI_KHOAN" -> "nav_tai_khoan.png";
+            case "NAV_SAO_LUU_PHUC_HOI" -> "nav_sao_luu_phuc_hoi.png";
             case "NAV_TRA_CUU" -> "nav_tra_cuu.png";
             case "NAV_THONG_TIN_CA_NHAN" -> "nav_ho_so.png";
             default -> null;
@@ -426,7 +447,7 @@ public class MainFrame extends JFrame {
     /**
      * Đọc icon từ classpath (/ten_file.png) hoặc fallback file img/ten_file.png.
      */
-    private static Image docIconSidebar(String fileName) {
+    public static Image docIconSidebar(String fileName) {
         if (CACHE_ICON_SIDEBAR.containsKey(fileName))
             return CACHE_ICON_SIDEBAR.get(fileName);
         Image img = null;
@@ -537,6 +558,11 @@ public class MainFrame extends JFrame {
     public void moPageTheoNavigation(String navId) {
         if (navId == null || navId.equals(activeNavId))
             return;
+        if (!UserSession.getInstance().coQuyenChucNang(navId)) {
+            JOptionPane.showMessageDialog(this, "Vai trò của bạn chưa được cấp quyền vào chức năng này.",
+                    "Không đủ quyền", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         this.activeNavId = navId;
 
         // Chuyển card trong contentPanel
@@ -555,6 +581,28 @@ public class MainFrame extends JFrame {
                 }
             }
             b.repaint();
+        }
+    }
+
+    private void moDanhSachTheoKpi(int index) {
+        switch (index) {
+            case 0 -> {
+                moPageTheoNavigation("NAV_YC_LINH_KIEN");
+                if (xuLyYeuCauCCHUI != null) xuLyYeuCauCCHUI.locTuDashboard("Chờ duyệt");
+            }
+            case 1 -> {
+                moPageTheoNavigation("NAV_YC_LINH_KIEN");
+                if (xuLyYeuCauCCHUI != null) xuLyYeuCauCCHUI.locTuDashboard("Đã duyệt");
+            }
+            case 2 -> {
+                moPageTheoNavigation("NAV_LINH_KIEN_KHO");
+                if (quanLyLinhKienCCHUI != null) quanLyLinhKienCCHUI.locHetHangTuDashboard();
+            }
+            case 3 -> {
+                moPageTheoNavigation("NAV_TAI_KHOAN");
+                if (quanLyTaiKhoanCCHUI != null) quanLyTaiKhoanCCHUI.locHoSoChuaCoTaiKhoanTuDashboard();
+            }
+            default -> { }
         }
     }
 
@@ -583,6 +631,19 @@ public class MainFrame extends JFrame {
     // ─────────────────────────────────────────────────────────────────────────
     // 3. CONTENTPANEL: Nạp các Page tương ứng với Navigation theo Role
     // ─────────────────────────────────────────────────────────────────────────
+    public void moLapPhieuTiepNhanVoiXe(String maKH, String bienSoXe) {
+        moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN");
+        SwingUtilities.invokeLater(() -> {
+            if (pnlContentPanel == null) return;
+            for (Component c : pnlContentPanel.getComponents()) {
+                if (c instanceof LapPhieuTiepNhanUI ui) {
+                    ui.thietLapKhachHangVaXe(maKH, bienSoXe);
+                    return;
+                }
+            }
+        });
+    }
+
     private void napCacPageTheoRole() {
         List<NavigationItem> items = authController.layDanhSachNavigationTheoRole(nhanVien.getVaiTro());
 
@@ -591,38 +652,55 @@ public class MainFrame extends JFrame {
                 pnlContentPanel.add(buildRoleDashboardPage(), item.getId());
             } else if ("NAV_THONG_KE".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
                 pnlContentPanel.add(new ThongKeDoanhThuUI(nhanVien), item.getId());
-            } else if ("NAV_THONG_KE".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.KY_THUAT_VIEN) {
+            } else if ("NAV_THONG_KE".equals(item.getId()) && nhanVien.getVaiTro() != VaiTro.CHU_CUA_HANG) {
                 ThongKeSuaChuaUI thongKeUI = new ThongKeSuaChuaUI();
                 thongKeUI.setOnMoYeuCauLinhKien(() -> moPageTheoNavigation("NAV_YC_LINH_KIEN"));
                 pnlContentPanel.add(thongKeUI, item.getId());
             } else if ("NAV_QUAN_LY_DICH_VU".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
-                pnlContentPanel.add(new QuanLyDichVuUI(), item.getId());
+                quanLyDichVuCCHUI = new QuanLyDichVuUI();
+                pnlContentPanel.add(quanLyDichVuCCHUI, item.getId());
             } else if ("NAV_LINH_KIEN_KHO".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
-                pnlContentPanel.add(new QuanLyLinhKienUI(), item.getId());
+                quanLyLinhKienCCHUI = new QuanLyLinhKienUI();
+                pnlContentPanel.add(quanLyLinhKienCCHUI, item.getId());
             } else if ("NAV_YC_LINH_KIEN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
-                pnlContentPanel.add(new XuLyYeuCauLinhKienUI(), item.getId());
-            } else if ("NAV_PHIEU_PHAN_CONG".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.KY_THUAT_VIEN) {
+                xuLyYeuCauCCHUI = new XuLyYeuCauLinhKienUI();
+                pnlContentPanel.add(xuLyYeuCauCCHUI, item.getId());
+            } else if ("NAV_PHIEU_PHAN_CONG".equals(item.getId())) {
                 pnlContentPanel.add(new PhieuPhanCongUI(maPhieu -> {
                     moPageTheoNavigation("NAV_CAP_NHAT_SUA_CHUA");
                     if (capNhatPhieuUI != null) {
                         capNhatPhieuUI.datMaPhieuCanSua(maPhieu);
                     }
                 }), item.getId());
-            } else if ("NAV_CAP_NHAT_SUA_CHUA".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.KY_THUAT_VIEN) {
+            } else if ("NAV_CAP_NHAT_SUA_CHUA".equals(item.getId())) {
                 capNhatPhieuUI = new CapNhatPhieuSuaChuaUI(v -> moPageTheoNavigation("NAV_PHIEU_PHAN_CONG"));
                 pnlContentPanel.add(capNhatPhieuUI, item.getId());
-            } else if ("NAV_YC_LINH_KIEN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.KY_THUAT_VIEN) {
+            } else if ("NAV_YC_LINH_KIEN".equals(item.getId()) && nhanVien.getVaiTro() != VaiTro.CHU_CUA_HANG) {
                 pnlContentPanel.add(new YeuCauLinhKienKTVUI(), item.getId());
             } else if ("NAV_KHUYEN_MAI".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
                 pnlContentPanel.add(new QuanLyKhuyenMaiUI(), item.getId());
             } else if ("NAV_NHAN_VIEN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
                 pnlContentPanel.add(new QuanLyNhanVienUI(), item.getId());
             } else if ("NAV_TAI_KHOAN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
-                pnlContentPanel.add(new QuanLyTaiKhoanUI(), item.getId());
+                quanLyTaiKhoanCCHUI = new QuanLyTaiKhoanUI();
+                pnlContentPanel.add(quanLyTaiKhoanCCHUI, item.getId());
+            } else if ("NAV_SAO_LUU_PHUC_HOI".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
+                pnlContentPanel.add(new SaoLuuPhucHoiUI(), item.getId());
             } else if ("NAV_TRA_CUU".equals(item.getId())) {
-                pnlContentPanel.add(new TraCuuUI(nhanVien.getVaiTro()), item.getId());
+                traCuuUI = new TraCuuUI(nhanVien.getVaiTro());
+                pnlContentPanel.add(traCuuUI, item.getId());
             } else if ("NAV_THONG_TIN_CA_NHAN".equals(item.getId())) {
                 pnlContentPanel.add(new ThongTinCaNhanUI(), item.getId());
+            } else if ("NAV_KHACH_HANG_XE".equals(item.getId())) {
+                pnlContentPanel.add(new QuanLyKhachHangVaXeUI(), item.getId());
+            } else if ("NAV_PHIEU_TIEP_NHAN".equals(item.getId())) {
+                pnlContentPanel.add(new LapPhieuTiepNhanUI(), item.getId());
+            } else if ("NAV_HOA_DON".equals(item.getId())) {
+                pnlContentPanel.add(new LapHoaDonThanhToanUI(), item.getId());
+            } else if ("NAV_DOI_TRA".equals(item.getId())) {
+                pnlContentPanel.add(new TaoPhieuDoiTraUI(), item.getId());
+            } else if ("NAV_THONG_KE_TIEP_NHAN".equals(item.getId())) {
+                pnlContentPanel.add(new ThongKeTiepNhanUI(), item.getId());
             } else {
                 pnlContentPanel.add(buildModulePage(item), item.getId());
             }
@@ -632,6 +710,8 @@ public class MainFrame extends JFrame {
         pnlContentPanel.add(new TroGiupUI(), "PAGE_TRO_GIUP");
         pnlContentPanel.add(new VeCarZoneUI(() -> moPageHeader("PAGE_TRO_GIUP")), "PAGE_VE_CARZONE");
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     // ─────────────────────────────────────────────────────────────────────────
     // 3A. TRANG DASHBOARD THEO VAI TRÒ (Bám sát 100% Figma image45.png)
@@ -659,10 +739,16 @@ public class MainFrame extends JFrame {
      */
     private JComponent buildChuCuaHangDashboardView() {
         ChuCuaHangDashboardPanel panel = new ChuCuaHangDashboardPanel();
+        panel.setOnRefresh(() -> taiDuLieuDashboardChuCuaHang(panel));
+        taiDuLieuDashboardChuCuaHang(panel);
+        return panel;
+    }
 
+    private void taiDuLieuDashboardChuCuaHang(ChuCuaHangDashboardPanel panel) {
+        if (!panel.batDauTaiDuLieu()) return;
         new SwingWorker<ChuCuaHangDashboardData, Void>() {
             @Override
-            protected ChuCuaHangDashboardData doInBackground() {
+            protected ChuCuaHangDashboardData doInBackground() throws Exception {
                 return dashboardController.layDataChuCuaHang();
             }
 
@@ -671,12 +757,10 @@ public class MainFrame extends JFrame {
                 try {
                     panel.capNhatDuLieu(get());
                 } catch (Exception ex) {
-                    System.err.println("Lỗi tải dữ liệu Dashboard Chủ cửa hàng: " + ex.getMessage());
+                    panel.baoLoiTaiDuLieu();
                 }
             }
         }.execute();
-
-        return panel;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -748,14 +832,13 @@ public class MainFrame extends JFrame {
     public class ChuCuaHangDashboardPanel extends ScrollableContentPanel {
 
         private final JLabel lblNgay = taoNhan(LocalDate.now().format(LOCAL_DATE_FMT), Font.BOLD, 12, F_TITLE);
+        private final JButton btnLamMoiDashboard = new RoundedButton("Làm mới", 10, C_WHITE,
+                new Color(0xF1F5F9), F_LINE);
         private final JLabel[] kpiSo = new JLabel[4];
-        private final JLabel[] kpiMoTa = new JLabel[4];
         private final JLabel lblBadgeYeuCau = taoNhan("0 yêu cầu", Font.BOLD, 11, C_PRIMARY);
         private final JPanel pnlBangYeuCau = new JPanel();
-        private final JLabel[] demTrangThai = new JLabel[4];
         private final JLabel lblBadgeHetHang = taoNhan("0 mã", Font.BOLD, 11, F_DANGER);
         private final JPanel pnlDanhSachHetHang = new JPanel();
-        private final JLabel lblSoHoaDon = taoNhan("", Font.PLAIN, 11, F_DESC);
         private final JLabel lblThuThuan = taoNhan("0", Font.BOLD, 29, F_DEEP);
         private final JLabel lblTongThu = taoNhan("0 VNĐ", Font.BOLD, 11, F_TITLE);
         private final JLabel lblHoanTien = taoNhan("0 VNĐ", Font.BOLD, 11, F_DANGER);
@@ -766,6 +849,8 @@ public class MainFrame extends JFrame {
         private final JLabel lblTyLeTM = taoNhan("0%", Font.PLAIN, 11, F_DESC);
         private final JLabel lblTienCK = taoNhan("0 VNĐ", Font.BOLD, 14, F_TITLE);
         private final JLabel lblTienTM = taoNhan("0 VNĐ", Font.BOLD, 14, F_TITLE);
+        private Runnable onRefresh;
+        private boolean dangTaiDuLieu;
 
         public ChuCuaHangDashboardPanel() {
             setBorder(new EmptyBorder(20, 26, 22, 26));
@@ -779,11 +864,22 @@ public class MainFrame extends JFrame {
             JLabel lblTitle = taoNhan("Dashboard", Font.BOLD, 24, F_TITLE);
             pnlTieuDe.add(lblTitle, BorderLayout.WEST);
 
+            btnLamMoiDashboard.setFont(f(Font.BOLD, 12));
+            btnLamMoiDashboard.setForeground(F_LABEL);
+            btnLamMoiDashboard.setPreferredSize(new Dimension(88, 36));
+            btnLamMoiDashboard.addActionListener(e -> {
+                if (onRefresh != null) onRefresh.run();
+            });
+
             RoundedPanel chipNgay = new RoundedPanel(C_WHITE, 10, F_LINE, new Insets(9, 14, 9, 14));
             chipNgay.setLayout(new BorderLayout(9, 0));
             chipNgay.add(new JLabel(new CalendarIcon(F_DESC, 16)), BorderLayout.WEST);
             chipNgay.add(lblNgay, BorderLayout.CENTER);
-            pnlTieuDe.add(chipNgay, BorderLayout.EAST);
+            JPanel headerRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+            headerRight.setOpaque(false);
+            headerRight.add(btnLamMoiDashboard);
+            headerRight.add(chipNgay);
+            pnlTieuDe.add(headerRight, BorderLayout.EAST);
             add(pnlTieuDe);
             add(Box.createVerticalStrut(16));
 
@@ -793,14 +889,10 @@ public class MainFrame extends JFrame {
             pnlKpi.setAlignmentX(Component.CENTER_ALIGNMENT);
             pnlKpi.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
-            pnlKpi.add(taoTheKpi(0, false, "Yêu cầu chờ phê duyệt", "Chưa có yêu cầu nào",
-                    "Xử lý yêu cầu cập nhật linh kiện", "NAV_YC_LINH_KIEN", "illustration_request.png"));
-            pnlKpi.add(taoTheKpi(1, false, "Chờ xác nhận nhập kho", "Đã duyệt · Chưa nhập kho",
-                    "Xử lý yêu cầu cập nhật linh kiện", "NAV_YC_LINH_KIEN", "illustration_stock.png"));
-            pnlKpi.add(taoTheKpi(2, false, "Linh kiện hết hàng", "Các mã đang kinh doanh",
-                    "Quản lý linh kiện và tồn kho", "NAV_LINH_KIEN_KHO", "illustration_alert.png"));
-            pnlKpi.add(taoTheKpi(3, false, "Hồ sơ chưa có tài khoản", "Trong các hồ sơ đang hiển thị",
-                    "Quản lý nhân viên / Tạo tài khoản", "NAV_NHAN_VIEN", "illustration_staff.png"));
+            pnlKpi.add(taoTheKpi(0, "Yêu cầu chờ phê duyệt", "illustration_request.png"));
+            pnlKpi.add(taoTheKpi(1, "Chờ xác nhận nhập kho", "illustration_stock.png"));
+            pnlKpi.add(taoTheKpi(2, "Linh kiện hết hàng", "illustration_alert.png"));
+            pnlKpi.add(taoTheKpi(3, "Hồ sơ chưa có tài khoản", "illustration_staff.png"));
             add(pnlKpi);
             add(Box.createVerticalStrut(18));
 
@@ -810,8 +902,6 @@ public class MainFrame extends JFrame {
             pnlHeadViec.setAlignmentX(Component.CENTER_ALIGNMENT);
             pnlHeadViec.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
             pnlHeadViec.add(taoNhan("Công việc cần xử lý", Font.BOLD, 18, F_TITLE), BorderLayout.WEST);
-            pnlHeadViec.add(taoNhan("Phạm vi: yêu cầu, linh kiện và hồ sơ đang hiển thị",
-                    Font.PLAIN, 11, F_DESC), BorderLayout.EAST);
             add(pnlHeadViec);
             add(Box.createVerticalStrut(12));
 
@@ -821,7 +911,13 @@ public class MainFrame extends JFrame {
             pnlHangViec.setAlignmentX(Component.CENTER_ALIGNMENT);
             pnlHangViec.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
             pnlHangViec.add(taoBangYeuCauChoDuyet(), BorderLayout.CENTER);
-            pnlHangViec.add(taoCardCanhBaoHetHang(), BorderLayout.EAST);
+            JPanel cotCanhBao = new JPanel(new BorderLayout());
+            cotCanhBao.setOpaque(false);
+            cotCanhBao.setPreferredSize(new Dimension(310, 0));
+            cotCanhBao.setMinimumSize(new Dimension(310, 0));
+            cotCanhBao.setMaximumSize(new Dimension(310, Integer.MAX_VALUE));
+            cotCanhBao.add(taoCardCanhBaoHetHang(), BorderLayout.NORTH);
+            pnlHangViec.add(cotCanhBao, BorderLayout.EAST);
             add(pnlHangViec);
             add(Box.createVerticalStrut(18));
 
@@ -832,64 +928,42 @@ public class MainFrame extends JFrame {
             add(cardKD);
         }
 
-        /** Tạo 1 thẻ KPI; index 0 là thẻ nổi bật nền xanh. */
-        private JPanel taoTheKpi(int viTri, boolean nenXanh, String tieuDe, String moTa,
-                String linkText, String navId, String iconTen) {
-            Color clrSo = nenXanh ? Color.WHITE : F_TITLE;
-            Color clrTieuDe = nenXanh ? Color.WHITE : F_TITLE;
-            Color clrMoTa = nenXanh ? F_ON_BLUE : F_DESC;
-            Color clrLink = nenXanh ? Color.WHITE : C_PRIMARY;
-            Color clrViEN = nenXanh ? C_PRIMARY : F_LINE;
-
-            RoundedPanel card = new RoundedPanel(nenXanh ? C_PRIMARY : C_WHITE, 12, clrViEN,
-                    new Insets(12, 14, 12, 14));
+        /** Thẻ KPI nền trắng, bấm toàn thẻ để mở danh sách đã lọc. */
+        private JPanel taoTheKpi(int viTri, String tieuDe, String iconTen) {
+            RoundedPanel card = new RoundedPanel(C_WHITE, 12, F_LINE, new Insets(14, 16, 14, 16));
             card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-            card.setMinimumSize(new Dimension(180, 120));
+            card.setMinimumSize(new Dimension(180, 112));
             card.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+            card.setToolTipText("Bấm để mở danh sách đã lọc.");
 
             // Hàng số + minh họa 3D
             JPanel rowSo = new JPanel(new BorderLayout(0, 0));
             rowSo.setOpaque(false);
             rowSo.setAlignmentX(Component.LEFT_ALIGNMENT);
             rowSo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
-            JLabel lblSo = taoNhan("00", Font.BOLD, 30, clrSo);
+            JLabel lblSo = taoNhan("—", Font.BOLD, 30, F_TITLE);
             kpiSo[viTri] = lblSo;
             rowSo.add(lblSo, BorderLayout.WEST);
             rowSo.add(taoAnh(iconTen, 36, 36), BorderLayout.EAST);
             card.add(rowSo);
-            card.add(Box.createVerticalStrut(7));
-
-            // Nhãn tiêu đề + mô tả
-            JPanel moTaPanel = new JPanel();
-            moTaPanel.setLayout(new BoxLayout(moTaPanel, BoxLayout.Y_AXIS));
-            moTaPanel.setOpaque(false);
-            moTaPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-            moTaPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-            JLabel lblTieuDe = taoNhan(tieuDe, Font.BOLD, 14, clrTieuDe);
+            card.add(Box.createVerticalStrut(12));
+            JLabel lblTieuDe = taoNhan(tieuDe, Font.BOLD, 14, F_TITLE);
             lblTieuDe.setAlignmentX(Component.LEFT_ALIGNMENT);
-            moTaPanel.add(lblTieuDe);
-            moTaPanel.add(Box.createVerticalStrut(4));
-            JLabel lblMoTa = taoNhan(moTa, Font.PLAIN, 11, clrMoTa);
-            lblMoTa.setAlignmentX(Component.LEFT_ALIGNMENT);
-            kpiMoTa[viTri] = lblMoTa;
-            moTaPanel.add(lblMoTa);
-            card.add(moTaPanel);
-            card.add(Box.createVerticalStrut(8));
-
-            // Footer điều hướng có viền trên tách
-            JPanel foot = new JPanel(new BorderLayout(6, 0));
-            foot.setOpaque(false);
-            foot.setAlignmentX(Component.LEFT_ALIGNMENT);
-            foot.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-            foot.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(1, 0, 0, 0, nenXanh ? new Color(0x33FFFFFF) : F_LINE),
-                    new EmptyBorder(8, 0, 0, 0)));
-            foot.add(taoNhan(linkText, Font.BOLD, 10, clrLink), BorderLayout.WEST);
-            foot.add(new JLabel(new ArrowUpRightIcon(clrLink, 14)), BorderLayout.EAST);
-            ganDieuHuong(foot, navId);
-            card.add(foot);
-
+            card.add(lblTieuDe);
+            card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            java.awt.event.MouseAdapter click = new java.awt.event.MouseAdapter() {
+                @Override public void mouseClicked(java.awt.event.MouseEvent e) { moDanhSachTheoKpi(viTri); }
+            };
+            ganClickToanThe(card, click);
             return card;
+        }
+
+        private void ganClickToanThe(Component component, java.awt.event.MouseAdapter click) {
+            component.addMouseListener(click);
+            component.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            if (component instanceof Container container) {
+                for (Component child : container.getComponents()) ganClickToanThe(child, click);
+            }
         }
 
         /**
@@ -928,24 +1002,6 @@ public class MainFrame extends JFrame {
             pnlBangYeuCau.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
             card.add(pnlBangYeuCau);
 
-            // Footer: 4 đếm trạng thái
-            Color[] mauDot = { C_PRIMARY, C_SUCCESS, F_DANGER, F_TEAL };
-            String[] nhanDem = { "Chờ duyệt 0", "Đã duyệt 0", "Từ chối 0", "Đã nhập kho 0" };
-            JPanel foot = new JPanel(new FlowLayout(FlowLayout.LEFT, 14, 0));
-            foot.setOpaque(false);
-            foot.setAlignmentX(Component.LEFT_ALIGNMENT);
-            foot.setBorder(new EmptyBorder(6, 16, 6, 16));
-            foot.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
-            for (int i = 0; i < 4; i++) {
-                JPanel muc = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-                muc.setOpaque(false);
-                muc.add(new JLabel(new DotIcon(mauDot[i], 5)));
-                demTrangThai[i] = taoNhan(nhanDem[i], Font.PLAIN, 10, F_LABEL);
-                muc.add(demTrangThai[i]);
-                foot.add(muc);
-            }
-            card.add(foot);
-
             return card;
         }
 
@@ -978,10 +1034,6 @@ public class MainFrame extends JFrame {
             row.add(oCoRong(taoNhan("YÊU CẦU", Font.BOLD, 10, F_DESC), 72), gc);
             gc.gridx = 4;
             row.add(oCoRong(taoNhan("TỒN KHO", Font.BOLD, 10, F_DESC), 84), gc);
-            gc.gridx = 5;
-            gc.insets = new Insets(0, 0, 0, 0);
-            row.add(Box.createHorizontalStrut(14), gc);
-
             return row;
         }
 
@@ -1046,11 +1098,6 @@ public class MainFrame extends JFrame {
             gc.gridx = 4;
             row.add(oCoRong(taoNhan(r.tonKho, Font.BOLD, 12, r.tonKhoHet ? F_DANGER : F_LABEL), 84), gc);
 
-            // Chevron cuối dòng
-            gc.gridx = 5;
-            gc.insets = new Insets(0, 0, 0, 0);
-            row.add(new JLabel(new ChevronRightIcon(F_DESC, 14)), gc);
-
             return row;
         }
 
@@ -1058,8 +1105,7 @@ public class MainFrame extends JFrame {
         private JPanel taoCardCanhBaoHetHang() {
             RoundedPanel card = new RoundedPanel(C_WHITE, 14, F_LINE, new Insets(14, 14, 14, 14));
             card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-            card.setPreferredSize(new Dimension(310, 0)); // chỉ cố định rộng, cao tự co
-            card.setMinimumSize(new Dimension(310, 80));
+            card.setMinimumSize(new Dimension(310, 0));
             card.setMaximumSize(new Dimension(310, Integer.MAX_VALUE));
 
             // Heading: hàng trên – icon cảnh báo ⚠ + tiêu đề (trái); badge số mã (phải)
@@ -1079,11 +1125,6 @@ public class MainFrame extends JFrame {
             headRow.add(badge, BorderLayout.EAST);
             card.add(headRow);
             card.add(Box.createVerticalStrut(8));
-
-            JLabel moTa = taoNhan("Linh kiện đang kinh doanh có tồn kho bằng 0.", Font.PLAIN, 11, F_DESC);
-            moTa.setAlignmentX(Component.LEFT_ALIGNMENT);
-            card.add(moTa);
-            card.add(Box.createVerticalStrut(10));
 
             // Danh sách mã hết hàng (cập nhật lại khi có dữ liệu thật)
             pnlDanhSachHetHang.setLayout(new BoxLayout(pnlDanhSachHetHang, BoxLayout.Y_AXIS));
@@ -1105,7 +1146,6 @@ public class MainFrame extends JFrame {
             item.setLayout(new BoxLayout(item, BoxLayout.Y_AXIS));
             item.setOpaque(false);
             item.setAlignmentX(Component.LEFT_ALIGNMENT);
-            item.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
             item.setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createMatteBorder(0, 0, 1, 0, F_LINE),
                     new EmptyBorder(0, 0, 14, 0)));
@@ -1116,12 +1156,7 @@ public class MainFrame extends JFrame {
             top.add(taoNhan(r.tenLinhKien, Font.BOLD, 13, F_TITLE), BorderLayout.WEST);
             top.add(taoNhan("0 " + r.donVi, Font.BOLD, 13, F_DANGER), BorderLayout.EAST);
             item.add(top);
-            item.add(Box.createVerticalStrut(6));
-
-            JLabel sub = taoNhan(r.maLinhKien + " · " + r.ghiChuYeuCau, Font.PLAIN, 10, F_DESC);
-            sub.setAlignmentX(Component.LEFT_ALIGNMENT);
-            item.add(sub);
-
+            item.setMaximumSize(new Dimension(Integer.MAX_VALUE, item.getPreferredSize().height));
             return item;
         }
 
@@ -1139,7 +1174,6 @@ public class MainFrame extends JFrame {
             JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
             left.setOpaque(false);
             left.add(taoNhan("Kinh doanh trong ngày", Font.BOLD, 16, F_TITLE));
-            left.add(lblSoHoaDon);
             head.add(left, BorderLayout.WEST);
             head.add(taoLink("Thống kê báo cáo", 12, C_PRIMARY, C_PRIMARY, "NAV_THONG_KE"), BorderLayout.EAST);
             card.add(head, BorderLayout.NORTH);
@@ -1178,10 +1212,6 @@ public class MainFrame extends JFrame {
             box.add(Box.createVerticalStrut(5));
             box.add(taoHangTien("Hoàn tiền", lblHoanTien, F_LABEL));
             box.add(Box.createVerticalStrut(5));
-
-            JLabel note = taoNhan("Doanh thu sau hoàn không phải lợi nhuận.", Font.PLAIN, 10, F_DESC);
-            note.setAlignmentX(Component.LEFT_ALIGNMENT);
-            box.add(note);
 
             return box;
         }
@@ -1294,17 +1324,40 @@ public class MainFrame extends JFrame {
             return grp;
         }
 
+        public void setOnRefresh(Runnable callback) {
+            onRefresh = callback;
+        }
+
+        public boolean batDauTaiDuLieu() {
+            if (dangTaiDuLieu) return false;
+            dangTaiDuLieu = true;
+            btnLamMoiDashboard.setEnabled(false);
+            btnLamMoiDashboard.setText("Đang tải…");
+            return true;
+        }
+
+        public void baoLoiTaiDuLieu() {
+            dangTaiDuLieu = false;
+            btnLamMoiDashboard.setEnabled(true);
+            btnLamMoiDashboard.setText("Làm mới");
+            btnLamMoiDashboard.setToolTipText("Không tải được số liệu từ CSDL. Bấm để thử lại.");
+            for (int i = 0; i < kpiSo.length; i++) {
+                kpiSo[i].setText("—");
+            }
+        }
+
         /** Đổ dữ liệu thật (luồng EDT – gọi từ SwingWorker.done()). */
         public void capNhatDuLieu(ChuCuaHangDashboardData data) {
+            dangTaiDuLieu = false;
+            btnLamMoiDashboard.setEnabled(true);
+            btnLamMoiDashboard.setText("Làm mới");
+            btnLamMoiDashboard.setToolTipText("Cập nhật số liệu từ CSDL.");
             lblNgay.setText(data.ngayBaoCao == null || data.ngayBaoCao.isEmpty()
                     ? LocalDate.now().format(LOCAL_DATE_FMT)
                     : data.ngayBaoCao);
 
             // 4 thẻ KPI
             kpiSo[0].setText(String.format("%02d", data.yeuCauChoDuyet));
-            kpiMoTa[0].setText(data.tongYeuCauTheoDoi > 0
-                    ? (data.yeuCauChoDuyet + " / " + data.tongYeuCauTheoDoi + " yêu cầu đang theo dõi")
-                    : "Chưa có yêu cầu nào");
             kpiSo[1].setText(String.format("%02d", data.choXacNhanNhapKho));
             kpiSo[2].setText(String.format("%02d", data.linhKienHetHang));
             kpiSo[3].setText(String.format("%02d", data.hoSoChuaCoTaiKhoan));
@@ -1331,12 +1384,6 @@ public class MainFrame extends JFrame {
             pnlBangYeuCau.revalidate();
             pnlBangYeuCau.repaint();
 
-            // 4 đếm trạng thái
-            demTrangThai[0].setText("Chờ duyệt " + data.yeuCauChoDuyet);
-            demTrangThai[1].setText("Đã duyệt " + data.yeuCauDaDuyet);
-            demTrangThai[2].setText("Từ chối " + data.yeuCauTuChoi);
-            demTrangThai[3].setText("Đã nhập kho " + data.yeuCauDaNhapKho);
-
             // Cảnh báo hết hàng
             lblBadgeHetHang.setText(data.linhKienHetHang + " mã");
             pnlDanhSachHetHang.removeAll();
@@ -1350,12 +1397,18 @@ public class MainFrame extends JFrame {
                     item.setAlignmentX(Component.LEFT_ALIGNMENT);
                     pnlDanhSachHetHang.add(item);
                 }
+                int conLai = data.linhKienHetHang - data.danhSachHetHang.size();
+                if (conLai > 0) {
+                    JLabel more = taoNhan("Còn " + conLai + " mã hết hàng khác", Font.PLAIN, 11, F_DESC);
+                    more.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    pnlDanhSachHetHang.add(Box.createVerticalStrut(8));
+                    pnlDanhSachHetHang.add(more);
+                }
             }
             pnlDanhSachHetHang.revalidate();
             pnlDanhSachHetHang.repaint();
 
             // Kinh doanh trong ngày
-            lblSoHoaDon.setText(data.ngayBaoCao + " · " + data.soHoaDonThanhToan + " hóa đơn đã thanh toán");
             lblThuThuan.setText(MONEY_FMT.format(data.doanhThuSauHoan));
             lblTongThu.setText(MONEY_FMT.format(data.tongThu) + " VNĐ");
             lblHoanTien.setText(MONEY_FMT.format(data.hoanTien) + " VNĐ");
@@ -1393,117 +1446,874 @@ public class MainFrame extends JFrame {
         }
     }
 
-    private JPanel createWhiteKpiCard(String number, String title, String sub, String link, String iconStr,
-            String targetNav) {
-        JPanel c = new JPanel(new BorderLayout(0, 6));
-        c.setBackground(C_WHITE);
-        c.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(C_BORDER, 1),
-                new EmptyBorder(14, 16, 12, 16)));
-
-        JPanel top = new JPanel(new BorderLayout(0, 2));
-        top.setOpaque(false);
-        JLabel num = new JLabel(number);
-        num.setFont(f(Font.BOLD, 28));
-        num.setForeground(C_TEXT_HEAD);
-        top.add(num, BorderLayout.WEST);
-
-        JLabel icon = new JLabel(iconStr, SwingConstants.RIGHT);
-        icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
-        top.add(icon, BorderLayout.EAST);
-
-        JLabel t = new JLabel(title);
-        t.setFont(f(Font.BOLD, 12));
-        t.setForeground(C_TEXT_HEAD);
-        top.add(t, BorderLayout.SOUTH);
-        c.add(top, BorderLayout.NORTH);
-
-        JLabel s = new JLabel(sub);
-        s.setFont(f(Font.PLAIN, 11));
-        s.setForeground(C_TEXT_SUBTLE);
-        c.add(s, BorderLayout.CENTER);
-
-        JButton lnk = new JButton(link);
-        lnk.setFont(f(Font.BOLD, 10));
-        lnk.setForeground(C_PRIMARY);
-        lnk.setContentAreaFilled(false);
-        lnk.setBorderPainted(false);
-        lnk.setFocusPainted(false);
-        lnk.setHorizontalAlignment(SwingConstants.LEFT);
-        lnk.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        lnk.addActionListener(e -> moPageTheoNavigation(targetNav));
-        c.add(lnk, BorderLayout.SOUTH);
-
-        return c;
+    // ─────────────────────────────────────────────────────────────────────────
+    // DASHBOARD TIẾP NHẬN VIÊN (Action-Driven & Visual Charts)
+    // ─────────────────────────────────────────────────────────────────────────
+    private JComponent buildTiepNhanVienDashboardView() {
+        TiepNhanVienDashboardPanel panel = new TiepNhanVienDashboardPanel();
+        panel.setOnRefresh(() -> taiDuLieuDashboardTiepNhanVien(panel));
+        taiDuLieuDashboardTiepNhanVien(panel);
+        return panel;
     }
 
-    // Dashboard Tiếp nhận viên
-    private JPanel buildTiepNhanVienDashboardView() {
-        TiepNhanVienDashboardData data = dashboardController.layDataTiepNhanVien();
+    private void taiDuLieuDashboardTiepNhanVien(TiepNhanVienDashboardPanel panel) {
+        if (!panel.batDauTaiDuLieu()) return;
+        new SwingWorker<TiepNhanVienDashboardData, Void>() {
+            @Override
+            protected TiepNhanVienDashboardData doInBackground() {
+                return dashboardController.layDataTiepNhanVien();
+            }
 
-        ScrollableContentPanel main = new ScrollableContentPanel();
-        main.setBorder(new EmptyBorder(16, 24, 16, 24));
-
-        JLabel title = new JLabel("Dashboard Tiếp Nhận Xe");
-        title.setFont(f(Font.BOLD, 22));
-        title.setForeground(C_TEXT_HEAD);
-        main.add(title);
-        main.add(Box.createVerticalStrut(16));
-
-        JPanel pnlKpis = new JPanel(new GridLayout(1, 4, 14, 0));
-        pnlKpis.setOpaque(false);
-        pnlKpis.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
-
-        pnlKpis.add(createWhiteKpiCard(String.format("%02d", data.phieuChoSua), "Chờ sửa chữa", "Xe đã tiếp nhận",
-                "Xem danh sách ↗", "⏳", "NAV_PHIEU_TIEP_NHAN"));
-        pnlKpis.add(createWhiteKpiCard(String.format("%02d", data.phieuDangSua), "Đang sửa chữa", "KTV đang xử lý",
-                "Xem danh sách ↗", "🔧", "NAV_PHIEU_TIEP_NHAN"));
-        pnlKpis.add(createWhiteKpiCard(String.format("%02d", data.phieuChoLinhKien), "Chờ linh kiện", "Chờ xuất kho",
-                "Xem danh sách ↗", "📦", "NAV_PHIEU_TIEP_NHAN"));
-        pnlKpis.add(createWhiteKpiCard(String.format("%02d", data.phieuHoanTatChoThu), "Hoàn tất chờ thu",
-                "Sẵn sàng xuất hóa đơn", "Lập hóa đơn ↗", "🧾", "NAV_HOA_DON"));
-        main.add(pnlKpis);
-
-        main.add(Box.createVerticalStrut(20));
-
-        // Bảng phiếu tiếp nhận gần đây
-        JPanel cardTable = new JPanel(new BorderLayout(0, 10));
-        cardTable.setBackground(C_WHITE);
-        cardTable.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(C_BORDER, 1),
-                new EmptyBorder(14, 16, 14, 16)));
-        cardTable.setMaximumSize(new Dimension(Integer.MAX_VALUE, 400));
-
-        JLabel tblTitle = new JLabel("Tiến độ xe tại xưởng trong ngày");
-        tblTitle.setFont(f(Font.BOLD, 14));
-        tblTitle.setForeground(C_TEXT_HEAD);
-        cardTable.add(tblTitle, BorderLayout.NORTH);
-
-        String[] cols = { "MÃ PHIẾU", "BIỂN SỐ XE", "KHÁCH HÀNG", "SỐ ĐIỆN THOẠI", "KTV PHỤ TRÁCH", "GIỜ TIẾP NHẬN",
-                "TRẠNG THÁI" };
-        DefaultTableModel model = new DefaultTableModel(cols, 0);
-        for (PhieuTiepNhanRow r : data.danhSachPhieu) {
-            model.addRow(new Object[] { r.maPhieu, r.bienSo, r.khachHang, r.soDienThoai, r.ktvChinh, r.thoiDiem,
-                    r.trangThai.toString() });
-        }
-        if (model.getRowCount() == 0) {
-            model.addRow(new Object[] { "Chưa có phiếu tiếp nhận nào trong ngày", "—", "—", "—", "—", "—", "—" });
-        }
-
-        JTable tbl = new JTable(model);
-        tbl.setFont(f(Font.PLAIN, 12));
-        tbl.setRowHeight(34);
-        tbl.getTableHeader().setFont(f(Font.BOLD, 11));
-        tbl.getTableHeader().setBackground(new Color(0xF8FAFC));
-        tbl.getTableHeader().setPreferredSize(new Dimension(0, 32));
-
-        JScrollPane sp = new JScrollPane(tbl);
-        sp.setBorder(null);
-        cardTable.add(sp, BorderLayout.CENTER);
-        main.add(cardTable);
-
-        return main;
+            @Override
+            protected void done() {
+                try {
+                    TiepNhanVienDashboardData data = get();
+                    if (data != null) {
+                        panel.capNhatDuLieu(data);
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                } finally {
+                    panel.ketThucTaiDuLieu();
+                }
+            }
+        }.execute();
     }
+
+    public class TiepNhanVienDashboardPanel extends ScrollableContentPanel {
+        private final JLabel lblSubTitle;
+        private final JButton btnLamMoi;
+        private final JButton btnAddPhieu;
+        private final JButton btnAddHoaDon;
+        private final JButton btnDoiTra;
+
+        private final JLabel[] kpiSo = new JLabel[4];
+        private final JLabel[] kpiSub = new JLabel[4];
+        private final JLabel[] kpiLink = new JLabel[4];
+        private final JPanel[] kpiCards = new JPanel[4];
+        private JLabel lblKpi2Icon;
+        private JLabel lblKpi4Icon;
+
+        private final JLabel lblXeCoMatBadge;
+        private final ThanhTienDoXePanel thanhTienDoXe = new ThanhTienDoXePanel();
+        private final JLabel lblMiniValChoSua;
+        private final JLabel lblMiniValDangSua;
+        private final JLabel lblMiniValChoLK;
+        private final JLabel lblMiniValChoThu;
+
+        private final JPanel pnlKtvList;
+
+        private final JLabel lblBadgeChoGiao;
+        private final DefaultTableModel modelChoGiao;
+        private final JTable tableChoGiao;
+
+        private final JLabel lblBadgeCanhBao;
+        private final JPanel pnlCanhBaoList;
+
+        private final DefaultTableModel modelLiveXe;
+        private final JTable tableLiveXe;
+        private final TableRowSorter<DefaultTableModel> sorterLiveXe;
+
+        private Runnable onRefresh;
+        private boolean dangTaiDuLieu;
+
+        public TiepNhanVienDashboardPanel() {
+            setBorder(new EmptyBorder(16, 20, 24, 20));
+
+            // ── 1. Tiêu đề trang & Thanh Quick Actions ─────────────────────────
+            JPanel pnlTitle = new JPanel(new BorderLayout(12, 0));
+            pnlTitle.setOpaque(false);
+            pnlTitle.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+
+            JPanel titleBlock = new JPanel();
+            titleBlock.setLayout(new BoxLayout(titleBlock, BoxLayout.Y_AXIS));
+            titleBlock.setOpaque(false);
+
+            JLabel lblTitle = new JLabel("Bảng điều hành Tiếp nhận viên");
+            lblTitle.setFont(f(Font.BOLD, 22));
+            lblTitle.setForeground(C_TEXT_HEAD);
+            titleBlock.add(lblTitle);
+
+            String ngayHienTai = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            lblSubTitle = new JLabel("Ca trực hôm nay: " + ngayHienTai + " · Giám sát xe xưởng, điều phối KTV và hàng đợi xử lý");
+            lblSubTitle.setFont(f(Font.PLAIN, 12));
+            lblSubTitle.setForeground(C_TEXT_SUBTLE);
+            titleBlock.add(lblSubTitle);
+            pnlTitle.add(titleBlock, BorderLayout.WEST);
+
+            // Nút Quick Actions
+            JPanel pnlQuickActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+            pnlQuickActions.setOpaque(false);
+
+            btnLamMoi = new RoundedButton("Làm mới", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
+            btnLamMoi.setIcon(new RefreshIcon(F_DESC, 14));
+            btnLamMoi.setForeground(C_TEXT_MAIN);
+            btnLamMoi.setFont(f(Font.BOLD, 12));
+            btnLamMoi.setPreferredSize(new Dimension(100, 34));
+            btnLamMoi.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            btnLamMoi.addActionListener(e -> {
+                if (onRefresh != null) onRefresh.run();
+            });
+            pnlQuickActions.add(btnLamMoi);
+
+            btnAddPhieu = new RoundedButton("+ Tiếp nhận xe (F2)", 8, C_PRIMARY, C_PRIMARY_HV, C_PRIMARY);
+            btnAddPhieu.setForeground(C_WHITE);
+            btnAddPhieu.setFont(f(Font.BOLD, 12));
+            btnAddPhieu.setPreferredSize(new Dimension(160, 34));
+            btnAddPhieu.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            btnAddPhieu.addActionListener(e -> moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN"));
+            pnlQuickActions.add(btnAddPhieu);
+
+            btnAddHoaDon = new RoundedButton("Thu tiền (F3)", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
+            btnAddHoaDon.setIcon(new MoneyVectorIcon(C_TEXT_MAIN, 15));
+            btnAddHoaDon.setForeground(C_TEXT_MAIN);
+            btnAddHoaDon.setFont(f(Font.BOLD, 12));
+            btnAddHoaDon.setPreferredSize(new Dimension(125, 34));
+            btnAddHoaDon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            btnAddHoaDon.addActionListener(e -> moPageTheoNavigation("NAV_HOA_DON"));
+            pnlQuickActions.add(btnAddHoaDon);
+
+            btnDoiTra = new RoundedButton("Đổi trả (F4)", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
+            btnDoiTra.setIcon(new RefreshIcon(C_TEXT_MAIN, 14));
+            btnDoiTra.setForeground(C_TEXT_MAIN);
+            btnDoiTra.setFont(f(Font.BOLD, 12));
+            btnDoiTra.setPreferredSize(new Dimension(115, 34));
+            btnDoiTra.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            btnDoiTra.addActionListener(e -> moPageTheoNavigation("NAV_DOI_TRA"));
+            pnlQuickActions.add(btnDoiTra);
+
+            pnlTitle.add(pnlQuickActions, BorderLayout.EAST);
+            add(pnlTitle);
+            add(Box.createVerticalStrut(16));
+
+            // Phím tắt bàn phím F2, F3, F4, F5
+            getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("F2"), "actTiepNhan");
+            getActionMap().put("actTiepNhan", new AbstractAction() {
+                @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                    moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN");
+                }
+            });
+
+            getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("F3"), "actThuTien");
+            getActionMap().put("actThuTien", new AbstractAction() {
+                @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                    moPageTheoNavigation("NAV_HOA_DON");
+                }
+            });
+
+            getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("F4"), "actDoiTra");
+            getActionMap().put("actDoiTra", new AbstractAction() {
+                @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                    moPageTheoNavigation("NAV_DOI_TRA");
+                }
+            });
+
+            getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("F5"), "actRefresh");
+            getActionMap().put("actRefresh", new AbstractAction() {
+                @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                    if (onRefresh != null) onRefresh.run();
+                }
+            });
+
+            // ── 2. Hàng 4 Thẻ KPI Tức thời trong ngày ───────────────────────────
+            JPanel pnlStats = new JPanel(new GridLayout(1, 4, 14, 0));
+            pnlStats.setOpaque(false);
+            pnlStats.setPreferredSize(new Dimension(800, 130));
+            pnlStats.setMaximumSize(new Dimension(Integer.MAX_VALUE, 135));
+
+            pnlStats.add(taoTheKpiTnv(0, "Tiếp nhận hôm nay", "Lượt xe vào xưởng hôm nay", "Lập phiếu tiếp nhận mới ↗",
+                    new CarVectorIcon(C_WHITE, 22), C_PRIMARY, C_PRIMARY, C_WHITE, C_WHITE, new Color(0xDBEAFE), C_WHITE,
+                    () -> moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN")));
+
+            pnlStats.add(taoTheKpiTnv(1, "Cần phân công KTV", "Đã phân công đầy đủ", "Xem danh sách xe ↗",
+                    new CheckVectorIcon(new Color(0x059669), 22), C_WHITE, C_BORDER, C_TEXT_HEAD, C_TEXT_HEAD, C_TEXT_SUBTLE, C_PRIMARY,
+                    () -> moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN")));
+
+            pnlStats.add(taoTheKpiTnv(2, "Xe đang sửa chữa", "Đang tiến hành tại xưởng", "Xem tiến độ sửa chữa ↗",
+                    new WrenchVectorIcon(C_PRIMARY, 22), C_WHITE, C_BORDER, C_TEXT_HEAD, C_TEXT_HEAD, C_TEXT_SUBTLE, C_PRIMARY,
+                    () -> moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN")));
+
+            pnlStats.add(taoTheKpiTnv(3, "Chờ thanh toán & giao xe", "Không có xe tồn thu", "Lập hóa đơn thanh toán ↗",
+                    new MoneyVectorIcon(C_TEXT_SUBTLE, 22), C_WHITE, C_BORDER, C_TEXT_HEAD, C_TEXT_HEAD, C_TEXT_SUBTLE, C_PRIMARY,
+                    () -> moPageTheoNavigation("NAV_HOA_DON")));
+
+            add(pnlStats);
+            add(Box.createVerticalStrut(18));
+
+            // ── 3. Hàng 2 Biểu đồ Trực quan số liệu (Charts) ───────────────────
+            JPanel pnlChartsRow = new JPanel(new GridLayout(1, 2, 14, 0));
+            pnlChartsRow.setOpaque(false);
+            pnlChartsRow.setPreferredSize(new Dimension(800, 220));
+            pnlChartsRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 230));
+
+            // Chart 1: Trực quan trạng thái xe xưởng
+            RoundedPanel cardProgress = new RoundedPanel(C_WHITE, 14, C_BORDER, new Insets(14, 16, 14, 16));
+            cardProgress.setLayout(new BorderLayout(0, 10));
+
+            JPanel pnlProgressHead = new JPanel(new BorderLayout());
+            pnlProgressHead.setOpaque(false);
+            JLabel lblProgressTitle = taoNhan("Tình trạng xe tại xưởng", Font.BOLD, 14, C_TEXT_HEAD);
+            pnlProgressHead.add(lblProgressTitle, BorderLayout.WEST);
+
+            lblXeCoMatBadge = taoNhan("0 xe có mặt", Font.BOLD, 11, C_PRIMARY);
+            lblXeCoMatBadge.setBackground(C_PRIMARY_BG);
+            lblXeCoMatBadge.setOpaque(true);
+            lblXeCoMatBadge.setBorder(new EmptyBorder(2, 8, 2, 8));
+            pnlProgressHead.add(lblXeCoMatBadge, BorderLayout.EAST);
+            cardProgress.add(pnlProgressHead, BorderLayout.NORTH);
+
+            JPanel pnlProgressBody = new JPanel();
+            pnlProgressBody.setLayout(new BoxLayout(pnlProgressBody, BoxLayout.Y_AXIS));
+            pnlProgressBody.setOpaque(false);
+            pnlProgressBody.add(thanhTienDoXe);
+            pnlProgressBody.add(Box.createVerticalStrut(14));
+
+            JPanel pnlBoxes = new JPanel(new GridLayout(2, 2, 8, 8));
+            pnlBoxes.setOpaque(false);
+
+            lblMiniValChoSua = taoNhan("0 (0%)", Font.BOLD, 12, new Color(0xEA580C).darker());
+            lblMiniValDangSua = taoNhan("0 (0%)", Font.BOLD, 12, new Color(0x2563EB).darker());
+            lblMiniValChoLK = taoNhan("0 (0%)", Font.BOLD, 12, new Color(0xD97706).darker());
+            lblMiniValChoThu = taoNhan("0 (0%)", Font.BOLD, 12, new Color(0x059669).darker());
+
+            pnlBoxes.add(taoMiniBox("Chờ sửa chữa", lblMiniValChoSua, new Color(0xEA580C), new Color(0xFFEDD5)));
+            pnlBoxes.add(taoMiniBox("Đang sửa chữa", lblMiniValDangSua, new Color(0x2563EB), new Color(0xDBEAFE)));
+            pnlBoxes.add(taoMiniBox("Chờ linh kiện", lblMiniValChoLK, new Color(0xD97706), new Color(0xFEF3C7)));
+            pnlBoxes.add(taoMiniBox("Chờ thu tiền", lblMiniValChoThu, new Color(0x059669), new Color(0xD1FAE5)));
+            pnlProgressBody.add(pnlBoxes);
+            cardProgress.add(pnlProgressBody, BorderLayout.CENTER);
+            pnlChartsRow.add(cardProgress);
+
+            // Chart 2: Tải công việc Kỹ thuật viên
+            RoundedPanel cardWorkload = new RoundedPanel(C_WHITE, 14, C_BORDER, new Insets(14, 16, 14, 16));
+            cardWorkload.setLayout(new BorderLayout(0, 10));
+
+            JPanel pnlWorkloadHead = new JPanel(new BorderLayout());
+            pnlWorkloadHead.setOpaque(false);
+            JLabel lblWorkloadTitle = taoNhan("Tải công việc Kỹ thuật viên", Font.BOLD, 14, C_TEXT_HEAD);
+            pnlWorkloadHead.add(lblWorkloadTitle, BorderLayout.WEST);
+            JLabel lblWorkloadSub = taoNhan("Chọn KTV ít việc để phân công", Font.PLAIN, 11, C_TEXT_SUBTLE);
+            pnlWorkloadHead.add(lblWorkloadSub, BorderLayout.EAST);
+            cardWorkload.add(pnlWorkloadHead, BorderLayout.NORTH);
+
+            pnlKtvList = new JPanel();
+            pnlKtvList.setLayout(new BoxLayout(pnlKtvList, BoxLayout.Y_AXIS));
+            pnlKtvList.setOpaque(false);
+
+            JScrollPane scrollKtv = new JScrollPane(pnlKtvList);
+            scrollKtv.setBorder(null);
+            scrollKtv.setOpaque(false);
+            scrollKtv.getViewport().setOpaque(false);
+            cardWorkload.add(scrollKtv, BorderLayout.CENTER);
+            pnlChartsRow.add(cardWorkload);
+
+            add(pnlChartsRow);
+            add(Box.createVerticalStrut(18));
+
+            // ── 4. Action Center: Hàng đợi công việc cần xử lý ngay ────────────
+            JPanel pnlActionRow = new JPanel(new GridBagLayout());
+            pnlActionRow.setOpaque(false);
+            pnlActionRow.setPreferredSize(new Dimension(800, 240));
+            pnlActionRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
+
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.fill = GridBagConstraints.BOTH;
+            gbc.weighty = 1.0;
+
+            // Card Trái: Xe chờ giao & thanh toán (60%)
+            gbc.gridx = 0;
+            gbc.weightx = 0.60;
+            gbc.insets = new Insets(0, 0, 0, 14);
+
+            RoundedPanel cardChoGiao = new RoundedPanel(C_WHITE, 14, C_BORDER, new Insets(14, 16, 14, 16));
+            cardChoGiao.setLayout(new BorderLayout(0, 10));
+
+            JPanel pnlChoGiaoHead = new JPanel(new BorderLayout());
+            pnlChoGiaoHead.setOpaque(false);
+            JPanel pnlChoGiaoTitle = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+            pnlChoGiaoTitle.setOpaque(false);
+            JLabel lblChoGiaoTitle = taoNhan("Xe đã sửa xong – Chờ thu tiền & giao xe", Font.BOLD, 14, C_TEXT_HEAD);
+            pnlChoGiaoTitle.add(lblChoGiaoTitle);
+
+            lblBadgeChoGiao = taoNhan("0 xe", Font.BOLD, 11, new Color(0x059669));
+            lblBadgeChoGiao.setBackground(new Color(0xECFDF5));
+            lblBadgeChoGiao.setOpaque(true);
+            lblBadgeChoGiao.setBorder(new EmptyBorder(2, 6, 2, 6));
+            pnlChoGiaoTitle.add(lblBadgeChoGiao);
+            pnlChoGiaoHead.add(pnlChoGiaoTitle, BorderLayout.WEST);
+
+            JLabel lblOpenHoaDon = taoNhan("Sang Lập hóa đơn ↗", Font.BOLD, 11, C_PRIMARY);
+            lblOpenHoaDon.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            lblOpenHoaDon.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    moPageTheoNavigation("NAV_HOA_DON");
+                }
+            });
+            pnlChoGiaoHead.add(lblOpenHoaDon, BorderLayout.EAST);
+            cardChoGiao.add(pnlChoGiaoHead, BorderLayout.NORTH);
+
+            String[] colsChoGiao = { "MÃ PHIẾU", "BIỂN SỐ XE", "KHÁCH HÀNG", "KTV CHÍNH", "TẠM TÍNH", "THAO TÁC" };
+            modelChoGiao = new DefaultTableModel(colsChoGiao, 0) {
+                @Override public boolean isCellEditable(int row, int col) { return false; }
+            };
+            tableChoGiao = new JTable(modelChoGiao);
+            styleTable(tableChoGiao);
+            tableChoGiao.setRowHeight(32);
+
+            tableChoGiao.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
+                @Override
+                public Component getTableCellRendererComponent(JTable tbl, Object val, boolean isSel, boolean hasFoc, int r, int c) {
+                    JLabel lbl = (JLabel) super.getTableCellRendererComponent(tbl, val, isSel, hasFoc, r, c);
+                    lbl.setFont(f(Font.BOLD, 11));
+                    lbl.setForeground(new Color(0x059669));
+                    lbl.setHorizontalAlignment(SwingConstants.CENTER);
+                    lbl.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    return lbl;
+                }
+            });
+
+            tableChoGiao.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    int row = tableChoGiao.rowAtPoint(e.getPoint());
+                    if (row >= 0) {
+                        moPageTheoNavigation("NAV_HOA_DON");
+                    }
+                }
+            });
+
+            JScrollPane scrollChoGiao = new JScrollPane(tableChoGiao);
+            scrollChoGiao.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
+            scrollChoGiao.getViewport().setBackground(C_WHITE);
+            cardChoGiao.add(scrollChoGiao, BorderLayout.CENTER);
+            pnlActionRow.add(cardChoGiao, gbc);
+
+            // Card Phải: Cảnh báo & hàng đợi cần can thiệp (40%)
+            gbc.gridx = 1;
+            gbc.weightx = 0.40;
+            gbc.insets = new Insets(0, 0, 0, 0);
+
+            RoundedPanel cardCanhBao = new RoundedPanel(C_WHITE, 14, C_BORDER, new Insets(14, 16, 14, 16));
+            cardCanhBao.setLayout(new BorderLayout(0, 10));
+
+            JPanel pnlCanhBaoHead = new JPanel(new BorderLayout());
+            pnlCanhBaoHead.setOpaque(false);
+            JPanel pnlCanhBaoTitle = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+            pnlCanhBaoTitle.setOpaque(false);
+            JLabel lblCanhBaoTitle = taoNhan("Cảnh báo & Việc cần can thiệp", Font.BOLD, 14, C_TEXT_HEAD);
+            pnlCanhBaoTitle.add(lblCanhBaoTitle);
+
+            lblBadgeCanhBao = taoNhan("0 mục", Font.BOLD, 11, new Color(0x059669));
+            lblBadgeCanhBao.setBackground(new Color(0xECFDF5));
+            lblBadgeCanhBao.setOpaque(true);
+            lblBadgeCanhBao.setBorder(new EmptyBorder(2, 6, 2, 6));
+            pnlCanhBaoTitle.add(lblBadgeCanhBao);
+            pnlCanhBaoHead.add(pnlCanhBaoTitle, BorderLayout.WEST);
+            cardCanhBao.add(pnlCanhBaoHead, BorderLayout.NORTH);
+
+            pnlCanhBaoList = new JPanel();
+            pnlCanhBaoList.setLayout(new BoxLayout(pnlCanhBaoList, BoxLayout.Y_AXIS));
+            pnlCanhBaoList.setOpaque(false);
+
+            JScrollPane scrollCanhBao = new JScrollPane(pnlCanhBaoList);
+            scrollCanhBao.setBorder(null);
+            scrollCanhBao.setOpaque(false);
+            scrollCanhBao.getViewport().setOpaque(false);
+            cardCanhBao.add(scrollCanhBao, BorderLayout.CENTER);
+            pnlActionRow.add(cardCanhBao, gbc);
+
+            add(pnlActionRow);
+            add(Box.createVerticalStrut(18));
+
+            // ── 5. Bảng tổng hợp xe tại Gara hôm nay (Live Xe Table) ───────────
+            RoundedPanel cardLiveTable = new RoundedPanel(C_WHITE, 14, C_BORDER, new Insets(14, 16, 14, 16));
+            cardLiveTable.setLayout(new BorderLayout(0, 10));
+            cardLiveTable.setMaximumSize(new Dimension(Integer.MAX_VALUE, 460));
+
+            JPanel tblHead = new JPanel(new BorderLayout());
+            tblHead.setOpaque(false);
+            JLabel lblTblTitle = taoNhan("Danh sách xe đang tiếp nhận & xử lý tại xưởng", Font.BOLD, 15, C_TEXT_HEAD);
+            tblHead.add(lblTblTitle, BorderLayout.WEST);
+
+            String[] colsLiveXe = { "MÃ PHIẾU", "BIỂN SỐ XE", "KHÁCH HÀNG", "SỐ ĐIỆN THOẠI", "KTV CHÍNH", "THỜI ĐIỂM", "TRẠNG THÁI" };
+            modelLiveXe = new DefaultTableModel(colsLiveXe, 0) {
+                @Override public boolean isCellEditable(int row, int col) { return false; }
+            };
+            tableLiveXe = new JTable(modelLiveXe);
+            styleTable(tableLiveXe);
+            tableLiveXe.setRowHeight(36);
+            tableLiveXe.getColumnModel().getColumn(6).setCellRenderer(new StatusBadgeRenderer());
+
+            tableLiveXe.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (e.getClickCount() == 2) {
+                        moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN");
+                    }
+                }
+            });
+
+            sorterLiveXe = new TableRowSorter<>(modelLiveXe);
+            tableLiveXe.setRowSorter(sorterLiveXe);
+
+            // Bộ lọc nhanh
+            JPanel pnlFilters = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+            pnlFilters.setOpaque(false);
+
+            String[] filterNames = { "Tất cả", "Chờ sửa", "Đang sửa", "Chờ linh kiện", "Hoàn tất" };
+            for (String fn : filterNames) {
+                JButton btnF = new JButton(fn);
+                btnF.setFont(f(Font.PLAIN, 11));
+                btnF.setBackground(C_WHITE);
+                btnF.setForeground(C_TEXT_MAIN);
+                btnF.setFocusPainted(false);
+                btnF.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                btnF.addActionListener(e -> {
+                    if ("Tất cả".equals(fn)) {
+                        sorterLiveXe.setRowFilter(null);
+                    } else {
+                        String query = switch (fn) {
+                            case "Chờ sửa" -> "CHO_SUA";
+                            case "Đang sửa" -> "DANG_SUA";
+                            case "Chờ linh kiện" -> "CHO_LINH_KIEN";
+                            case "Hoàn tất" -> "HOAN_TAT";
+                            default -> fn;
+                        };
+                        sorterLiveXe.setRowFilter(RowFilter.regexFilter(query, 6));
+                    }
+                });
+                pnlFilters.add(btnF);
+            }
+
+            tblHead.add(pnlFilters, BorderLayout.EAST);
+            cardLiveTable.add(tblHead, BorderLayout.NORTH);
+
+            JScrollPane scrollTable = new JScrollPane(tableLiveXe);
+            scrollTable.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
+            scrollTable.getViewport().setBackground(C_WHITE);
+            scrollTable.setPreferredSize(new Dimension(0, 240));
+            cardLiveTable.add(scrollTable, BorderLayout.CENTER);
+
+            add(cardLiveTable);
+        }
+
+        public boolean batDauTaiDuLieu() {
+            if (dangTaiDuLieu) return false;
+            dangTaiDuLieu = true;
+            btnLamMoi.setEnabled(false);
+            btnLamMoi.setText("Đang tải...");
+            return true;
+        }
+
+        public void ketThucTaiDuLieu() {
+            dangTaiDuLieu = false;
+            btnLamMoi.setEnabled(true);
+            btnLamMoi.setText("Làm mới");
+        }
+
+        public void setOnRefresh(Runnable r) {
+            this.onRefresh = r;
+        }
+
+        /** Đổ dữ liệu thật từ Controller vào toàn bộ giao diện Dashboard Tiếp nhận viên */
+        public void capNhatDuLieu(TiepNhanVienDashboardData data) {
+            String ngayHienTai = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            lblSubTitle.setText("Ca trực hôm nay: " + ngayHienTai + " · Giám sát xe xưởng, điều phối KTV và hàng đợi xử lý");
+
+            // 1. Thẻ 1: Tiếp nhận hôm nay
+            kpiSo[0].setText(String.format("%02d", data.tiepNhanHomNay));
+
+            // 2. Thẻ 2: Cần phân công KTV (Cảnh báo đỏ nếu > 0)
+            boolean coChuaPhanCong = data.chuaPhanCongKTV > 0;
+            kpiSo[1].setText(String.format("%02d", data.chuaPhanCongKTV));
+            if (coChuaPhanCong) {
+                kpiSub[1].setText("Phiếu chờ chỉ định thợ!");
+                kpiLink[1].setText("Phân công KTV ngay ↗");
+                lblKpi2Icon.setIcon(new AlertTriangleIcon(C_DANGER, 22));
+                kpiCards[1].setBackground(new Color(0xFEF2F2));
+                kpiSo[1].setForeground(C_DANGER);
+                kpiSub[1].setForeground(new Color(0xB91C1C));
+                kpiLink[1].setForeground(C_DANGER);
+            } else {
+                kpiSub[1].setText("Đã phân công đầy đủ");
+                kpiLink[1].setText("Xem danh sách xe ↗");
+                lblKpi2Icon.setIcon(new CheckVectorIcon(new Color(0x059669), 22));
+                kpiCards[1].setBackground(C_WHITE);
+                kpiSo[1].setForeground(C_TEXT_HEAD);
+                kpiSub[1].setForeground(C_TEXT_SUBTLE);
+                kpiLink[1].setForeground(C_PRIMARY);
+            }
+
+            // 3. Thẻ 3: Xe đang sửa chữa
+            kpiSo[2].setText(String.format("%02d", data.phieuDangSua));
+
+            // 4. Thẻ 4: Chờ thanh toán & giao xe (Xanh lá nếu > 0)
+            boolean coChoThu = data.phieuChoThuTien > 0;
+            kpiSo[3].setText(String.format("%02d", data.phieuChoThuTien));
+            if (coChoThu) {
+                kpiSub[3].setText("Sẵn sàng lập hóa đơn thu tiền");
+                kpiLink[3].setText("Lập hóa đơn thanh toán ↗");
+                lblKpi4Icon.setIcon(new MoneyVectorIcon(new Color(0x059669), 22));
+                kpiCards[3].setBackground(new Color(0xECFDF5));
+                kpiSo[3].setForeground(new Color(0x059669));
+                kpiSub[3].setForeground(new Color(0x047857));
+                kpiLink[3].setForeground(new Color(0x059669));
+            } else {
+                kpiSub[3].setText("Không có xe tồn thu");
+                kpiLink[3].setText("Lập hóa đơn thanh toán ↗");
+                lblKpi4Icon.setIcon(new MoneyVectorIcon(C_TEXT_SUBTLE, 22));
+                kpiCards[3].setBackground(C_WHITE);
+                kpiSo[3].setForeground(C_TEXT_HEAD);
+                kpiSub[3].setForeground(C_TEXT_SUBTLE);
+                kpiLink[3].setForeground(C_PRIMARY);
+            }
+
+            // 5. Cập nhật Chart 1: Tình trạng xe xưởng
+            int choSua = data.phanBoTrangThai.getOrDefault("Chờ sửa chữa", data.phieuChoSua);
+            int dangSua = data.phanBoTrangThai.getOrDefault("Đang sửa chữa", data.phieuDangSua);
+            int choLK = data.phanBoTrangThai.getOrDefault("Chờ linh kiện", data.phieuChoLinhKien);
+            int choThu = data.phanBoTrangThai.getOrDefault("Chờ thanh toán", data.phieuChoThuTien);
+            int tongXe = choSua + dangSua + choLK + choThu;
+
+            lblXeCoMatBadge.setText(tongXe + " xe có mặt");
+            thanhTienDoXe.setData(choSua, dangSua, choLK, choThu);
+
+            int pctChoSua = tongXe > 0 ? (int) Math.round((double) choSua * 100.0 / tongXe) : 0;
+            int pctDangSua = tongXe > 0 ? (int) Math.round((double) dangSua * 100.0 / tongXe) : 0;
+            int pctChoLK = tongXe > 0 ? (int) Math.round((double) choLK * 100.0 / tongXe) : 0;
+            int pctChoThu = tongXe > 0 ? (int) Math.round((double) choThu * 100.0 / tongXe) : 0;
+
+            lblMiniValChoSua.setText(choSua + " (" + pctChoSua + "%)");
+            lblMiniValDangSua.setText(dangSua + " (" + pctDangSua + "%)");
+            lblMiniValChoLK.setText(choLK + " (" + pctChoLK + "%)");
+            lblMiniValChoThu.setText(choThu + " (" + pctChoThu + "%)");
+
+            // 6. Cập nhật Chart 2: Tải công việc KTV
+            pnlKtvList.removeAll();
+            if (data.taiCongViecKTV == null || data.taiCongViecKTV.isEmpty()) {
+                JLabel lblEmpty = taoNhan("Chưa có thông tin kỹ thuật viên", Font.ITALIC, 12, C_TEXT_MUTED);
+                pnlKtvList.add(lblEmpty);
+            } else {
+                int maxJobs = 1;
+                for (int v : data.taiCongViecKTV.values()) if (v > maxJobs) maxJobs = v;
+
+                for (Map.Entry<String, Integer> e : data.taiCongViecKTV.entrySet()) {
+                    pnlKtvList.add(taoHangKtvWorkload(e.getKey(), e.getValue(), maxJobs));
+                    pnlKtvList.add(Box.createVerticalStrut(4));
+                }
+            }
+            pnlKtvList.revalidate();
+            pnlKtvList.repaint();
+
+            // 7. Cập nhật Action Center: Xe chờ giao & thanh toán
+            lblBadgeChoGiao.setText(data.danhSachChoGiao.size() + " xe");
+            modelChoGiao.setRowCount(0);
+            for (XeChoGiaoRow r : data.danhSachChoGiao) {
+                modelChoGiao.addRow(new Object[]{
+                        r.maPhieu,
+                        r.bienSo,
+                        r.khachHang,
+                        r.ktvChinh,
+                        MONEY_FMT.format(r.tienTamTinh) + " đ",
+                        "Thu tiền ↗"
+                });
+            }
+
+            // 8. Cập nhật Action Center: Cảnh báo
+            int countCb = data.danhSachCanhBao != null ? data.danhSachCanhBao.size() : 0;
+            lblBadgeCanhBao.setText(countCb + " mục");
+            if (countCb > 0) {
+                lblBadgeCanhBao.setForeground(C_DANGER);
+                lblBadgeCanhBao.setBackground(new Color(0xFEF2F2));
+            } else {
+                lblBadgeCanhBao.setForeground(new Color(0x059669));
+                lblBadgeCanhBao.setBackground(new Color(0xECFDF5));
+            }
+
+            pnlCanhBaoList.removeAll();
+            if (data.danhSachCanhBao == null || data.danhSachCanhBao.isEmpty()) {
+                JPanel pnlOk = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 40));
+                pnlOk.setOpaque(false);
+                JLabel lblOk = taoNhan("✓ Không có cảnh báo tồn đọng. Mọi việc đang trôi chảy!", Font.PLAIN, 12, new Color(0x059669));
+                pnlOk.add(lblOk);
+                pnlCanhBaoList.add(pnlOk);
+            } else {
+                for (CanhBaoTNVRow cb : data.danhSachCanhBao) {
+                    pnlCanhBaoList.add(taoHangCanhBao(cb));
+                    pnlCanhBaoList.add(Box.createVerticalStrut(6));
+                }
+            }
+            pnlCanhBaoList.revalidate();
+            pnlCanhBaoList.repaint();
+
+            // 9. Cập nhật Live Xe Table
+            modelLiveXe.setRowCount(0);
+            for (PhieuTiepNhanRow r : data.danhSachPhieu) {
+                modelLiveXe.addRow(new Object[]{
+                        r.maPhieu,
+                        r.bienSo,
+                        r.khachHang,
+                        r.soDienThoai,
+                        r.ktvChinh,
+                        r.thoiDiem,
+                        r.trangThai
+                });
+            }
+
+            revalidate();
+            repaint();
+        }
+
+        private JPanel taoTheKpiTnv(int index, String title, String defaultSub, String defaultLink, Icon icon,
+                                    Color bg, Color border, Color textNum, Color textTitle, Color textSub, Color textLink,
+                                    Runnable onClick) {
+            JPanel card = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(getBackground());
+                    g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                    g2.setColor(border);
+                    g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                    g2.dispose();
+                }
+            };
+            card.setOpaque(false);
+            card.setBackground(bg);
+            card.setLayout(new BorderLayout(0, 4));
+            card.setBorder(new EmptyBorder(12, 14, 10, 14));
+            card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            card.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (onClick != null) onClick.run();
+                }
+            });
+
+            JPanel top = new JPanel(new BorderLayout());
+            top.setOpaque(false);
+            kpiSo[index] = new JLabel("00");
+            kpiSo[index].setFont(f(Font.BOLD, 26));
+            kpiSo[index].setForeground(textNum);
+            top.add(kpiSo[index], BorderLayout.WEST);
+
+            JLabel lblIcon = new JLabel(icon);
+            if (index == 1) lblKpi2Icon = lblIcon;
+            if (index == 3) lblKpi4Icon = lblIcon;
+            top.add(lblIcon, BorderLayout.EAST);
+            card.add(top, BorderLayout.NORTH);
+
+            JPanel center = new JPanel();
+            center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+            center.setOpaque(false);
+
+            JLabel lblT = new JLabel(title);
+            lblT.setFont(f(Font.BOLD, 13));
+            lblT.setForeground(textTitle);
+            center.add(lblT);
+
+            kpiSub[index] = new JLabel(defaultSub);
+            kpiSub[index].setFont(f(Font.PLAIN, 11));
+            kpiSub[index].setForeground(textSub);
+            center.add(kpiSub[index]);
+            card.add(center, BorderLayout.CENTER);
+
+            kpiLink[index] = new JLabel(defaultLink);
+            kpiLink[index].setFont(f(Font.BOLD, 11));
+            kpiLink[index].setForeground(textLink);
+            card.add(kpiLink[index], BorderLayout.SOUTH);
+
+            kpiCards[index] = card;
+            return card;
+        }
+
+        private JPanel taoMiniBox(String label, JLabel lblVal, Color dotColor, Color bgColor) {
+            JPanel box = new JPanel(new BorderLayout(6, 0));
+            box.setBackground(bgColor);
+            box.setBorder(new EmptyBorder(6, 10, 6, 10));
+
+            JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+            left.setOpaque(false);
+            left.add(new JLabel(new DotIcon(dotColor, 8)));
+            JLabel lbl = taoNhan(label, Font.PLAIN, 12, C_TEXT_MAIN);
+            left.add(lbl);
+            box.add(left, BorderLayout.WEST);
+
+            box.add(lblVal, BorderLayout.EAST);
+            return box;
+        }
+
+        private JPanel taoHangKtvWorkload(String ktvName, int jobs, int maxJobs) {
+            JPanel row = new JPanel(new BorderLayout(8, 0));
+            row.setOpaque(false);
+            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
+
+            JLabel lblName = taoNhan(ktvName, Font.PLAIN, 12, C_TEXT_MAIN);
+            lblName.setPreferredSize(new Dimension(130, 24));
+            row.add(lblName, BorderLayout.WEST);
+
+            JPanel barPanel = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    int w = getWidth();
+                    int h = 10;
+                    int y = (getHeight() - h) / 2;
+
+                    g2.setColor(new Color(0xF1F5F9));
+                    g2.fillRoundRect(0, y, w, h, 6, 6);
+
+                    if (jobs > 0) {
+                        int barW = Math.max(12, (int) Math.round((double) jobs * w / Math.max(maxJobs, 4)));
+                        Color barCol = jobs >= 3 ? new Color(0xDC2626) : (jobs >= 2 ? new Color(0xD97706) : C_PRIMARY);
+                        g2.setColor(barCol);
+                        g2.fillRoundRect(0, y, barW, h, 6, 6);
+                    }
+                    g2.dispose();
+                }
+            };
+            barPanel.setOpaque(false);
+            row.add(barPanel, BorderLayout.CENTER);
+
+            JPanel badge = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+            badge.setOpaque(false);
+            badge.setPreferredSize(new Dimension(95, 24));
+
+            JLabel lblStatus = taoNhan(jobs == 0 ? "✓ Sẵn sàng" : jobs + " xe", Font.BOLD, 11,
+                    jobs == 0 ? new Color(0x059669) : (jobs >= 3 ? C_DANGER : C_TEXT_HEAD));
+            badge.add(lblStatus);
+            row.add(badge, BorderLayout.EAST);
+
+            return row;
+        }
+
+        private JPanel taoHangCanhBao(CanhBaoTNVRow cb) {
+            boolean isDanger = "DANGER".equals(cb.mucDo);
+            JPanel item = new JPanel(new BorderLayout(8, 0));
+            item.setBackground(isDanger ? new Color(0xFEF2F2) : new Color(0xFFFBEB));
+            item.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(isDanger ? new Color(0xFCA5A5) : new Color(0xFDE68A), 1),
+                    new EmptyBorder(6, 10, 6, 10)
+            ));
+            item.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+
+            JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+            left.setOpaque(false);
+            if (isDanger) {
+                left.add(new JLabel(new AlertTriangleIcon(C_DANGER, 14)));
+            } else {
+                left.add(new JLabel(new DotIcon(new Color(0xD97706), 10)));
+            }
+
+            JLabel bs = taoNhan(cb.bienSo, Font.BOLD, 12, isDanger ? C_DANGER : new Color(0xB45309));
+            left.add(bs);
+
+            JLabel note = taoNhan("– " + cb.thongTin, Font.PLAIN, 11, C_TEXT_MAIN);
+            left.add(note);
+            item.add(left, BorderLayout.CENTER);
+
+            JLabel btnAction = taoNhan("Xử lý ↗", Font.BOLD, 11, C_PRIMARY);
+            btnAction.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            btnAction.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN");
+                }
+            });
+            item.add(btnAction, BorderLayout.EAST);
+
+            return item;
+        }
+    }
+
+    /** Thanh tiến trình tình trạng xe xưởng 4 màu bo góc mềm mại. */
+    public static class ThanhTienDoXePanel extends JPanel {
+        private int choSua = 0;
+        private int dangSua = 0;
+        private int choLK = 0;
+        private int choThu = 0;
+
+        public ThanhTienDoXePanel() {
+            setOpaque(false);
+            setPreferredSize(new Dimension(0, 16));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, 16));
+        }
+
+        public void setData(int choSua, int dangSua, int choLK, int choThu) {
+            this.choSua = choSua;
+            this.dangSua = dangSua;
+            this.choLK = choLK;
+            this.choThu = choThu;
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            int w = getWidth();
+            int h = getHeight();
+            int tongXe = choSua + dangSua + choLK + choThu;
+
+            if (tongXe == 0) {
+                g2.setColor(new Color(0xE2E8F0));
+                g2.fillRoundRect(0, 0, w, h, 8, 8);
+                g2.dispose();
+                return;
+            }
+
+            g2.setClip(new java.awt.geom.RoundRectangle2D.Double(0, 0, w, h, 8, 8));
+
+            int wChoSua = (int) Math.round((double) choSua * w / tongXe);
+            int wDangSua = (int) Math.round((double) dangSua * w / tongXe);
+            int wChoLK = (int) Math.round((double) choLK * w / tongXe);
+            int wChoThu = w - (wChoSua + wDangSua + wChoLK);
+
+            int curX = 0;
+            if (wChoSua > 0) {
+                g2.setColor(new Color(0xEA580C));
+                g2.fillRect(curX, 0, wChoSua, h);
+                curX += wChoSua;
+            }
+            if (wDangSua > 0) {
+                g2.setColor(new Color(0x2563EB));
+                g2.fillRect(curX, 0, wDangSua, h);
+                curX += wDangSua;
+            }
+            if (wChoLK > 0) {
+                g2.setColor(new Color(0xD97706));
+                g2.fillRect(curX, 0, wChoLK, h);
+                curX += wChoLK;
+            }
+            if (wChoThu > 0) {
+                g2.setColor(new Color(0x059669));
+                g2.fillRect(curX, 0, wChoThu, h);
+            }
+
+            g2.dispose();
+        }
+    }
+
+    private static void styleTable(JTable table) {
+        table.setFont(f(Font.PLAIN, 12));
+        table.setRowHeight(34);
+        table.setShowGrid(false);
+        table.setIntercellSpacing(new Dimension(0, 0));
+        table.setSelectionBackground(new Color(0xEFF6FF));
+        table.setSelectionForeground(C_TEXT_HEAD);
+        table.getTableHeader().setFont(f(Font.BOLD, 11));
+        table.getTableHeader().setBackground(new Color(0xF8FAFC));
+        table.getTableHeader().setForeground(C_TEXT_SUBTLE);
+        table.getTableHeader().setPreferredSize(new Dimension(0, 34));
+        table.getTableHeader().setReorderingAllowed(false);
+    }
+
 
     private void addFull(JComponent parent, JComponent comp) {
         comp.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -1800,8 +2610,10 @@ public class MainFrame extends JFrame {
         pnlCharts.setAlignmentX(Component.CENTER_ALIGNMENT);
         pnlCharts.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
-        pnlCharts.add(taoChartPhieuTheoTrangThaiDynamic(pbChoSua, lblChoSuaVal, pbDangSua, lblDangSuaVal, pbChoLK, lblChoLKVal, pbHoanThanh, lblHoanThanhVal));
-        pnlCharts.add(taoChartTyLeHoanThanhDynamic(lblDonutCenter, lblLegendHT, lblLegendChoDS, lblLegendCLK, donutAngles, donutRef));
+        pnlCharts.add(taoChartPhieuTheoTrangThaiDynamic(pbChoSua, lblChoSuaVal, pbDangSua, lblDangSuaVal, pbChoLK,
+                lblChoLKVal, pbHoanThanh, lblHoanThanhVal));
+        pnlCharts.add(taoChartTyLeHoanThanhDynamic(lblDonutCenter, lblLegendHT, lblLegendChoDS, lblLegendCLK,
+                donutAngles, donutRef));
 
         // Load số liệu 7 ngày gần nhất cho 2 biểu đồ
         new SwingWorker<dao.PhieuTiepNhanSuaChuaDAO.ThongKeKTVData, Void>() {
@@ -1818,14 +2630,23 @@ public class MainFrame extends JFrame {
             protected void done() {
                 try {
                     dao.PhieuTiepNhanSuaChuaDAO.ThongKeKTVData d = get();
-                    int tong = d.tongPhieu(), hoanTat = d.phieuHoanTat(), dangSua = d.phieuDangSua(), choLK = d.phieuChoLinhKien();
+                    int tong = d.tongPhieu(), hoanTat = d.phieuHoanTat(), dangSua = d.phieuDangSua(),
+                            choLK = d.phieuChoLinhKien();
                     int choSua = Math.max(0, tong - hoanTat - dangSua - choLK);
                     int max = Math.max(1, Math.max(Math.max(choSua, dangSua), Math.max(choLK, hoanTat)));
 
-                    pbChoSua.setMaximum(max); pbChoSua.setValue(choSua); lblChoSuaVal.setText(String.valueOf(choSua));
-                    pbDangSua.setMaximum(max); pbDangSua.setValue(dangSua); lblDangSuaVal.setText(String.valueOf(dangSua));
-                    pbChoLK.setMaximum(max); pbChoLK.setValue(choLK); lblChoLKVal.setText(String.valueOf(choLK));
-                    pbHoanThanh.setMaximum(max); pbHoanThanh.setValue(hoanTat); lblHoanThanhVal.setText(String.valueOf(hoanTat));
+                    pbChoSua.setMaximum(max);
+                    pbChoSua.setValue(choSua);
+                    lblChoSuaVal.setText(String.valueOf(choSua));
+                    pbDangSua.setMaximum(max);
+                    pbDangSua.setValue(dangSua);
+                    lblDangSuaVal.setText(String.valueOf(dangSua));
+                    pbChoLK.setMaximum(max);
+                    pbChoLK.setValue(choLK);
+                    lblChoLKVal.setText(String.valueOf(choLK));
+                    pbHoanThanh.setMaximum(max);
+                    pbHoanThanh.setValue(hoanTat);
+                    lblHoanThanhVal.setText(String.valueOf(hoanTat));
 
                     int pctHT = tong > 0 ? (int) Math.round(hoanTat * 100.0 / tong) : 0;
                     int pctChoDS = tong > 0 ? (int) Math.round((choSua + dangSua) * 100.0 / tong) : 0;
@@ -1842,7 +2663,8 @@ public class MainFrame extends JFrame {
                     if (donutRef[0] != null) {
                         donutRef[0].repaint();
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
         }.execute();
 
@@ -1909,7 +2731,8 @@ public class MainFrame extends JFrame {
         grid.add(TraCuuUI.infoCell("Mã phiếu", p.maPhieu()));
         grid.add(TraCuuUI.infoCell("Trạng thái", stTen));
         grid.add(TraCuuUI.infoCell("Biển số xe", p.bienSoXe() + (p.hangModel() != null ? " · " + p.hangModel() : "")));
-        grid.add(TraCuuUI.infoCell("Ngày tiếp nhận", p.ngayTiepNhan() != null ? DATE_FMT.format(p.ngayTiepNhan()) : "—"));
+        grid.add(TraCuuUI.infoCell("Ngày tiếp nhận",
+                p.ngayTiepNhan() != null ? DATE_FMT.format(p.ngayTiepNhan()) : "—"));
         grid.add(TraCuuUI.infoCell("Khách hàng", p.tenKhachHang() != null ? p.tenKhachHang() : "—"));
         grid.add(TraCuuUI.infoCell("Số điện thoại", p.soDienThoai() != null ? p.soDienThoai() : "—"));
         grid.add(TraCuuUI.infoCell("Kỹ thuật viên", p.tenKyThuatVien() != null ? p.tenKyThuatVien() : "—"));
@@ -1943,7 +2766,8 @@ public class MainFrame extends JFrame {
             });
             pnlBtns.add(btnSua);
         } else {
-            JButton btnTraCuu = new RoundedButton("Xem lịch sử sửa chữa ↗", 10, C_PRIMARY, new Color(0x1D4ED8), C_PRIMARY);
+            JButton btnTraCuu = new RoundedButton("Xem lịch sử sửa chữa ↗", 10, C_PRIMARY, new Color(0x1D4ED8),
+                    C_PRIMARY);
             btnTraCuu.setFont(f(Font.BOLD, 12));
             btnTraCuu.setForeground(Color.WHITE);
             btnTraCuu.setPreferredSize(new Dimension(185, 36));
@@ -2401,6 +3225,7 @@ public class MainFrame extends JFrame {
             case "NAV_KHUYEN_MAI" -> "Quản lý các chương trình khuyến mãi của cửa hàng.";
             case "NAV_NHAN_VIEN" -> "Tìm kiếm và quản lý hồ sơ nhân viên.";
             case "NAV_TAI_KHOAN" -> "Tạo tài khoản, đổi mật khẩu và quản lý tài khoản nhân viên.";
+            case "NAV_SAO_LUU_PHUC_HOI" -> "Sao lưu và phục hồi cơ sở dữ liệu hệ thống.";
             case "NAV_TRA_CUU" -> nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG
                     ? "Tra cứu linh kiện, khách hàng và lịch sử sửa chữa."
                     : "Tra cứu theo phạm vi nghiệp vụ của vai trò.";
@@ -2805,6 +3630,31 @@ public class MainFrame extends JFrame {
         return rawLogoImage;
     }
 
+    private static ImageIcon loadSquareAppIcon(int size) {
+        try {
+            Image raw = loadRawLogoImage();
+            if (raw == null) return null;
+            java.awt.image.BufferedImage bi = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2 = bi.createGraphics();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            int iw = raw.getWidth(null);
+            int ih = raw.getHeight(null);
+            if (iw > 0 && ih > 0) {
+                double scale = Math.min((double) size / iw, (double) size / ih);
+                int sw = (int) Math.round(iw * scale);
+                int sh = (int) Math.round(ih * scale);
+                int sx = (size - sw) / 2;
+                int sy = (size - sh) / 2;
+                g2.drawImage(raw, sx, sy, sw, sh, null);
+            }
+            g2.dispose();
+            return new ImageIcon(bi);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static ImageIcon loadLogoImage(int targetW, int targetH) {
         try {
             Image img = loadRawLogoImage();
@@ -3116,6 +3966,72 @@ public class MainFrame extends JFrame {
         }
     }
 
+    /** Icon CSDL (3 đĩa xếp chồng sắc nét theo phong cách CarZone). */
+    public static class DatabaseIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public DatabaseIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        public DatabaseIcon(int size) {
+            this(new Color(0x2563EB), size);
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            int pad = Math.max(2, size / 8);
+            int w = size - pad * 2;
+            int h = size - pad * 2;
+            int px = pad;
+            int py = pad + 1;
+
+            int eh = Math.max(5, h / 3);
+            int gap = Math.max(4, (h - eh) / 2);
+
+            // Nền đĩa trên cùng: xanh nhạt dịu mắt
+            g2.setColor(new Color(0xDB, 0xEA, 0xFE));
+            g2.fillOval(px, py, w, eh);
+
+            // Nét vẽ chính
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            // Đĩa trên cùng (hình oval trọn vẹn)
+            g2.drawOval(px, py, w, eh);
+
+            // Đĩa giữa (vòm cong dưới)
+            g2.drawArc(px, py + gap, w, eh, 180, 180);
+
+            // Đĩa đáy (vòm cong dưới)
+            g2.drawArc(px, py + gap * 2, w, eh, 180, 180);
+
+            // Hai sống lưng nối thẳng đứng
+            int midTopY = py + eh / 2;
+            int midBotY = py + gap * 2 + eh / 2;
+            g2.drawLine(px, midTopY, px, midBotY);
+            g2.drawLine(px + w, midTopY, px + w, midBotY);
+
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() {
+            return size;
+        }
+
+        @Override
+        public int getIconHeight() {
+            return size;
+        }
+    }
+
     /** Icon lịch (calendar-days). */
     public static class CalendarIcon implements Icon {
         private final Color color;
@@ -3181,6 +4097,325 @@ public class MainFrame extends JFrame {
         }
     }
 
+    /** Icon Sao lưu CSDL (Đĩa CSDL + mũi tên tải xuống). */
+    public static class BackupIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public BackupIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            int pad = 1;
+            int w = size - pad * 2;
+            int h = size - pad * 2;
+            int eh = Math.max(3, h / 4);
+
+            g2.drawOval(pad, pad, w, eh);
+            g2.drawArc(pad, pad + h - eh, w, eh, 180, 180);
+            g2.drawLine(pad, pad + eh / 2, pad, pad + h - eh / 2);
+            g2.drawLine(pad + w, pad + eh / 2, pad + w, pad + h - eh / 2);
+
+            int cx = pad + w / 2;
+            int topY = pad + eh + 2;
+            int botY = pad + h - 2;
+            g2.drawLine(cx, topY, cx, botY);
+            g2.drawLine(cx, botY, cx - 2, botY - 3);
+            g2.drawLine(cx, botY, cx + 2, botY - 3);
+
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() { return size; }
+        @Override
+        public int getIconHeight() { return size; }
+    }
+
+    /** Icon Phục hồi CSDL (Đĩa CSDL + mũi tên khôi phục lên). */
+    public static class RestoreIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public RestoreIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            int pad = 1;
+            int w = size - pad * 2;
+            int h = size - pad * 2;
+            int eh = Math.max(3, h / 4);
+
+            g2.drawOval(pad, pad, w, eh);
+            g2.drawArc(pad, pad + h - eh, w, eh, 180, 180);
+            g2.drawLine(pad, pad + eh / 2, pad, pad + h - eh / 2);
+            g2.drawLine(pad + w, pad + eh / 2, pad + w, pad + h - eh / 2);
+
+            int cx = pad + w / 2;
+            int topY = pad + eh + 2;
+            int botY = pad + h - 2;
+            g2.drawLine(cx, topY, cx, botY);
+            g2.drawLine(cx, topY, cx - 2, topY + 3);
+            g2.drawLine(cx, topY, cx + 2, topY + 3);
+
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() { return size; }
+        @Override
+        public int getIconHeight() { return size; }
+    }
+
+    /** Icon Làm mới (Vòng cung mũi tên xoay tròn mượt mà). */
+    public static class RefreshIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public RefreshIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            int pad = 2;
+            int d = size - pad * 2;
+            g2.drawArc(pad, pad, d, d, 40, 280);
+
+            int ax = pad + d - 1;
+            int ay = pad + d / 4;
+            g2.drawLine(ax, ay, ax + 3, ay + 3);
+            g2.drawLine(ax, ay, ax - 3, ay + 3);
+
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() { return size; }
+        @Override
+        public int getIconHeight() { return size; }
+    }
+
+    /** Icon Cảnh báo tam giác (dùng trong Dialog xác nhận nguy hiểm). */
+    public static class AlertTriangleIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public AlertTriangleIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            int pad = 1;
+            int w = size - pad * 2;
+            int h = size - pad * 2;
+
+            int[] xs = { pad + w / 2, pad + w, pad };
+            int[] ys = { pad, pad + h, pad + h };
+            g2.drawPolygon(xs, ys, 3);
+
+            int cx = pad + w / 2;
+            int topY = pad + h / 3;
+            int dotY = pad + h - 3;
+            g2.drawLine(cx, topY, cx, dotY - 4);
+            g2.drawLine(cx, dotY, cx, dotY);
+
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() { return size; }
+        @Override
+        public int getIconHeight() { return size; }
+    }
+
+    /** Icon Vector Xe ô tô (dùng trong Dashboard Tiếp nhận viên). */
+    public static class CarVectorIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public CarVectorIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            int h = size;
+            int w = size;
+            g2.drawRoundRect(2, h / 3 + 1, w - 4, h / 2, 4, 4);
+            g2.drawLine(4, h / 3 + 1, 7, 3);
+            g2.drawLine(7, 3, w - 7, 3);
+            g2.drawLine(w - 7, 3, w - 4, h / 3 + 1);
+            g2.fillOval(5, h - 5, 4, 4);
+            g2.fillOval(w - 9, h - 5, 4, 4);
+            g2.dispose();
+        }
+
+        @Override public int getIconWidth() { return size; }
+        @Override public int getIconHeight() { return size; }
+    }
+
+    /** Icon Vector Dấu tích V (dùng trong Dashboard). */
+    public static class CheckVectorIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public CheckVectorIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.drawLine(3, size / 2, size / 2 - 1, size - 4);
+            g2.drawLine(size / 2 - 1, size - 4, size - 3, 3);
+            g2.dispose();
+        }
+
+        @Override public int getIconWidth() { return size; }
+        @Override public int getIconHeight() { return size; }
+    }
+
+    /** Icon Vector Cờ lê / Sửa chữa (dùng trong Dashboard). */
+    public static class WrenchVectorIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public WrenchVectorIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.drawOval(size - 9, 2, 7, 7);
+            g2.drawLine(size - 7, 7, 4, size - 4);
+            g2.fillOval(2, size - 6, 4, 4);
+            g2.dispose();
+        }
+
+        @Override public int getIconWidth() { return size; }
+        @Override public int getIconHeight() { return size; }
+    }
+
+    /** Icon Vector Tiền mặt / Hóa đơn (dùng trong Dashboard). */
+    public static class MoneyVectorIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        public MoneyVectorIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(x, y);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.drawRoundRect(2, 4, size - 4, size - 8, 3, 3);
+            g2.drawOval(size / 2 - 2, size / 2 - 2, 4, 4);
+            g2.dispose();
+        }
+
+        @Override public int getIconWidth() { return size; }
+        @Override public int getIconHeight() { return size; }
+    }
+
+    /** Renderer Huy hiệu trạng thái phiếu bo góc mềm mại theo chuẩn Figma. */
+    public static class StatusBadgeRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+            JLabel lbl = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+            lbl.setHorizontalAlignment(SwingConstants.CENTER);
+            if (value == null) return lbl;
+
+            String s = value.toString();
+            String txt = s;
+            Color bg = new Color(0xF1F5F9);
+            Color fg = new Color(0x64748B);
+
+            if (s.contains("CHO_SUA") || s.contains("Chờ sửa")) {
+                txt = "Chờ sửa";
+                bg = new Color(0xFFFBEB);
+                fg = new Color(0xD97706);
+            } else if (s.contains("DANG_SUA") || s.contains("Đang sửa")) {
+                txt = "Đang sửa";
+                bg = new Color(0xEFF6FF);
+                fg = new Color(0x2563EB);
+            } else if (s.contains("CHO_LINH_KIEN") || s.contains("Chờ linh kiện")) {
+                txt = "Chờ linh kiện";
+                bg = new Color(0xFFF7ED);
+                fg = new Color(0xC2410C);
+            } else if (s.contains("HOAN_TAT") || s.contains("Hoàn tất")) {
+                txt = "Hoàn tất";
+                bg = new Color(0xECFDF5);
+                fg = new Color(0x059669);
+            }
+
+            lbl.setText(txt);
+            lbl.setFont(new Font(FONT_FAMILY, Font.BOLD, 11));
+            if (!isSelected) {
+                lbl.setBackground(bg);
+                lbl.setForeground(fg);
+            }
+            lbl.setOpaque(true);
+            lbl.setBorder(new EmptyBorder(3, 8, 3, 8));
+            return lbl;
+        }
+    }
+
     public static class RoundedButton extends JButton {
         private final int arc;
         private final Color bgNormal;
@@ -3234,8 +4469,85 @@ public class MainFrame extends JFrame {
         }
     }
 
+    private record HeaderSuggestion(String icon, String title, String subtitle, String navId,
+            String query, boolean linhKien, boolean navigationOnly) { }
+
+    private void hienThiGoiYTimKiem(String query) {
+        String text = query == null ? "" : query.trim();
+        String key = chuanHoaTimKiem(text);
+        if (key.isBlank()) {
+            searchBox.showSuggestions(List.of());
+            return;
+        }
+        List<HeaderSuggestion> pageMatches = new ArrayList<>();
+        for (NavigationItem item : authController.layDanhSachNavigationTheoRole(nhanVien.getVaiTro())) {
+            String title = chuanHoaTimKiem(item.getTieuDe());
+            if (title.contains(key) || key.contains(title)) {
+                pageMatches.add(new HeaderSuggestion(item.getIcon(), item.getTieuDe(), "Mở màn hình",
+                        item.getId(), "", false, true));
+            }
+        }
+        new SwingWorker<List<HeaderSuggestion>, Void>() {
+            @Override protected List<HeaderSuggestion> doInBackground() {
+                List<HeaderSuggestion> results = new ArrayList<>();
+                results.addAll(pageMatches);
+                java.text.NumberFormat money = java.text.NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN"));
+                try {
+                    for (DichVu dv : traCuuController.timDichVu(text, "Tất cả").stream().limit(5).toList()) {
+                        results.add(new HeaderSuggestion("🔧", dv.getMaDV() + " · " + dv.getTenDV(),
+                                "Dịch vụ · " + money.format(dv.getDonGia()) + " VNĐ / " + dv.getDonViTinh(),
+                                nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG ? "NAV_QUAN_LY_DICH_VU" : "NAV_TRA_CUU",
+                                dv.getMaDV(), false, false));
+                    }
+                } catch (RuntimeException ignored) { }
+                if (nhanVien.getVaiTro() != VaiTro.TIEP_NHAN_VIEN) {
+                    try {
+                        for (LinhKien lk : traCuuController.timLinhKien(text, "Tất cả").stream().limit(5).toList()) {
+                            results.add(new HeaderSuggestion("📦", lk.getMaLK() + " · " + lk.getTenLK(),
+                                    "Linh kiện · " + money.format(lk.getDonGia()) + " VNĐ / " + lk.getDonViTinh(),
+                                    nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG ? "NAV_LINH_KIEN_KHO" : "NAV_TRA_CUU",
+                                    lk.getMaLK(), true, false));
+                        }
+                    } catch (RuntimeException ignored) { }
+                }
+                return results;
+            }
+
+            @Override protected void done() {
+                if (!text.equals(searchBox.getQuery())) return;
+                try { searchBox.showSuggestions(get()); }
+                catch (Exception ex) { searchBox.showSuggestions(pageMatches); }
+            }
+        }.execute();
+    }
+
+    private void chonGoiYTimKiem(HeaderSuggestion suggestion) {
+        if (suggestion == null) return;
+        moPageTheoNavigation(suggestion.navId());
+        if (suggestion.navigationOnly()) return;
+        if (nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
+            if (suggestion.linhKien() && quanLyLinhKienCCHUI != null)
+                quanLyLinhKienCCHUI.timKiemTuHeader(suggestion.query());
+            else if (!suggestion.linhKien() && quanLyDichVuCCHUI != null)
+                quanLyDichVuCCHUI.timKiemTuHeader(suggestion.query());
+        } else if (traCuuUI != null) {
+            traCuuUI.timKiemTuHeader(suggestion.linhKien(), suggestion.query());
+        }
+    }
+
+    private static String chuanHoaTimKiem(String value) {
+        String normalized = Normalizer.normalize(value == null ? "" : value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "").toLowerCase(Locale.ROOT).trim();
+        return normalized.replace('đ', 'd');
+    }
+
     public static class HeaderSearchBox extends JPanel {
         private final JTextField txtInput;
+        private final JPopupMenu popup = new JPopupMenu();
+        private final DefaultListModel<HeaderSuggestion> suggestionModel = new DefaultListModel<>();
+        private final JList<HeaderSuggestion> suggestionList = new JList<>(suggestionModel);
+        private Consumer<String> onSearch;
+        private Consumer<HeaderSuggestion> onSelect;
 
         public HeaderSearchBox(String placeholder) {
             setLayout(new BorderLayout(8, 0));
@@ -3258,6 +4570,93 @@ public class MainFrame extends JFrame {
             txtInput.setBorder(null);
             txtInput.setOpaque(false);
             add(txtInput, BorderLayout.CENTER);
+
+            suggestionList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            suggestionList.setFixedCellHeight(48);
+            suggestionList.setFont(f(Font.PLAIN, 12));
+            suggestionList.setCellRenderer(new DefaultListCellRenderer() {
+                @Override public Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                        boolean selected, boolean focus) {
+                    JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, selected, focus);
+                    if (value instanceof HeaderSuggestion item) {
+                        label.setText("<html>" + item.icon() + " &nbsp; <b>" + item.title()
+                                + "</b><br><span style='color:#7A889C'>" + item.subtitle() + "</span></html>");
+                    }
+                    label.setBorder(new EmptyBorder(3, 10, 3, 10));
+                    return label;
+                }
+            });
+            JScrollPane listScroll = new JScrollPane(suggestionList);
+            listScroll.setBorder(BorderFactory.createLineBorder(F_LINE));
+            popup.setLayout(new BorderLayout());
+            popup.add(listScroll, BorderLayout.CENTER);
+            suggestionList.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (e.getClickCount() == 1) chonGoiY();
+                }
+            });
+            txtInput.addActionListener(e -> {
+                if (popup.isVisible()) chonGoiY();
+                else if (onSearch != null) onSearch.accept(txtInput.getText());
+            });
+            txtInput.addKeyListener(new java.awt.event.KeyAdapter() {
+                @Override public void keyPressed(java.awt.event.KeyEvent e) {
+                    if (!popup.isVisible()) return;
+                    if (suggestionModel.isEmpty()) {
+                        if (e.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) popup.setVisible(false);
+                        return;
+                    }
+                    if (e.getKeyCode() == java.awt.event.KeyEvent.VK_DOWN) {
+                        suggestionList.setSelectedIndex(Math.min(suggestionList.getSelectedIndex() + 1, suggestionModel.size() - 1));
+                        suggestionList.ensureIndexIsVisible(suggestionList.getSelectedIndex()); e.consume();
+                    } else if (e.getKeyCode() == java.awt.event.KeyEvent.VK_UP) {
+                        suggestionList.setSelectedIndex(Math.max(0, suggestionList.getSelectedIndex() - 1));
+                        suggestionList.ensureIndexIsVisible(suggestionList.getSelectedIndex()); e.consume();
+                    } else if (e.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) {
+                        popup.setVisible(false); e.consume();
+                    }
+                }
+            });
+        }
+
+        public void setHandlers(Consumer<String> onSearch, Consumer<HeaderSuggestion> onSelect) {
+            this.onSearch = onSearch;
+            this.onSelect = onSelect;
+        }
+
+        public String getQuery() { return txtInput.getText().trim(); }
+
+        public void showSuggestions(List<HeaderSuggestion> matches) {
+            suggestionModel.clear();
+            for (HeaderSuggestion item : matches) suggestionModel.addElement(item);
+            if (matches.isEmpty()) {
+                popup.removeAll();
+                JLabel empty = new JLabel(txtInput.getText().isBlank()
+                        ? "Nhập từ khóa để tìm màn hình" : "Không tìm thấy màn hình phù hợp");
+                empty.setBorder(new EmptyBorder(10, 12, 10, 12));
+                popup.add(empty, BorderLayout.CENTER);
+                popup.setPreferredSize(new Dimension(Math.max(getWidth(), 260), 42));
+            } else {
+                if (popup.getComponentCount() == 0 || !(popup.getComponent(0) instanceof JScrollPane)) {
+                    popup.removeAll();
+                    JScrollPane scroll = new JScrollPane(suggestionList);
+                    scroll.setBorder(BorderFactory.createLineBorder(F_LINE));
+                    popup.add(scroll, BorderLayout.CENTER);
+                }
+                suggestionList.setSelectedIndex(0);
+                int height = Math.min(48 * matches.size(), 288) + 2;
+                popup.setPreferredSize(new Dimension(Math.max(getWidth(), 260), height));
+            }
+            popup.show(this, 0, getHeight());
+            txtInput.requestFocusInWindow();
+        }
+
+        private void chonGoiY() {
+            HeaderSuggestion selected = suggestionList.getSelectedValue();
+            if (selected != null && onSelect != null) {
+                popup.setVisible(false);
+                onSelect.accept(selected);
+            }
         }
 
         @Override

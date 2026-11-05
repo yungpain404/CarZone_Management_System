@@ -134,6 +134,19 @@ public class TraCuuUI extends JPanel {
         refreshButtonStates();
     }
 
+    /** Chạy tra cứu dịch vụ/linh kiện được chọn từ thanh tìm kiếm dùng chung. */
+    public void timKiemTuHeader(boolean linhKien, String tuKhoa) {
+        SearchPanel<?> panel = linhKien ? partPanel : servicePanel;
+        int tabIndex = -1;
+        for (int i = 0; i < tabs.getTabCount(); i++) {
+            if (tabs.getTitleAt(i).equals(linhKien ? "Linh kiện" : "Dịch vụ")) { tabIndex = i; break; }
+        }
+        if (tabIndex < 0) return;
+        tabs.setSelectedIndex(tabIndex);
+        panel.query.setText(tuKhoa == null ? "" : tuKhoa);
+        panel.executeSearch();
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // KHUNG TÌM KIẾM CƠ BẢN (SearchPanel)
     // ─────────────────────────────────────────────────────────────────────────

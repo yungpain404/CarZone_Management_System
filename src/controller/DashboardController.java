@@ -7,10 +7,13 @@ import enums.TrangThaiPhieu;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controller tổng hợp số liệu hiển thị cho Dashboard theo từng vai trò.
@@ -90,15 +93,57 @@ public class DashboardController {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // DTO DỮ LIỆU DASHBOARD TIẾP NHẬN VIÊN
+    // DTO DỮ LIỆU DASHBOARD TIẾP NHẬN VIÊN (ĐÃ NÂNG CẤP)
     // ─────────────────────────────────────────────────────────────────────────
     public static class TiepNhanVienDashboardData {
-        public int phieuChoSua = 0;
+        public int tiepNhanHomNay = 0;
+        public int chuaPhanCongKTV = 0;
         public int phieuDangSua = 0;
+        public int phieuChoThuTien = 0;
+
+        public int phieuChoSua = 0;
         public int phieuChoLinhKien = 0;
         public int phieuHoanTatChoThu = 0;
 
+        public Map<String, Integer> phanBoTrangThai = new LinkedHashMap<>();
+        public Map<String, Integer> taiCongViecKTV = new LinkedHashMap<>();
+        public List<XeChoGiaoRow> danhSachChoGiao = new ArrayList<>();
+        public List<CanhBaoTNVRow> danhSachCanhBao = new ArrayList<>();
         public List<PhieuTiepNhanRow> danhSachPhieu = new ArrayList<>();
+    }
+
+    public static class XeChoGiaoRow {
+        public String maPhieu;
+        public String bienSo;
+        public String khachHang;
+        public String soDienThoai;
+        public String ktvChinh;
+        public double tienTamTinh;
+
+        public XeChoGiaoRow(String maPhieu, String bienSo, String khachHang, String soDienThoai, String ktvChinh, double tienTamTinh) {
+            this.maPhieu = maPhieu;
+            this.bienSo = bienSo;
+            this.khachHang = khachHang;
+            this.soDienThoai = soDienThoai;
+            this.ktvChinh = ktvChinh;
+            this.tienTamTinh = tienTamTinh;
+        }
+    }
+
+    public static class CanhBaoTNVRow {
+        public String loaiCanhBao;
+        public String maPhieu;
+        public String bienSo;
+        public String thongTin;
+        public String mucDo; // "DANGER" hoặc "WARN"
+
+        public CanhBaoTNVRow(String loaiCanhBao, String maPhieu, String bienSo, String thongTin, String mucDo) {
+            this.loaiCanhBao = loaiCanhBao;
+            this.maPhieu = maPhieu;
+            this.bienSo = bienSo;
+            this.thongTin = thongTin;
+            this.mucDo = mucDo;
+        }
     }
 
     public static class PhieuTiepNhanRow {
@@ -163,17 +208,20 @@ public class DashboardController {
     /**
      * Lấy dữ liệu Dashboard cho Chủ cửa hàng từ cơ sở dữ liệu thật qua JDBC.
      */
-    public ChuCuaHangDashboardData layDataChuCuaHang() {
+    public ChuCuaHangDashboardData layDataChuCuaHang() throws SQLException {
         ChuCuaHangDashboardData data = new ChuCuaHangDashboardData();
-        if (!isDbAvailable()) return data;
+        if (!isDbAvailable()) {
+            throw new SQLException("Cơ sở dữ liệu đang ngoại tuyến.");
+        }
 
         try (Connection con = DbUtil.getConnection()) {
             // 1. Linh kiện hết hàng (tồn <= 0 và đang kinh doanh) + yêu cầu nhập đang chờ duyệt (nếu có)
-            String sqlLk = "SELECT lk.maLK, lk.tenLK, lk.donViTinh, " +
+            String sqlLk = "SELECT TOP 3 lk.maLK, lk.tenLK, lk.donViTinh, COUNT(*) OVER() AS tongHetHang, " +
                            "       (SELECT TOP 1 yc.maYeuCau FROM PhieuYeuCauNhapLinhKien yc " +
                            "        WHERE yc.maLK = lk.maLK AND yc.trangThai = 'CHO_DUYET' ORDER BY yc.ngayTao DESC) AS ycChoDuyet " +
                            "FROM LinhKien lk " +
-                           "WHERE lk.soLuongTon <= 0 AND lk.dangKinhDoanh = 1";
+                           "WHERE lk.soLuongTon <= 0 AND lk.dangKinhDoanh = 1 " +
+                           "ORDER BY lk.tenLK";
             try (PreparedStatement ps = con.prepareStatement(sqlLk);
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -182,7 +230,7 @@ public class DashboardController {
                     String dvt = rs.getString("donViTinh");
                     String yc = rs.getString("ycChoDuyet");
                     String ghiChu = (yc != null) ? (yc + " đang chờ duyệt") : "Chưa có yêu cầu nhập kho";
-                    data.linhKienHetHang++;
+                    data.linhKienHetHang = rs.getInt("tongHetHang");
                     data.danhSachHetHang.add(new LinhKienHetHangRow(ten, dvt, ma, ghiChu));
                 }
             }
@@ -205,7 +253,7 @@ public class DashboardController {
             data.choXacNhanNhapKho = data.yeuCauDaDuyet;
 
             // 3. Danh sách yêu cầu CHỜ DUYỆT kèm tên/mã linh kiện và tồn kho thật
-            String sqlYc = "SELECT TOP 10 yc.maYeuCau, yc.ngayTao, nv.hoTen, " +
+            String sqlYc = "SELECT TOP 5 yc.maYeuCau, yc.ngayTao, nv.hoTen, " +
                            "       lk.tenLK, lk.maLK, lk.donViTinh, yc.soLuongYeuCau, lk.soLuongTon " +
                            "FROM PhieuYeuCauNhapLinhKien yc " +
                            "LEFT JOIN NhanVien nv ON yc.maNVLap = nv.maNV " +
@@ -249,8 +297,11 @@ public class DashboardController {
             }
 
             // 4. Khối "Kinh doanh trong ngày" – chỉ tính phát sinh trong ngày hiện tại
-            data.ngayBaoCao = java.time.LocalDate.now().format(
-                    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            String sqlNgay = "SELECT CONVERT(varchar(10), GETDATE(), 103)";
+            try (PreparedStatement ps = con.prepareStatement(sqlNgay);
+                 ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) data.ngayBaoCao = rs.getString(1);
+            }
 
             String sqlHdHomNay = "SELECT COUNT(*) FROM HoaDon " +
                                  "WHERE trangThaiThanhToan = 'DA_THANH_TOAN' " +
@@ -295,8 +346,6 @@ public class DashboardController {
                 }
             }
 
-        } catch (Exception e) {
-            System.err.println("Lỗi truy vấn Dashboard CCH: " + e.getMessage());
         }
 
         return data;
@@ -321,29 +370,148 @@ public class DashboardController {
         TiepNhanVienDashboardData data = new TiepNhanVienDashboardData();
         if (!isDbAvailable()) return data;
 
+        data.phanBoTrangThai.put("Chờ sửa chữa", 0);
+        data.phanBoTrangThai.put("Đang sửa chữa", 0);
+        data.phanBoTrangThai.put("Chờ linh kiện", 0);
+        data.phanBoTrangThai.put("Chờ thanh toán", 0);
+
         try (Connection con = DbUtil.getConnection()) {
-            // 1. Thống kê số lượng phiếu theo trạng thái
+            // 1. Thống kê KPI: Tiếp nhận hôm nay
+            String sqlHomNay = "SELECT COUNT(*) FROM PhieuTiepNhanSuaChua WHERE CAST(ngayGioTiepNhan AS DATE) = CAST(SYSDATETIME() AS DATE)";
+            try (PreparedStatement ps = con.prepareStatement(sqlHomNay);
+                 ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) data.tiepNhanHomNay = rs.getInt(1);
+            }
+
+            // 2. Thống kê KPI: Chưa phân công KTV (Phiếu CHO_SUA chưa có KTV)
+            String sqlChuaPhanCong = "SELECT COUNT(*) FROM PhieuTiepNhanSuaChua WHERE trangThai = 'CHO_SUA' AND (maNVKyThuat IS NULL OR maNVKyThuat = '')";
+            try (PreparedStatement ps = con.prepareStatement(sqlChuaPhanCong);
+                 ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) data.chuaPhanCongKTV = rs.getInt(1);
+            }
+
+            // 3. Thống kê KPI & phân bố trạng thái
             String sqlCounts = "SELECT trangThai, COUNT(*) FROM PhieuTiepNhanSuaChua GROUP BY trangThai";
             try (PreparedStatement ps = con.prepareStatement(sqlCounts);
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String tt = rs.getString(1);
                     int count = rs.getInt(2);
-                    if ("CHO_SUA".equals(tt)) data.phieuChoSua = count;
-                    else if ("DANG_SUA".equals(tt)) data.phieuDangSua = count;
-                    else if ("CHO_LINH_KIEN".equals(tt)) data.phieuChoLinhKien = count;
-                    else if ("HOAN_TAT".equals(tt)) data.phieuHoanTatChoThu = count;
+                    if ("CHO_SUA".equals(tt)) {
+                        data.phieuChoSua = count;
+                        data.phanBoTrangThai.put("Chờ sửa chữa", count);
+                    } else if ("DANG_SUA".equals(tt)) {
+                        data.phieuDangSua = count;
+                        data.phanBoTrangThai.put("Đang sửa chữa", count);
+                    } else if ("CHO_LINH_KIEN".equals(tt)) {
+                        data.phieuChoLinhKien = count;
+                        data.phanBoTrangThai.put("Chờ linh kiện", count);
+                    } else if ("HOAN_TAT".equals(tt)) {
+                        data.phieuHoanTatChoThu = count;
+                    }
                 }
             }
 
-            // 2. Danh sách phiếu tiếp nhận thực tế gần nhất
+            // 4. Số xe chờ thanh toán (Hoàn tất nhưng chưa thanh toán)
+            String sqlChoThu = "SELECT COUNT(*) FROM PhieuTiepNhanSuaChua p " +
+                               "WHERE p.trangThai = 'HOAN_TAT' AND NOT EXISTS (" +
+                               "  SELECT 1 FROM HoaDon h WHERE h.maPhieu = p.maPhieu AND h.trangThaiThanhToan = 'DA_THANH_TOAN'" +
+                               ")";
+            try (PreparedStatement ps = con.prepareStatement(sqlChoThu);
+                 ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    data.phieuChoThuTien = rs.getInt(1);
+                    data.phanBoTrangThai.put("Chờ thanh toán", data.phieuChoThuTien);
+                }
+            }
+
+            // 5. Tải công việc từng Kỹ thuật viên (Chỉ tính các phiếu đang xử lý: CHO_SUA, DANG_SUA, CHO_LINH_KIEN)
+            String sqlKtvLoad = "SELECT nv.hoTen, COUNT(p.maPhieu) AS soXe " +
+                                "FROM NhanVien nv " +
+                                "LEFT JOIN PhieuTiepNhanSuaChua p ON p.maNVKyThuat = nv.maNV " +
+                                "     AND p.trangThai IN ('CHO_SUA', 'DANG_SUA', 'CHO_LINH_KIEN') " +
+                                "WHERE nv.vaiTro = 'KY_THUAT_VIEN' " +
+                                "GROUP BY nv.hoTen " +
+                                "ORDER BY soXe ASC, nv.hoTen ASC";
+            try (PreparedStatement ps = con.prepareStatement(sqlKtvLoad);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    data.taiCongViecKTV.put(rs.getString("hoTen"), rs.getInt("soXe"));
+                }
+            }
+
+            // 6. Danh sách xe hoàn tất chờ thanh toán & nhận xe
+            String sqlChoGiao =
+                    "SELECT TOP 10 p.maPhieu, x.bienSoXe, kh.hoTen AS tenChuXe, kh.soDienThoai, nv.hoTen AS tenKtv, " +
+                    "       COALESCE((SELECT SUM(cdv.thanhTien) FROM ChiTietDichVu cdv WHERE cdv.maPhieu = p.maPhieu), 0) + " +
+                    "       COALESCE((SELECT SUM(clk.thanhTien) FROM ChiTietLinhKien clk WHERE clk.maPhieu = p.maPhieu), 0) AS tienTamTinh " +
+                    "FROM PhieuTiepNhanSuaChua p " +
+                    "LEFT JOIN Xe x ON p.bienSoXe = x.bienSoXe " +
+                    "LEFT JOIN KhachHang kh ON x.maKH = kh.maKH " +
+                    "LEFT JOIN NhanVien nv ON p.maNVKyThuat = nv.maNV " +
+                    "WHERE p.trangThai = 'HOAN_TAT' AND NOT EXISTS (" +
+                    "  SELECT 1 FROM HoaDon h WHERE h.maPhieu = p.maPhieu AND h.trangThaiThanhToan = 'DA_THANH_TOAN'" +
+                    ") " +
+                    "ORDER BY p.ngayGioTiepNhan ASC";
+            try (PreparedStatement ps = con.prepareStatement(sqlChoGiao);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    data.danhSachChoGiao.add(new XeChoGiaoRow(
+                            rs.getString("maPhieu"),
+                            rs.getString("bienSoXe"),
+                            rs.getString("tenChuXe"),
+                            rs.getString("soDienThoai"),
+                            rs.getString("tenKtv") != null ? rs.getString("tenKtv") : "Chưa rõ",
+                            rs.getDouble("tienTamTinh")
+                    ));
+                }
+            }
+
+            // 7. Cảnh báo cần can thiệp:
+            // a) Phiếu chờ sửa chưa phân công
+            String sqlCbChuaPC = "SELECT TOP 5 p.maPhieu, p.bienSoXe, p.ngayGioTiepNhan " +
+                                 "FROM PhieuTiepNhanSuaChua p " +
+                                 "WHERE p.trangThai = 'CHO_SUA' AND (p.maNVKyThuat IS NULL OR p.maNVKyThuat = '') " +
+                                 "ORDER BY p.ngayGioTiepNhan ASC";
+            try (PreparedStatement ps = con.prepareStatement(sqlCbChuaPC);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String ma = rs.getString("maPhieu");
+                    String bs = rs.getString("bienSoXe");
+                    Timestamp ts = rs.getTimestamp("ngayGioTiepNhan");
+                    String tg = ts != null ? TIME_FMT.format(ts) : "";
+                    data.danhSachCanhBao.add(new CanhBaoTNVRow(
+                            "CHUA_PHAN_CONG", ma, bs, "Tiếp nhận lúc " + tg + " · Chưa gán KTV", "DANGER"
+                    ));
+                }
+            }
+
+            // b) Phiếu chờ linh kiện
+            String sqlCbChoLK = "SELECT TOP 5 p.maPhieu, p.bienSoXe, nv.hoTen AS tenKtv " +
+                                "FROM PhieuTiepNhanSuaChua p " +
+                                "LEFT JOIN NhanVien nv ON p.maNVKyThuat = nv.maNV " +
+                                "WHERE p.trangThai = 'CHO_LINH_KIEN' " +
+                                "ORDER BY p.ngayGioTiepNhan ASC";
+            try (PreparedStatement ps = con.prepareStatement(sqlCbChoLK);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String ma = rs.getString("maPhieu");
+                    String bs = rs.getString("bienSoXe");
+                    String ktv = rs.getString("tenKtv") != null ? rs.getString("tenKtv") : "KTV";
+                    data.danhSachCanhBao.add(new CanhBaoTNVRow(
+                            "CHO_LINH_KIEN", ma, bs, ktv + " đang chờ linh kiện nhập kho", "WARN"
+                    ));
+                }
+            }
+
+            // 8. Danh sách tất cả phiếu tiếp nhận tại gara gần nhất
             String sqlPhieu =
-                    "SELECT TOP 15 p.maPhieu, x.bienSoXe, kh.hoTen AS tenChuXe, kh.soDienThoai, " +
+                    "SELECT TOP 20 p.maPhieu, x.bienSoXe, kh.hoTen AS tenChuXe, kh.soDienThoai, " +
                     "       nv.hoTen AS tenKtv, p.ngayGioTiepNhan, p.trangThai " +
                     "FROM PhieuTiepNhanSuaChua p " +
-                    "LEFT JOIN Xe x ON p.maXe = x.maXe " +
+                    "LEFT JOIN Xe x ON p.bienSoXe = x.bienSoXe " +
                     "LEFT JOIN KhachHang kh ON x.maKH = kh.maKH " +
-                    "LEFT JOIN NhanVien nv ON p.maNVSuaChua = nv.maNV " +
+                    "LEFT JOIN NhanVien nv ON p.maNVKyThuat = nv.maNV " +
                     "ORDER BY p.ngayGioTiepNhan DESC";
             try (PreparedStatement ps = con.prepareStatement(sqlPhieu);
                  ResultSet rs = ps.executeQuery()) {
@@ -386,7 +554,7 @@ public class DashboardController {
             String manv = ktv.getMaNV();
 
             // 1. Đếm phiếu theo trạng thái của KTV
-            String sqlCounts = "SELECT trangThai, COUNT(*) FROM PhieuTiepNhanSuaChua WHERE maNVSuaChua = ? GROUP BY trangThai";
+            String sqlCounts = "SELECT trangThai, COUNT(*) FROM PhieuTiepNhanSuaChua WHERE maNVKyThuat = ? GROUP BY trangThai";
             try (PreparedStatement ps = con.prepareStatement(sqlCounts)) {
                 ps.setString(1, manv);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -405,8 +573,8 @@ public class DashboardController {
             String sqlPhieu =
                     "SELECT TOP 15 p.maPhieu, x.bienSoXe, x.hangXe, x.model, p.ngayGioTiepNhan, p.yeuCauBanDau, p.trangThai " +
                     "FROM PhieuTiepNhanSuaChua p " +
-                    "LEFT JOIN Xe x ON p.maXe = x.maXe " +
-                    "WHERE p.maNVSuaChua = ? " +
+                    "LEFT JOIN Xe x ON p.bienSoXe = x.bienSoXe " +
+                    "WHERE p.maNVKyThuat = ? " +
                     "ORDER BY p.ngayGioTiepNhan DESC";
             try (PreparedStatement ps = con.prepareStatement(sqlPhieu)) {
                 ps.setString(1, manv);

@@ -15,6 +15,12 @@ import java.util.List;
 /** JDBC DAO cho tra cứu và quản lý danh mục dịch vụ sửa chữa. */
 public class DichVuDAO {
 
+    /** Dịch vụ đang cung cấp, dùng khi lập phiếu tiếp nhận. */
+    public List<DichVu> layTatCaDangCungCap() { return timKiem(null, true); }
+
+    /** Danh sách đầy đủ chỉ phục vụ luồng nghiệp vụ có chủ đích. */
+    public List<DichVu> layTatCa() { return timKiem(null, null); }
+
     /** Tìm dịch vụ theo mã/tên; trạng thái null nghĩa là lấy cả hai trạng thái. */
     public List<DichVu> timKiem(String tuKhoa, Boolean dangCungCap) {
         String sql = "SELECT maDV, tenDV, donGia, donViTinh, moTa, dangCungCap FROM DichVu "

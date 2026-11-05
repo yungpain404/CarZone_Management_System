@@ -79,8 +79,10 @@ Làm việc trên nhánh `develop`; chủ repo tự merge sau, agent KHÔNG merg
 | `ai-context/skills/flyway-migration.md` | Đổi schema DB |
 | `ai-context/skills/swing-screen.md` | Làm màn hình Swing bám sát Figma |
 | `ai-context/skills/verify-business-rules.md` | Kiểm tra lại luật nghiệp vụ trước khi báo xong |
+| `ai-context/skills/carzone/SKILL_INDEX.md` | Bộ skill đầy đủ theo use case; đọc khi làm một chức năng trọn vẹn |
+| `ai-context/skills/carzone/PROJECT_CONTEXT.md` | Bản đồ công nghệ, kiến trúc, entity, DB và nợ kỹ thuật đã kiểm chứng |
 
-Mỗi skill là một tệp Markdown thường (có phần đầu `name`/`description`), công cụ nào cũng đọc được: tới lượt thì mở tệp tương ứng và làm theo.
+Mỗi skill là một tệp Markdown thường (có phần đầu `name`/`description`), công cụ nào cũng đọc được: tới lượt thì mở tệp tương ứng và làm theo. Bộ `ai-context/skills/carzone/` dùng cấu trúc `SKILL.md` theo thư mục; các skill cũ dạng phẳng vẫn là tài liệu kỹ thuật chi tiết được bộ mới trỏ tới.
 
 ## Cách làm việc
 - Gặp mâu thuẫn giữa code, DB và tài liệu: dừng, nêu rõ chỗ lệch, hỏi. Không tự chọn bên. Điều chưa chắc thì hỏi, không tự suy diễn.
@@ -94,7 +96,34 @@ Mỗi skill là một tệp Markdown thường (có phần đầu `name`/`descri
 
 - **Mọi màn hình Swing PHẢI bám sát thiết kế Figma** (màu sắc, layout, font, kích thước, vị trí thành phần). Không được tự sáng tác layout khi Figma đã vẽ sẵn.
 - **Theme & Look and Feel**: Dự án dùng giao diện **Sáng** (`FlatLightLaf.setup()`, tuyệt đối không dùng DarkLaf). Bảng màu HEX inspect từ Figma.
-- **Khung giao diện chính (Master Frame)**: Sử dụng [MainFrame.java](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/MainFrame.java) làm layout tổng thể điều hướng (Header + Side Navigation theo vai trò + ContentPanel `CardLayout`).
+- **Khung giao diện chính (Master Frame) & Phóng to toàn màn hình**:
+  - Sử dụng [MainFrame.java](file:///Users/apple/Documents/2026/Project/CarZone_Management_System/src/ui/MainFrame.java) làm layout tổng thể điều hướng (Header + Side Navigation theo vai trò + ContentPanel `CardLayout`).
+  - **Tự động phóng to Full màn hình (Maximized on Login - BẮT BUỘC)**: Khi nhân viên đăng nhập thành công vào hệ thống, `MainFrame` BẮT BUỘC tự động phóng to toàn màn hình (`setExtendedState(JFrame.MAXIMIZED_BOTH)`). Vẫn khai báo đồng thời `setSize(1170, 800)` và `setMinimumSize(new Dimension(1024, 700))` để khi người dùng nhấn Restore Down, cửa sổ co về kích thước chuẩn không bị vỡ giao diện.
+- **Quy tắc Kiểm soát Thoát ứng dụng (Centralized Shutdown Handling - BẮT BUỘC)**:
+  - Mọi thao tác thoát (nút đóng cửa sổ `X`, nút Đăng xuất, đóng MainFrame hay `System.exit`) đều phải được kiểm soát tập trung qua `AppShutdownManager` và `WindowListener`.
+  - **Phân quyền thoát đa máy trạm**: CHỈ máy trạm của **Chủ cửa hàng (`VaiTro.CHU_CUA_HANG`)** mới thực hiện tác vụ sao lưu ca làm việc khi thoát. Các vai trò Tiếp nhận viên và Kỹ thuật viên thoát ngay lập tức mà không chạy sao lưu để tránh xung đột và ghi đè file trên server.
+- **Quy tắc Giám sát Hành vi Phi lý & Hàng rào Xác thực Mã PIN Cấp 2 (Behavioral Anomaly & PIN Barrier - BẮT BUỘC)**:
+  - Khi kẻ tấn công chiếm quyền hoặc có hành vi phá hoại dữ liệu, hệ thống tự động đánh chặn ngang tại tầng `AuditStatementProxy` và UI trước khi câu lệnh xuống CSDL.
+  - **Danh sách 3 nhóm hành vi phi lý bị chặn**:
+    1. *Bất thường tốc độ & số lượng (Bulk & Velocity Anomalies)*: Xóa hàng loạt dữ liệu cốt lõi (≥ 3 bản ghi trong < 2 giây); xóa không kèm `WHERE`; sửa đổi hàng loạt trạng thái tài khoản hoặc câu lệnh DDL phá hủy (`DROP`, `TRUNCATE`, `ALTER TABLE ... DROP`).
+    2. *Bất thường thời gian (Temporal Anomalies)*: Thao tác nhạy cảm (xóa/sửa dữ liệu cốt lõi) vào khung giờ nửa đêm / đóng cửa (mặc định 00:00 - 05:00 sáng).
+    3. *Bất thường cấu trúc & liên kết (Structural & Scope Anomalies)*: Can thiệp cấu hình bảo mật hệ thống; xóa Chủ thể cốt lõi (`CCH...` / Chủ cửa hàng) gây sụp đổ toàn bộ bảng con phụ thuộc (Cascading Danger).
+  - **Cơ chế xác thực Mã PIN cấp 2**:
+    + Tạm dừng lập tức tiến trình, hiển thị modal dialog `PinVerificationDialog` trên EDT thông báo rõ hành vi vi phạm.
+    + Yêu cầu nhập đúng mã PIN bảo mật cấp 2 (băm SHA-256, cấu hình qua `backup.properties` / biến môi trường).
+    + Nhập đúng PIN: Cấp phép miễn trừ tạm thời (`suppression window` 60 giây) và cho phép tiến trình tiếp tục chạy.
+    + Nhập sai quá 3 lần: **CƯỠNG CHẾ KHÓA PHIÊN NGAY LẬP TỨC (Force Logout)**, hủy toàn bộ giao dịch, kích hoạt sao lưu khẩn cấp (`BackupService.thucHienBackup(BackupType.LOG)`), gửi cảnh báo khẩn cấp tới `ntfy.sh` / Audit Log và đóng ứng dụng về màn hình Đăng nhập.
+- **Quy tắc Chuỗi phục hồi CSDL SQL Server (SQL Server Restore Chain - BẮT BUỘC)**:
+  - Khi phục hồi một bản sao lưu vi sai (DIFF) hoặc nhật ký giao dịch (LOG), SQL Server bắt buộc cơ sở dữ liệu phải ở chế độ `RESTORING` (được dựng từ bản Full Backup gốc với tùy chọn `NORECOVERY`).
+  - Lệnh `RESTORE DATABASE ... WITH REPLACE` **CHỈ DÀNH RIÊNG** cho bản Full Backup đầu tiên. Tuyệt đối KHÔNG có `REPLACE` ở các bản DIFF hoặc LOG tiếp theo (nếu có sẽ ném lỗi `The log or differential backup cannot be restored because no files are ready to rollforward`).
+  - Xác định chuỗi phục hồi tự động dựa trên khóa chính tự tăng `backup_set_id` từ `msdb.dbo.backupset` (FULL gốc `WITH REPLACE, NORECOVERY` $\rightarrow$ các bản trung gian `WITH NORECOVERY` $\rightarrow$ bản đích `WITH RECOVERY`).
+- **Quy tắc Hệ thống Icon 3D & Cấm Emoji Unicode (BẮT BUỘC)**:
+  - Sidebar Navigation và Tiêu đề các trang nội dung phải sử dụng hình ảnh 3D chuyên biệt trong thư mục `img/` (ví dụ `img/nav_sao_luu_phuc_hoi.png`, `nav_kho.png`, `nav_dich_vu.png`... scale 30×30px cho sidebar, 28×28px cho tiêu đề trang) hoặc icon vector 2D FlatLaf vẽ bằng `Graphics2D` trong `MainFrame` (`DatabaseIcon`, `CalendarIcon`, `DotIcon`, `InfoIcon`, `BackupIcon`, `RestoreIcon`, `RefreshIcon`, `AlertTriangleIcon`).
+  - **TUYỆT ĐỐI KHÔNG DÙNG emoji Unicode** trực tiếp (`💾`, `🚀`, `⚙️`, `⚠️`, `🔄`, `📋`, ...) làm icon vì sẽ bị lỗi ô vuông `□` hoặc vỡ font trên các máy Windows/macOS không có font emoji tương thích.
+- **Quy tắc Căn lề chữ & Khung thẻ Modal Dialog (Anti-misalignment Dialog - BẮT BUỘC)**:
+  - Các khối thông báo, ghi chú cảnh báo trong modal dialog BẮT BUỘC dùng `RoundedPanel` với padding trong cố định (ví dụ `new Insets(10, 16, 10, 16)`) kết hợp các `JLabel` riêng lẻ cho từng dòng (thay vì `JTextArea` thô sơ), đảm bảo mọi dòng chữ thẳng tắp cùng một trục lề trái, line-height thoáng đãng, không lệch so le.
+  - Các ô nhập liệu (`JTextField`) trong modal dialog BẮT BUỘC có lề padding trong tối thiểu 10-12px (`new EmptyBorder(0, 12, 0, 12)`) kết hợp viền bo tròn (`createLineBorder(..., 1, true)`) để chữ nhập vào không bị dính sát vào mép viền trái, thẳng hàng với lề chữ của các nhãn bên trên và bên dưới.
+  - Tiêu đề modal dialog có icon tam giác cảnh báo đỏ + tiêu đề chữ in hoa dùng `FlowLayout(FlowLayout.LEFT, 10, 0)` hoặc `BorderLayout(10, 0)`, không đặt `maximumSize` quá hẹp tránh làm cắt cụt chữ thành dấu ba chấm `...`.
 - **Không dùng breadcrumb/path trên trang**: Không thêm breadcrumb, đường dẫn phân cấp, hay chuỗi điều hướng kiểu `Trang A / Trang B` vào bất kỳ màn hình/trang nội dung nào. Side Navigation và tiêu đề trang hiện tại là đủ để định vị.
 - **Quy tắc Layout chống lệch (BẮT BUỘC)**:
   - Trong `BoxLayout(Y_AXIS)`, mọi component con trực tiếp PHẢI CÙNG `alignmentX` (khuyến nghị `0.5f` với chiều rộng chuẩn `INNER_WIDTH`). Tuyệt đối không trộn `0.5f` và `0.0f` gây lệch toàn bộ form sang phải.

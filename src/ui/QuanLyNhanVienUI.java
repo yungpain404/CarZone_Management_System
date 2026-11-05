@@ -4,6 +4,8 @@ import controller.NhanVienController;
 import entity.NhanVien;
 import entity.TaiKhoan;
 import enums.VaiTro;
+import com.toedter.calendar.JDateChooser;
+import com.toedter.calendar.JTextFieldDateEditor;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -451,12 +453,13 @@ public class QuanLyNhanVienUI extends JPanel {
         private final JTextField txtMa = new JTextField();
         private final JComboBox<VaiTro> cboRole = new JComboBox<>(VaiTro.values());
         private final JTextField txtTen = new JTextField();
-        private final JSpinner spnNgaySinh = dateSpinner(LocalDate.now().minusYears(25));
+        private final JDateChooser spnNgaySinh = dateChooser(LocalDate.now().minusYears(25));
         private final JTextField txtTuoi = new JTextField();
         private final JTextField txtSdt = new JTextField();
+        private final JTextField txtEmail = new JTextField();
         private final JTextField txtCccd = new JTextField();
         private final JTextArea txtDiaChi = new JTextArea(3, 30);
-        private final JSpinner spnNgayVaoLam = dateSpinner(LocalDate.now());
+        private final JDateChooser spnNgayVaoLam = dateChooser(LocalDate.now());
         private final JLabel lblError = label("", 12, RED, Font.PLAIN);
         private final JButton btnSave = button("Lưu", true, 66);
         private final JButton btnCancel = button("Hủy", false, 66);
@@ -478,7 +481,7 @@ public class QuanLyNhanVienUI extends JPanel {
             JPanel fields = new JPanel(new GridBagLayout()); fields.setOpaque(false);
             GridBagConstraints g = new GridBagConstraints(); g.insets = new Insets(0, 0, 12, 12); g.anchor = GridBagConstraints.WEST; g.fill = GridBagConstraints.HORIZONTAL;
             txtMa.setEditable(false); txtMa.setFocusable(false); txtMa.setForeground(SUBTLE); txtMa.setBackground(new Color(0xF4F7FB));
-            txtMa.setText(adding ? "—" : existing.getMaNV());
+            txtMa.setText(adding ? "Đang tải…" : existing.getMaNV());
             addField(fields, g, "Mã nhân viên", txtMa, 0, 0, 1, 1);
             txtMa.setBackground(new Color(0xF4F7FB));
             cboRole.setRenderer(new DefaultListCellRenderer() {
@@ -496,43 +499,62 @@ public class QuanLyNhanVienUI extends JPanel {
             g.gridx = 0; g.gridy = 2; g.gridwidth = 1; fields.add(birthday, g);
             g.gridx = 1; fields.add(age, g);
             addField(fields, g, "Số điện thoại *", txtSdt, 0, 3, 1, 1);
-            addField(fields, g, "CCCD *", txtCccd, 1, 3, 1, 1);
+            addField(fields, g, "Gmail khôi phục mật khẩu *", txtEmail, 1, 3, 1, 1);
+            addField(fields, g, "CCCD *", txtCccd, 0, 4, 1, 1);
             JScrollPane addressScroll = new JScrollPane(txtDiaChi); addressScroll.setPreferredSize(new Dimension(300, 78));
             addressScroll.setBorder(BorderFactory.createLineBorder(new Color(0xD7E1EF))); txtDiaChi.setFont(new Font("SansSerif", Font.PLAIN, 13));
             txtDiaChi.setLineWrap(true); txtDiaChi.setWrapStyleWord(true); txtDiaChi.setBorder(new EmptyBorder(8, 10, 8, 10));
-            addField(fields, g, "Địa chỉ *", addressScroll, 0, 4, 2, 1);
-            addField(fields, g, "Ngày vào làm *", spnNgayVaoLam, 0, 5, 1, 1);
+            addField(fields, g, "Địa chỉ *", addressScroll, 0, 5, 2, 1);
+            addField(fields, g, "Ngày vào làm *", spnNgayVaoLam, 0, 6, 1, 1);
 
-            g.gridx = 1; g.gridy = 5; g.weightx = 1; fields.add(Box.createHorizontalGlue(), g);
+            g.gridx = 1; g.gridy = 6; g.weightx = 1; fields.add(Box.createHorizontalGlue(), g);
             JPanel body = new JPanel(new BorderLayout(0, 8)); body.setOpaque(false); body.add(fields, BorderLayout.CENTER); body.add(lblError, BorderLayout.SOUTH);
             center.add(body, BorderLayout.CENTER); base.add(center, BorderLayout.CENTER);
             JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 12)); footer.setBackground(WHITE);
             footer.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER)); footer.add(btnSave); footer.add(btnCancel);
             base.add(footer, BorderLayout.SOUTH);
             installFilters();
-            if (!adding) fillCurrentValues(); else { cboRole.setSelectedItem(VaiTro.KY_THUAT_VIEN); capNhatTuoi(); }
+            if (!adding) fillCurrentValues(); else {
+                cboRole.setSelectedItem(VaiTro.KY_THUAT_VIEN);
+                cboRole.addActionListener(e -> capNhatMaDuKien());
+                capNhatTuoi(); capNhatMaDuKien();
+            }
             return base;
+        }
+
+        private void capNhatMaDuKien() {
+            VaiTro role = (VaiTro) cboRole.getSelectedItem();
+            if (role == null) return;
+            txtMa.setText("Đang tải…");
+            new SwingWorker<String, Void>() {
+                @Override protected String doInBackground() { return formController.xemMaNhanVienTiepTheo(role); }
+                @Override protected void done() {
+                    if (!isDisplayable() || role != cboRole.getSelectedItem()) return;
+                    try { txtMa.setText(get()); }
+                    catch (Exception ex) { txtMa.setText("—"); }
+                }
+            }.execute();
         }
 
         private void fillCurrentValues() {
             txtTen.setText(existing.getHoTen()); cboRole.setSelectedItem(existing.getVaiTro());
             setDate(spnNgaySinh, existing.getNgaySinh()); setDate(spnNgayVaoLam, existing.getNgayVaoLam());
-            txtSdt.setText(existing.getSoDienThoai()); txtCccd.setText(existing.getCCCD());
+            txtSdt.setText(existing.getSoDienThoai()); txtEmail.setText(existing.getEmail() == null ? "" : existing.getEmail()); txtCccd.setText(existing.getCCCD());
             txtDiaChi.setText(existing.getDiaChi() == null ? "" : existing.getDiaChi()); capNhatTuoi();
         }
 
         private void installFilters() {
-            applyFilter(txtTen, 100, false); applyFilter(txtSdt, 11, true); applyFilter(txtCccd, 12, true); applyFilter(txtDiaChi, 200, false);
-            ((JSpinner.DateEditor) spnNgaySinh.getEditor()).getTextField().setColumns(9);
-            ((JSpinner.DateEditor) spnNgayVaoLam.getEditor()).getTextField().setColumns(9);
-            spnNgaySinh.addChangeListener(e -> capNhatTuoi()); spnNgayVaoLam.addChangeListener(e -> capNhatTuoi());
+            applyFilter(txtTen, 100, false); applyFilter(txtSdt, 11, true); applyFilter(txtEmail, 254, false); applyFilter(txtCccd, 12, true); applyFilter(txtDiaChi, 200, false);
+            spnNgaySinh.addPropertyChangeListener("date", e -> capNhatTuoi());
+            spnNgayVaoLam.addPropertyChangeListener("date", e -> capNhatTuoi());
             txtTen.addActionListener(e -> spnNgaySinh.requestFocusInWindow());
-            txtSdt.addActionListener(e -> txtCccd.requestFocusInWindow());
+            txtSdt.addActionListener(e -> txtEmail.requestFocusInWindow());
+            txtEmail.addActionListener(e -> txtCccd.requestFocusInWindow());
             txtCccd.addActionListener(e -> txtDiaChi.requestFocusInWindow());
         }
 
         private void capNhatTuoi() {
-            LocalDate birth = localDate(spnNgaySinh);
+            LocalDate birth = spnNgaySinh.getDate() == null ? null : spnNgaySinh.getDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
             txtTuoi.setText(birth == null ? "" : Integer.toString(Period.between(birth, LocalDate.now()).getYears()));
         }
 
@@ -545,7 +567,7 @@ public class QuanLyNhanVienUI extends JPanel {
                 @Override public void removeUpdate(javax.swing.event.DocumentEvent e) { clearFormError(); }
                 @Override public void changedUpdate(javax.swing.event.DocumentEvent e) { clearFormError(); }
             };
-            txtTen.getDocument().addDocumentListener(listener); txtSdt.getDocument().addDocumentListener(listener);
+            txtTen.getDocument().addDocumentListener(listener); txtSdt.getDocument().addDocumentListener(listener); txtEmail.getDocument().addDocumentListener(listener);
             txtCccd.getDocument().addDocumentListener(listener); txtDiaChi.getDocument().addDocumentListener(listener);
         }
 
@@ -554,11 +576,13 @@ public class QuanLyNhanVienUI extends JPanel {
             try {
                 String hoTen = txtTen.getText().trim();
                 String sdt = txtSdt.getText().trim();
+                String email = txtEmail.getText().trim();
                 String cccd = txtCccd.getText().trim();
                 String diaChi = txtDiaChi.getText().trim();
                 VaiTro role = (VaiTro) cboRole.getSelectedItem();
                 if (!UIInputRules.isPersonName(hoTen)) { showFormError("Họ tên chỉ gồm chữ cái và dấu cách, dấu nháy hoặc gạch nối."); txtTen.requestFocusInWindow(); return; }
                 if (!UIInputRules.isPhone(sdt)) { showFormError("Số điện thoại phải bắt đầu bằng 0 và gồm 10 hoặc 11 chữ số."); txtSdt.requestFocusInWindow(); return; }
+                if (!UIInputRules.isEmail(email)) { showFormError("Vui lòng nhập địa chỉ Gmail hợp lệ để khôi phục mật khẩu."); txtEmail.requestFocusInWindow(); return; }
                 if (!UIInputRules.isCccd(cccd)) { showFormError("CCCD phải gồm đúng 12 chữ số."); txtCccd.requestFocusInWindow(); return; }
                 if (!UIInputRules.isAddress(diaChi)) { showFormError("Địa chỉ không hợp lệ hoặc vượt quá 200 ký tự."); txtDiaChi.requestFocusInWindow(); return; }
                 LocalDate birth = UIInputRules.readDate(spnNgaySinh), hireDate = UIInputRules.readDate(spnNgayVaoLam);
@@ -569,8 +593,8 @@ public class QuanLyNhanVienUI extends JPanel {
                 setSaving(true); clearFormError();
                 new SwingWorker<NhanVien, Void>() {
                     @Override protected NhanVien doInBackground() {
-                        if (adding) return formController.them(hoTen, birth, sdt, cccd, diaChi, hireDate, role);
-                        return formController.capNhat(existingSnapshot.getMaNV(), hoTen, birth, sdt, cccd, diaChi, hireDate);
+                        if (adding) return formController.them(hoTen, birth, sdt, email, cccd, diaChi, hireDate, role);
+                        return formController.capNhat(existingSnapshot.getMaNV(), hoTen, birth, sdt, email, cccd, diaChi, hireDate);
                     }
                     @Override protected void done() {
                         try { savedEmployee = get(); JOptionPane.showMessageDialog(NhanVienFormDialog.this,
@@ -609,20 +633,19 @@ public class QuanLyNhanVienUI extends JPanel {
         g.gridx = x; g.gridy = y; g.gridwidth = width; g.gridheight = height; g.weightx = 1;
         g.insets = new Insets(0, 0, 12, 12); parent.add(field, g); g.gridwidth = 1; g.gridheight = 1;
     }
-    private static JSpinner dateSpinner(LocalDate initial) {
+    private static JDateChooser dateChooser(LocalDate initial) {
         Date value = Date.from(initial.atStartOfDay(ZoneId.systemDefault()).toInstant());
-        JSpinner spinner = new JSpinner(new SpinnerDateModel(value, null, new Date(), java.util.Calendar.DAY_OF_MONTH));
-        JSpinner.DateEditor editor = new JSpinner.DateEditor(spinner, "dd/MM/yyyy");
-        editor.getFormat().setLenient(false);
-        spinner.setEditor(editor); spinner.setPreferredSize(new Dimension(220, 42));
-        spinner.setFont(new Font("SansSerif", Font.PLAIN, 13)); return spinner;
+        JDateChooser chooser = new JDateChooser();
+        chooser.setDateFormatString("dd/MM/yyyy"); chooser.setDate(value); chooser.setMaxSelectableDate(new Date());
+        chooser.setPreferredSize(new Dimension(220, 42)); chooser.setMinimumSize(new Dimension(170, 42));
+        if (chooser.getDateEditor() instanceof JTextFieldDateEditor editor) {
+            editor.setEditable(false); editor.setBorder(new EmptyBorder(0, 10, 0, 2));
+            editor.setMargin(new Insets(0, 0, 0, 0)); editor.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        }
+        return chooser;
     }
-    private static void setDate(JSpinner spinner, LocalDate date) {
-        spinner.setValue(Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()));
-    }
-    private static LocalDate localDate(JSpinner spinner) {
-        Date value = (Date) spinner.getValue();
-        return value.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    private static void setDate(JDateChooser chooser, LocalDate date) {
+        chooser.setDate(Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()));
     }
     private static void applyFilter(javax.swing.text.JTextComponent field, int maxLength, boolean digitsOnly) {
         ((AbstractDocument) field.getDocument()).setDocumentFilter(new DocumentFilter() {

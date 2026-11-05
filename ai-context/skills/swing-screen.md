@@ -313,7 +313,56 @@ Mỗi màn hình/form tương tác phải triển khai đầy đủ các bước
 
 ---
 
-## 12. Quy trình triển khai một Màn hình UI mới
+## 13. Quy chuẩn Modal Dialog Chống Lệch Chữ & Căn Lề Đều Đặn (Anti-misalignment Dialog Pattern)
+
+> Đúc kết từ lỗi dialog xác nhận phục hồi bị lệch thụt dòng và cắt chữ tiêu đề cảnh báo (`CẢNH BÁO QUAN TRỌNG VỀ PHỤC HỒ...`).
+
+1. **Thay thế `JTextArea` bằng `RoundedPanel` chứa danh sách nhãn (`JLabel`)**:
+   - `JTextArea` thường có lề mặc định không đồng nhất giữa các hệ điều hành và font rendering, dễ gây thụt dòng so le khi đặt cạnh các thành phần khác.
+   - Để làm khung thẻ cảnh báo / thông tin: Dùng `RoundedPanel` với insets đồng nhất (ví dụ `new Insets(10, 16, 10, 16)`), bên trong dùng `BoxLayout(Y_AXIS)`. Mỗi gạch đầu dòng là một `JLabel` độc lập với icon chấm tròn hoặc text `• `, đảm bảo các dòng luôn thẳng tắp một hàng dọc bên trái.
+2. **Padding bên trong cho ô nhập liệu (`JTextField`)**:
+   - Mặc định, `JTextField` dán chữ sát mép trái, khiến chữ bị lệch trục đứng so với lề 16px của các khung thẻ phía trên.
+   - BẮT BUỘC gán compound border: `new CompoundBorder(new RoundedLineBorder(...), new EmptyBorder(0, 12, 0, 12))` để có lề trong tối thiểu **12px**, giúp văn bản người dùng gõ vào thẳng hàng đẹp mắt với nội dung thẻ.
+3. **Tiêu đề cảnh báo chống cắt chữ**:
+   - Tiêu đề modal hoặc khung cảnh báo dài (như *"CẢNH BÁO QUAN TRỌNG VỀ PHỤC HỒI DỮ LIỆU"*): Bọc tiêu đề và icon trong một hàng `BorderLayout(10, 0)` hoặc `FlowLayout(FlowLayout.LEFT, 10, 0)` với chiều rộng khung dialog tối thiểu **`480px – 540px`**, tránh fix cứng kích thước nhãn gây cắt thành dấu ba chấm (`...`).
+4. **Hàng nút xác nhận (Hủy / Thực hiện)**:
+   - Dùng `BoxLayout(X_AXIS)` với `Box.createHorizontalGlue()` và `Box.createRigidArea(new Dimension(10, 0))` để nút luôn neo về góc phải và không bao giờ bị rớt dòng.
+
+---
+
+## 14. Quy chuẩn Phóng To Toàn Màn Hình Khi Đăng Nhập (Maximized Window on Login)
+
+- **Trải nghiệm người dùng đồng nhất**: Sau khi đăng nhập thành công tại `DangNhapUI` hoặc từ `App.moManHinhChinh()`, cửa sổ chính (`MainFrame`) BẮT BUỘC được phóng to cực đại toàn màn hình:
+  ```java
+  mainFrame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+  mainFrame.setVisible(true);
+  ```
+- **Kỹ thuật chống vỡ bố cục khi thu nhỏ (Restore Down)**:
+  - Vẫn phải khai báo đầy đủ kích thước mặc định và kích thước tối thiểu trước khi phóng to:
+    ```java
+    setSize(1170, 800); // Kích thước chuẩn khi thu nhỏ
+    setMinimumSize(new Dimension(1024, 700)); // Ngưỡng tối thiểu chống co rúm
+    setLocationRelativeTo(null);
+    setExtendedState(JFrame.MAXIMIZED_BOTH);
+    ```
+  - Khi người dùng bấm nút Unmaximize / Restore Down của hệ điều hành, cửa sổ sẽ co về `1170×800` đặt ngay giữa màn hình mà không bị vỡ giao diện.
+
+---
+
+## 15. Quy chuẩn Icon Sidebar 3D & Tiêu Đề Trang Đồng Bộ (3D Sidebar & Page Icons)
+
+1. **Hệ thống Icon 3D chuẩn hóa**:
+   - Các mục chức năng lớn trên Sidebar Navigation sử dụng file ảnh 3D đặt tại thư mục `img/nav_*.png` (ví dụ `img/nav_sao_luu_phuc_hoi.png`).
+   - Kích thước thu phóng hiển thị trên Sidebar: **`30×30px`** hoặc **`28×28px`** (sử dụng thuật toán `Image.SCALE_SMOOTH`).
+   - Tiêu đề đầu mỗi trang nội dung (Page Title) tái sử dụng chính file ảnh 3D này (kích thước **`28×28px`** hoặc **`32×32px`**) để tạo sự liên kết thị giác trực tiếp với menu Sidebar.
+2. **Fallback Vector Icon trên `MainFrame`**:
+   - Luôn cung cấp lớp vector icon tùy biến kế thừa `Icon` bên trong `MainFrame` (ví dụ `DatabaseIcon`, `BackupIcon`, `RestoreIcon`, `RefreshIcon`, `AlertTriangleIcon`) để dự phòng khi chạy môi trường thiếu asset hoặc dùng cho các nút bấm phụ trợ.
+3. **TUYỆT ĐỐI CẤM SỬ DỤNG EMOJI UNICODE**:
+   - Tuyệt đối không dùng emoji Unicode (`💾`, `⚠️`, `🔄`, `⚙️`, `📊`, ...) trên nhãn, nút bấm hoặc bảng điều khiển. Emoji Unicode phụ thuộc vào font chữ hệ thống, bị lệch màu, biến dạng hoặc hiển thị thành ô vuông lỗi (`[]` / `?`) trên Windows/Linux. Mọi biểu tượng phải là ảnh PNG chuẩn hoặc Graphics2D vector.
+
+---
+
+## 16. Quy trình triển khai một Màn hình UI mới
 
 1. **Mở Figma**, xác định Page, Frame và inspect mã màu HEX, kích thước, font size.
 2. Không thêm breadcrumb/path (ví dụ `Dashboard / Tên trang`) vào màn hình; điều hướng hiện tại được thể hiện bằng Side Navigation và tiêu đề.
@@ -324,4 +373,4 @@ Mỗi màn hình/form tương tác phải triển khai đầy đủ các bước
 7. Gắn kết nối sự kiện `bindActions()`, hỗ trợ phím `Enter`, DocumentListener và `SwingWorker`.
 8. Biên dịch kiểm tra: `mvn compile`.
 9. Chạy thử nghiệm và kiểm tra bằng mắt: `mvn exec:java`.
-9. **Trước khi báo xong, kiểm tra conflict**: `git status` — file nào đang `UU` thì báo người dùng, không tự chọn bên, không tự `git add`; khi sửa màn hình nhiều người sửa (`MainFrame`, `DashboardUI`, `DangNhapUI`) chỉ đổi đúng đoạn cần, không format lại toàn file.
+10. **Trước khi báo xong, kiểm tra conflict**: `git status` — file nào đang `UU` thì báo người dùng, không tự chọn bên, không tự `git add`; khi sửa màn hình nhiều người sửa (`MainFrame`, `DashboardUI`, `DangNhapUI`) chỉ đổi đúng đoạn cần, không format lại toàn file.

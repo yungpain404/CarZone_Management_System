@@ -87,7 +87,9 @@ public class TraCuuController {
     public List<TraCuuDAO.LichSuTiepNhanResult> timLichSuTiepNhan(String tuKhoa) {
         kiemTraQuyenLichSuTiepNhan();
         yeuCauTuKhoa(tuKhoa);
-        return traCuuDao.timLichSuTiepNhan(tuKhoa.trim());
+        String maNVTiepNhan = UserSession.getInstance().getVaiTro() == VaiTro.TIEP_NHAN_VIEN
+                ? UserSession.getInstance().getNhanVien().getMaNV() : null;
+        return traCuuDao.timLichSuTiepNhan(tuKhoa.trim(), maNVTiepNhan);
     }
 
     // ── Kiểm tra phân quyền nghiệp vụ ─────────────────────────────────────────

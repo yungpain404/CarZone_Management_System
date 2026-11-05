@@ -27,3 +27,5 @@ Thumbs.db
 desktop.ini
 
 .gitkeep
+# AI context skills (local only)
+ai-context/skills/carzone/

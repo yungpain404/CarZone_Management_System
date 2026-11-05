@@ -87,4 +87,11 @@ public class ChiTietLinhKien {
     @Override public String toString() {
     	return "ChiTietLinhKien [" + "phieuSuaChua=" + (phieuSuaChua == null ? null : phieuSuaChua.getMaPhieu()) + ", " + "linhKien=" + linhKien + ", " + "soLuong=" + soLuong + ", " + "donGiaXuat=" + donGiaXuat + ", " + "ghiChu=" + ghiChu + "]";
     }
+
+    public double getDonGia() { return donGiaXuat; }
+    public void setPhieuSuaChuaRaw(PhieuTiepNhanSuaChua p) { this.phieuSuaChua = p; }
+    public void setLinhKienRaw(LinhKien lk) { this.linhKien = lk; }
+    public void setSoLuongRaw(int sl) { this.soLuong = sl; }
+    public void setDonGiaXuatRaw(double dg) { this.donGiaXuat = dg; }
+    public void setGhiChuRaw(String gc) { this.ghiChu = gc; }
 }

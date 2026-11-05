@@ -85,18 +85,26 @@ public class TraCuuDAO {
 
     /** Tra cứu lịch sử tiếp nhận theo mã phiếu, biển số, mã/tên/số điện thoại khách hàng. */
     public List<LichSuTiepNhanResult> timLichSuTiepNhan(String tuKhoa) {
+        return timLichSuTiepNhan(tuKhoa, null);
+    }
+
+    /** Thêm bộ lọc mã nhân viên tiếp nhận khi vai trò TNV chỉ được xem phiếu của mình. */
+    public List<LichSuTiepNhanResult> timLichSuTiepNhan(String tuKhoa, String maNVTiepNhan) {
         String sql = "SELECT TOP 200 p.maPhieu, p.ngayGioTiepNhan, p.bienSoXe, x.hangXe, x.model, kh.maKH, "
                 + "kh.hoTen AS tenKhachHang, kh.soDienThoai, p.yeuCauBanDau, p.trangThai, nv.hoTen AS tiepNhanVien "
                 + "FROM PhieuTiepNhanSuaChua p "
                 + "JOIN Xe x ON x.bienSoXe = p.bienSoXe "
                 + "JOIN KhachHang kh ON kh.maKH = x.maKH "
                 + "JOIN NhanVien nv ON nv.maNV = p.maNVTiepNhan "
-                + "WHERE p.maPhieu LIKE ? OR p.bienSoXe LIKE ? OR kh.maKH LIKE ? OR kh.hoTen LIKE ? OR kh.soDienThoai LIKE ? "
+                + "WHERE (p.maPhieu LIKE ? OR p.bienSoXe LIKE ? OR kh.maKH LIKE ? OR kh.hoTen LIKE ? OR kh.soDienThoai LIKE ?) "
+                + "AND (? IS NULL OR p.maNVTiepNhan = ?) "
                 + "ORDER BY p.ngayGioTiepNhan DESC, p.maPhieu DESC";
         String pattern = pattern(tuKhoa);
         List<LichSuTiepNhanResult> result = new ArrayList<>();
         try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
             for (int i = 1; i <= 5; i++) ps.setString(i, pattern);
+            ps.setString(6, maNVTiepNhan);
+            ps.setString(7, maNVTiepNhan);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     result.add(new LichSuTiepNhanResult(
