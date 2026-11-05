@@ -25,3 +25,9 @@ target/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+.gitkeep
+# AI context skills (local only)
+ai-context/skills/carzone/
+# env
+infra/docker/.env

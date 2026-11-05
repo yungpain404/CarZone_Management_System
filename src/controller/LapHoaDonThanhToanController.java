@@ -1,15 +1,10 @@
 package controller;
 
-import dao.HoaDonDao;
-import dao.KhuyenMaiDao;
-import dao.PhieuTiepNhanSuaChuaDao;
-import dao.ChiTietDichVuDao;
-import dao.ChiTietLinhKienDao;
-import dao.impl.HoaDonDaoImpl;
-import dao.impl.KhuyenMaiDaoImpl;
-import dao.impl.PhieuTiepNhanSuaChuaDaoImpl;
-import dao.impl.ChiTietDichVuDaoImpl;
-import dao.impl.ChiTietLinhKienDaoImpl;
+import dao.HoaDonDAO;
+import dao.KhuyenMaiDAO;
+import dao.PhieuTiepNhanSuaChuaDAO;
+import dao.ChiTietDichVuDAO;
+import dao.ChiTietLinhKienDAO;
 import entity.ChiTietDichVu;
 import entity.ChiTietLinhKien;
 import entity.HoaDon;
@@ -28,18 +23,18 @@ import java.util.List;
  */
 public class LapHoaDonThanhToanController {
 
-    private final HoaDonDao hoaDonDao;
-    private final KhuyenMaiDao khuyenMaiDao;
-    private final PhieuTiepNhanSuaChuaDao phieuDao;
-    private final ChiTietDichVuDao chiTietDichVuDao;
-    private final ChiTietLinhKienDao chiTietLinhKienDao;
+    private final HoaDonDAO hoaDonDao;
+    private final KhuyenMaiDAO khuyenMaiDao;
+    private final PhieuTiepNhanSuaChuaDAO phieuDao;
+    private final ChiTietDichVuDAO chiTietDichVuDAO;
+    private final ChiTietLinhKienDAO chiTietLinhKienDAO;
 
     public LapHoaDonThanhToanController() {
-        this.hoaDonDao = new HoaDonDaoImpl();
-        this.khuyenMaiDao = new KhuyenMaiDaoImpl();
-        this.phieuDao = new PhieuTiepNhanSuaChuaDaoImpl();
-        this.chiTietDichVuDao = new ChiTietDichVuDaoImpl();
-        this.chiTietLinhKienDao = new ChiTietLinhKienDaoImpl();
+        this.hoaDonDao = new HoaDonDAO();
+        this.khuyenMaiDao = new KhuyenMaiDAO();
+        this.phieuDao = new PhieuTiepNhanSuaChuaDAO();
+        this.chiTietDichVuDAO = new ChiTietDichVuDAO();
+        this.chiTietLinhKienDAO = new ChiTietLinhKienDAO();
     }
 
     private void kiemTraQuyen() {
@@ -49,11 +44,23 @@ public class LapHoaDonThanhToanController {
         }
     }
 
+    public PhieuTiepNhanSuaChua layPhieuTheoMa(String maPhieu) {
+        if (maPhieu == null || maPhieu.isBlank()) return null;
+        return phieuDao.timTheoMa(maPhieu.trim());
+    }
+
     /**
      * Lấy danh sách phiếu sửa chữa HOAN_TAT và chưa có hóa đơn (đủ điều kiện lập HĐ).
      */
     public List<PhieuTiepNhanSuaChua> layDanhSachPhieuDuDieuKien() {
         return phieuDao.layDanhSachDuDieuKienLapHoaDon();
+    }
+
+    /**
+     * Lấy danh sách các hóa đơn đã thanh toán.
+     */
+    public List<HoaDon> layDanhSachHoaDonDaThanhToan() {
+        return hoaDonDao.timTheoTrangThai(TrangThaiThanhToan.DA_THANH_TOAN);
     }
 
     /**
@@ -91,7 +98,7 @@ public class LapHoaDonThanhToanController {
      */
     public List<ChiTietDichVu> layChiTietDichVu(String maPhieu) {
         if (maPhieu == null || maPhieu.isBlank()) return List.of();
-        return chiTietDichVuDao.layTheoPhieu(maPhieu.trim());
+        return chiTietDichVuDAO.layTheoPhieu(maPhieu.trim());
     }
 
     /**
@@ -99,7 +106,7 @@ public class LapHoaDonThanhToanController {
      */
     public List<ChiTietLinhKien> layChiTietLinhKien(String maPhieu) {
         if (maPhieu == null || maPhieu.isBlank()) return List.of();
-        return chiTietLinhKienDao.layTheoPhieu(maPhieu.trim());
+        return chiTietLinhKienDAO.layTheoPhieu(maPhieu.trim());
     }
 
     /**
@@ -124,6 +131,12 @@ public class LapHoaDonThanhToanController {
             throw new RuntimeException("Lập hóa đơn thất bại. Vui lòng kiểm tra lại phiếu sửa chữa và khuyến mãi.");
         }
         return maHD;
+    }
+
+    public boolean capNhatKhuyenMai(String maHoaDon, String maKM) {
+        kiemTraQuyen();
+        if (maHoaDon == null || maHoaDon.isBlank()) return false;
+        return hoaDonDao.capNhatKhuyenMai(maHoaDon.trim(), (maKM != null && !maKM.isBlank()) ? maKM.trim() : null);
     }
 
     /**

@@ -1,13 +1,13 @@
 package controller;
 
-import dao.HoaDonDao;
-import dao.PhieuDoiTraDao;
-import dao.ChiTietDichVuDao;
-import dao.ChiTietLinhKienDao;
-import dao.impl.HoaDonDaoImpl;
-import dao.impl.PhieuDoiTraDaoImpl;
-import dao.impl.ChiTietDichVuDaoImpl;
-import dao.impl.ChiTietLinhKienDaoImpl;
+import dao.HoaDonDAO;
+import dao.PhieuDoiTraDAO;
+import dao.ChiTietDichVuDAO;
+import dao.ChiTietLinhKienDAO;
+import dao.HoaDonDAO;
+import dao.PhieuDoiTraDAO;
+import dao.ChiTietDichVuDAO;
+import dao.ChiTietLinhKienDAO;
 import entity.ChiTietDichVu;
 import entity.ChiTietDoiTra;
 import entity.ChiTietLinhKien;
@@ -24,27 +24,27 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * Controller điều phối nghiệp vụ Tạo phiếu đổi trả (UC012 - Tiếp nhận viên).
+ * Controller điều phối nghiệp vụ Quản lý & Tạo phiếu đổi trả (UC012 - Tiếp nhận viên).
  * Kiểm tra hóa đơn đã thanh toán và còn trong vòng 7 ngày trước khi cho phép đổi trả.
  */
 public class TaoPhieuDoiTraController {
 
-    private final HoaDonDao hoaDonDao;
-    private final PhieuDoiTraDao phieuDoiTraDao;
-    private final ChiTietDichVuDao chiTietDichVuDao;
-    private final ChiTietLinhKienDao chiTietLinhKienDao;
+    private final HoaDonDAO hoaDonDao;
+    private final PhieuDoiTraDAO phieuDoiTraDao;
+    private final ChiTietDichVuDAO chiTietDichVuDAO;
+    private final ChiTietLinhKienDAO chiTietLinhKienDAO;
 
     public TaoPhieuDoiTraController() {
-        this.hoaDonDao = new HoaDonDaoImpl();
-        this.phieuDoiTraDao = new PhieuDoiTraDaoImpl();
-        this.chiTietDichVuDao = new ChiTietDichVuDaoImpl();
-        this.chiTietLinhKienDao = new ChiTietLinhKienDaoImpl();
+        this.hoaDonDao = new HoaDonDAO();
+        this.phieuDoiTraDao = new PhieuDoiTraDAO();
+        this.chiTietDichVuDAO = new ChiTietDichVuDAO();
+        this.chiTietLinhKienDAO = new ChiTietLinhKienDAO();
     }
 
     private void kiemTraQuyen() {
         VaiTro role = UserSession.getInstance().getVaiTro();
         if (role != VaiTro.TIEP_NHAN_VIEN && role != VaiTro.CHU_CUA_HANG) {
-            throw new SecurityException("Bạn không có quyền tạo phiếu đổi trả.");
+            throw new SecurityException("Bạn không có quyền thao tác phiếu đổi trả.");
         }
     }
 
@@ -94,7 +94,7 @@ public class TaoPhieuDoiTraController {
      */
     public List<ChiTietDichVu> layChiTietDichVu(String maPhieu) {
         if (maPhieu == null || maPhieu.isBlank()) return List.of();
-        return chiTietDichVuDao.layTheoPhieu(maPhieu.trim());
+        return chiTietDichVuDAO.layTheoPhieu(maPhieu.trim());
     }
 
     /**
@@ -102,7 +102,7 @@ public class TaoPhieuDoiTraController {
      */
     public List<ChiTietLinhKien> layChiTietLinhKien(String maPhieu) {
         if (maPhieu == null || maPhieu.isBlank()) return List.of();
-        return chiTietLinhKienDao.layTheoPhieu(maPhieu.trim());
+        return chiTietLinhKienDAO.layTheoPhieu(maPhieu.trim());
     }
 
     /**
@@ -148,6 +148,31 @@ public class TaoPhieuDoiTraController {
     }
 
     /**
+     * Lấy danh sách tất cả phiếu đổi trả (cho màn hình Quản lý phiếu đổi trả).
+     */
+    public List<PhieuDoiTra> layTatCaPhieuDoiTra() {
+        return phieuDoiTraDao.layTatCa();
+    }
+
+    /**
+     * Tìm kiếm phiếu đổi trả theo từ khóa (toàn hệ thống).
+     */
+    public List<PhieuDoiTra> timKiemTatCaPhieuDoiTra(String tuKhoa) {
+        if (tuKhoa == null || tuKhoa.isBlank()) {
+            return phieuDoiTraDao.layTatCa();
+        }
+        return phieuDoiTraDao.timKiem(tuKhoa, null);
+    }
+
+    /**
+     * Tìm phiếu đổi trả theo mã.
+     */
+    public PhieuDoiTra timTheoMa(String maPhieuDT) {
+        if (maPhieuDT == null || maPhieuDT.isBlank()) return null;
+        return phieuDoiTraDao.timTheoMa(maPhieuDT.trim());
+    }
+
+    /**
      * Lấy danh sách phiếu đổi trả của tiếp nhận viên hiện tại.
      */
     public List<PhieuDoiTra> layDanhSachPhieuDoiTra() {
@@ -156,7 +181,7 @@ public class TaoPhieuDoiTraController {
     }
 
     /**
-     * Tìm kiếm phiếu đổi trả theo từ khóa.
+     * Tìm kiếm phiếu đổi trả theo từ khóa của nhân viên hiện tại.
      */
     public List<PhieuDoiTra> timKiemPhieuDoiTra(String tuKhoa) {
         String maNV = UserSession.getInstance().getNhanVien().getMaNV();

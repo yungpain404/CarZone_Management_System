@@ -12,16 +12,11 @@ import enums.VaiTro;
  */
 public class PhieuDoiTra {
     private String maPhieuDT;
-
     private HoaDon hoaDon;
-
     /** Tiếp nhận viên lập phiếu (DB: cột maNV). */
     private NhanVien nhanVien;
-
     private Date ngayLap;
-
     private String lyDoDoiTra;
-
     private double soTienHoanTra;
 
     public PhieuDoiTra() {

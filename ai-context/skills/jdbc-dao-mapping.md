@@ -1,6 +1,6 @@
 ---
 name: jdbc-dao-mapping
-description: Dùng khi viết hoặc sửa DAO (interface và JDBC impl) và ánh xạ dữ liệu ResultSet vào entity POJO trong CarZone.
+description: Dùng khi viết hoặc sửa lớp DAO JDBC thuần (mỗi bảng một class duy nhất trong src/dao, không interface/impl) và ánh xạ dữ liệu ResultSet vào entity POJO trong CarZone.
 ---
 
 # Kỹ năng xây dựng DAO & Ánh xạ JDBC thuần trong CarZone
@@ -10,17 +10,14 @@ description: Dùng khi viết hoặc sửa DAO (interface và JDBC impl) và án
 
 ---
 
-## 1. Cấu trúc thư mục tầng DAO (BẮT BUỘC)
+## 1. Cấu trúc tầng DAO (BẮT BUỘC)
 
-1. **Interface DAO**:
-   - Đặt trực tiếp trong package `dao` (`src/dao/`).
-   - Tên file **KHÔNG có tiền tố `I`**, định dạng `<TênEntity>Dao.java` (ví dụ: `TaiKhoanDao.java`, `NhanVienDao.java`, `HoaDonDao.java`, `ChiTietHoaDonDao.java`, `PasswordResetDao.java`).
-   - Chỉ định nghĩa các chữ ký phương thức nghiệp vụ đọc/ghi CSDL. Không chứa SQL, không chứa xử lý kết nối.
-
-2. **Lớp thực thi (Implementation)**:
-   - Đặt trong subpackage `dao.impl` (`src/dao/impl/`).
-   - Tên file có hậu tố `Impl`, định dạng `<TênEntity>DaoImpl.java` (ví dụ: `TaiKhoanDaoImpl.java`, `NhanVienDaoImpl.java`, `HoaDonDaoImpl.java`).
-   - Triển khai interface tương ứng (`public class TaiKhoanDaoImpl implements TaiKhoanDao`).
+- **Mỗi bảng / nhóm nghiệp vụ = MỘT class DAO duy nhất**, đặt trực tiếp trong package `dao` (`src/dao/`).
+- Tên file **viết hoa ký tự đầu**, định dạng `<TênEntity>Dao.java`, **không** tiền tố `I`, **không** hậu tố `Impl`
+  (ví dụ: `TaiKhoanDao.java`, `NhanVienDao.java`, `HoaDonDao.java`, `ChiTietHoaDonDao.java`, `PasswordResetDao.java`, `ThongKeDoanhThuDao.java`).
+- **Không còn interface và không còn subpackage `dao.impl`** (bỏ từ 30/10/2026): class trong `dao` chính là lớp thực thi JDBC thuần.
+- Javadoc cấp class mô tả bảng/phạm vi; javadoc từng method giữ mô tả tham số và **các cột trả về** của aggregate (xem `ThongKeDoanhThuDao`).
+- Nghiệp vụ read-only trả `List<Object[]>` chỉ dùng cho màn hình thống kê; dữ liệu nghiệp vụ trả về entity POJO.
 
 ---
 
@@ -68,7 +65,7 @@ description: Dùng khi viết hoặc sửa DAO (interface và JDBC impl) và án
 
 2. **Thuộc tính suy diễn (Computed / Derived Fields)**:
    - Các trường tổng tiền hóa đơn (`tongTienDichVu`, `tongTienLinhKien`, `tienGiam`, `thue`, `tongThanhToan`) do view CSDL `vw_HoaDon_TongTien` tính toán.
-   - Trong `HoaDonDaoImpl`, thực hiện `LEFT JOIN vw_HoaDon_TongTien v ON h.maHoaDon = v.maHoaDon` và gọi các raw setters (`setTongThanhToanRaw(...)`) để nạp giá trị vào entity.
+   - Trong `HoaDonDao`, thực hiện `LEFT JOIN vw_HoaDon_TongTien v ON h.maHoaDon = v.maHoaDon` và gọi các raw setters (`setTongThanhToanRaw(...)`) để nạp giá trị vào entity.
    - Không tự tính lại công thức thuế/khuyến mãi ở tầng Java.
 
 ---
@@ -88,8 +85,9 @@ description: Dùng khi viết hoặc sửa DAO (interface và JDBC impl) và án
 
 ## 5. Danh sách các DAO chuẩn trong hệ thống
 
-- `TaiKhoanDao` / `TaiKhoanDaoImpl`: Quản lý tài khoản, đổi mật khẩu SHA-256, khóa/mở tài khoản.
-- `NhanVienDao` / `NhanVienDaoImpl`: Quản lý danh sách, hồ sơ và phân quyền nhân viên.
-- `HoaDonDao` / `HoaDonDaoImpl`: Quản lý hóa đơn và đọc số liệu từ view `vw_HoaDon_TongTien`.
-- `ChiTietHoaDonDao` / `ChiTietHoaDonDaoImpl`: Truy vấn chi tiết linh kiện & dịch vụ theo hóa đơn.
-- `PasswordResetDao` / `PasswordResetDaoImpl`: Xác minh thông tin CCCD/SĐT và đặt lại mật khẩu.
+- `TaiKhoanDao`: Quản lý tài khoản, đổi mật khẩu SHA-256, khóa/mở tài khoản.
+- `NhanVienDao`: Quản lý danh sách, hồ sơ và phân quyền nhân viên.
+- `HoaDonDao`: Quản lý hóa đơn và đọc số liệu từ view `vw_HoaDon_TongTien`.
+- `ChiTietHoaDonDao`: Truy vấn chi tiết linh kiện & dịch vụ theo hóa đơn (kèm DTO lồng `ChiTietHoaDonDao.ChiTietItem`).
+- `PasswordResetDao`: Xác minh thông tin CCCD/SĐT và đặt lại mật khẩu.
+- `ThongKeDoanhThuDao`: Truy vấn thống kê doanh thu (chỉ đọc) phục vụ màn hình Báo cáo của Chủ cửa hàng.

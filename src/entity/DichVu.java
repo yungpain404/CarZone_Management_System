@@ -7,15 +7,10 @@ import java.util.Objects;
  */
 public class DichVu {
     private String maDV;
-
     private String tenDV;
-
     private double donGia;
-
     private String donViTinh;
-
     private String moTa;
-
     private boolean dangCungCap;
 
     public DichVu() {
@@ -43,6 +38,9 @@ public class DichVu {
         }
     	this.maDV = maDV;
     }
+    public void setMaDVRaw(String maDV) {
+        this.maDV = maDV;
+    }
     public String getTenDV() {
     	return tenDV;
     }
@@ -51,6 +49,9 @@ public class DichVu {
             throw new IllegalArgumentException("Tên dịch vụ không được để trống và tối đa 100 ký tự.");
         }
     	this.tenDV = tenDV;
+    }
+    public void setTenDVRaw(String tenDV) {
+        this.tenDV = tenDV;
     }
     public double getDonGia() {
     	return donGia;
@@ -61,6 +62,9 @@ public class DichVu {
         }
     	this.donGia = donGia;
     }
+    public void setDonGiaRaw(double donGia) {
+        this.donGia = donGia;
+    }
     public String getDonViTinh() {
     	return donViTinh;
     }
@@ -69,6 +73,9 @@ public class DichVu {
             throw new IllegalArgumentException("Đơn vị tính không được để trống.");
         }
     	this.donViTinh = donViTinh;
+    }
+    public void setDonViTinhRaw(String donViTinh) {
+        this.donViTinh = donViTinh;
     }
     public String getMoTa() {
     	return moTa;
@@ -79,11 +86,17 @@ public class DichVu {
         }
     	this.moTa = moTa;
     }
+    public void setMoTaRaw(String moTa) {
+        this.moTa = moTa;
+    }
     public boolean isDangCungCap() {
     	return dangCungCap;
     }
     public void setDangCungCap(boolean dangCungCap) {
     	this.dangCungCap = dangCungCap;
+    }
+    public void setDangCungCapRaw(boolean dangCungCap) {
+        this.dangCungCap = dangCungCap;
     }
 
     @Override public int hashCode() {

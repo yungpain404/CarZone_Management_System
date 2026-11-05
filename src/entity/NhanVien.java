@@ -12,22 +12,15 @@ import enums.VaiTro;
  */
 public class NhanVien {
 	private String maNV;
-
 	/** Phía nghịch của quan hệ 1-1; khóa nằm ở bảng TaiKhoan (TaiKhoan.maNV). */
 	private TaiKhoan taiKhoan;
-
 	private String hoTen;
-
 	private LocalDate ngaySinh;
-
 	private String soDienThoai;
-
+	private String email;
 	private String CCCD;
-
 	private String diaChi;
-
 	private LocalDate ngayVaoLam;
-
 	private VaiTro vaiTro;
 
 	public NhanVien() {
@@ -100,6 +93,15 @@ public class NhanVien {
 		}
 		this.soDienThoai = soDienThoai;
 	}
+	public String getEmail() { return email; }
+	public void setEmail(String email) {
+		if (email == null || email.isBlank()) throw new IllegalArgumentException("Email nhân viên không được để trống.");
+		String normalized = email.trim();
+		if (normalized.length() > 254 || !normalized.matches("(?i)^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$")) {
+			throw new IllegalArgumentException("Địa chỉ Gmail không hợp lệ.");
+		}
+		this.email = normalized;
+	}
 	public String getCCCD() {
 		return CCCD;
 	}
@@ -157,6 +159,8 @@ public class NhanVien {
 	public void setNgaySinhRaw(LocalDate d)       { this.ngaySinh = d; }
 	/** Gán soDienThoai trực tiếp. Dùng trong DAO. */
 	public void setSoDienThoaiRaw(String sdt)     { this.soDienThoai = sdt; }
+	/** Gán email trực tiếp. Dùng trong DAO khi đọc từ DB. */
+	public void setEmailRaw(String email)          { this.email = email; }
 	/** Gán CCCD trực tiếp. Dùng trong DAO. */
 	public void setCCCDRaw(String cccd)           { this.CCCD = cccd; }
 	/** Gán ngayVaoLam trực tiếp. Dùng trong DAO. */

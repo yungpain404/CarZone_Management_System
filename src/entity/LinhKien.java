@@ -8,15 +8,10 @@ import java.util.Objects;
  */
 public class LinhKien {
     private String maLK;
-
     private String tenLK;
-
     private double donGia;
-
     private String donViTinh;
-
     private int soLuongTon;
-
     private boolean dangKinhDoanh;
 
     public LinhKien() {
@@ -44,6 +39,9 @@ public class LinhKien {
         }
     	this.maLK = maLK;
     }
+    public void setMaLKRaw(String maLK) {
+        this.maLK = maLK;
+    }
     public String getTenLK() {
     	return tenLK;
     }
@@ -52,6 +50,9 @@ public class LinhKien {
             throw new IllegalArgumentException("Tên linh kiện không được để trống và tối đa 100 ký tự.");
         }
     	this.tenLK = tenLK;
+    }
+    public void setTenLKRaw(String tenLK) {
+        this.tenLK = tenLK;
     }
     public double getDonGia() {
     	return donGia;
@@ -62,6 +63,9 @@ public class LinhKien {
         }
     	this.donGia = donGia;
     }
+    public void setDonGiaRaw(double donGia) {
+        this.donGia = donGia;
+    }
     public String getDonViTinh() {
     	return donViTinh;
     }
@@ -70,6 +74,9 @@ public class LinhKien {
             throw new IllegalArgumentException("Đơn vị tính không được để trống.");
         }
     	this.donViTinh = donViTinh;
+    }
+    public void setDonViTinhRaw(String donViTinh) {
+        this.donViTinh = donViTinh;
     }
     public int getSoLuongTon() {
     	return soLuongTon;
@@ -80,11 +87,17 @@ public class LinhKien {
         }
     	this.soLuongTon = soLuongTon;
     }
+    public void setSoLuongTonRaw(int soLuongTon) {
+        this.soLuongTon = soLuongTon;
+    }
     public boolean isDangKinhDoanh() {
     	return dangKinhDoanh;
     }
     public void setDangKinhDoanh(boolean dangKinhDoanh) {
     	this.dangKinhDoanh = dangKinhDoanh;
+    }
+    public void setDangKinhDoanhRaw(boolean dangKinhDoanh) {
+        this.dangKinhDoanh = dangKinhDoanh;
     }
 
     @Override public int hashCode() {

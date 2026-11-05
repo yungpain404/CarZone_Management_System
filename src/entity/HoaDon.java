@@ -18,34 +18,22 @@ import enums.VaiTro;
  */
 public class HoaDon {
 	private String maHoaDon;
-
 	/** Mỗi phiếu sửa chữa tối đa một hóa đơn (DB: UQ_HoaDon_maPhieu). */
 	private PhieuTiepNhanSuaChua phieuSuaChua;
-
 	private NhanVien nhanVien;
-
 	private KhuyenMai khuyenMai;
-
 	private Date ngayLap;
-
 	/** NULL khi chưa thanh toán; bắt buộc có khi đã thanh toán (DB: CK_HoaDon_DaThanhToan). */
 	private PhuongThucThanhToan phuongThucTT;
-
 	private TrangThaiThanhToan trangThaiThanhToan;
-
 	private Date thoiGianThanhToan;
-
 	private String maGiaoDich;
 
 	// ---- Thuộc tính suy diễn: đọc từ view, không có setter ----
 	private double tongTienDichVu;
-
 	private double tongTienLinhKien;
-
 	private double tienGiam;
-
 	private double thue;
-
 	private double tongThanhToan;
 
 	public HoaDon() {
@@ -182,6 +170,15 @@ public class HoaDon {
 	}
 
 	// ── Raw setters dùng trong DAO khi đọc từ CSDL / view ──
+	public void setMaHoaDonRaw(String maHoaDon) { this.maHoaDon = maHoaDon; }
+	public void setPhieuSuaChuaRaw(PhieuTiepNhanSuaChua phieuSuaChua) { this.phieuSuaChua = phieuSuaChua; }
+	public void setNhanVienRaw(NhanVien nhanVien) { this.nhanVien = nhanVien; }
+	public void setKhuyenMaiRaw(KhuyenMai khuyenMai) { this.khuyenMai = khuyenMai; }
+	public void setNgayLapRaw(Date ngayLap) { this.ngayLap = ngayLap; }
+	public void setPhuongThucTTRaw(PhuongThucThanhToan phuongThucTT) { this.phuongThucTT = phuongThucTT; }
+	public void setTrangThaiThanhToanRaw(TrangThaiThanhToan trangThaiThanhToan) { this.trangThaiThanhToan = trangThaiThanhToan; }
+	public void setThoiGianThanhToanRaw(Date thoiGianThanhToan) { this.thoiGianThanhToan = thoiGianThanhToan; }
+	public void setMaGiaoDichRaw(String maGiaoDich) { this.maGiaoDich = maGiaoDich; }
 	public void setTongTienDichVuRaw(double tongTienDichVu) { this.tongTienDichVu = tongTienDichVu; }
 	public void setTongTienLinhKienRaw(double tongTienLinhKien) { this.tongTienLinhKien = tongTienLinhKien; }
 	public void setTienGiamRaw(double tienGiam) { this.tienGiam = tienGiam; }

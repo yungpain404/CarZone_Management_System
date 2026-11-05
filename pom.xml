@@ -20,7 +20,7 @@
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <main.class>app.Main</main.class>
+        <main.class>app.App</main.class>
     </properties>
 
     <!-- ===================== THƯ VIỆN PHỤ THUỘC ===================== -->
@@ -37,6 +37,33 @@
             <groupId>com.formdev</groupId>
             <artifactId>flatlaf</artifactId>
             <version>3.7</version>
+        </dependency>
+
+        <!-- JCalendar cho chọn ngày qua lịch trực quan -->
+        <dependency>
+            <groupId>com.toedter</groupId>
+            <artifactId>jcalendar</artifactId>
+            <version>1.4</version>
+        </dependency>
+
+        <!-- Quartz Scheduler cho tự động sao lưu dữ liệu -->
+        <dependency>
+            <groupId>org.quartz-scheduler</groupId>
+            <artifactId>quartz</artifactId>
+            <version>2.3.2</version>
+        </dependency>
+
+        <!-- SLF4J + Logback cho nhật ký hệ thống & audit log -->
+        <!-- Quartz 2.3.2 kéo SLF4J 1.7.7 bậc bắc cầu; ghim API 2.x để khớp Logback 1.5.x. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.13</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.6</version>
         </dependency>
 
         <!-- JUnit 5 cho unit test -->
@@ -56,9 +83,16 @@
 
         <resources>
             <resource>
-                <directory>src</directory>
+                <directory>img</directory>
                 <includes>
                     <include>**/*.png</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src</directory>
+                <includes>
+                    <include>*.xml</include>
+                    <include>*.properties</include>
                 </includes>
             </resource>
         </resources>
@@ -98,6 +132,7 @@
                         <phase>package</phase>
                         <goals><goal>shade</goal></goals>
                         <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
                             <!-- Bỏ chữ ký jar của các thư viện để tránh lỗi khi shade -->
                             <filters>
                                 <filter>

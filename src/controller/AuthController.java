@@ -1,8 +1,7 @@
 package controller;
 
 import connectDB.DbUtil;
-import dao.TaiKhoanDao;
-import dao.impl.TaiKhoanDaoImpl;
+import dao.TaiKhoanDAO;
 import entity.NhanVien;
 import entity.TaiKhoan;
 import enums.VaiTro;
@@ -14,16 +13,17 @@ import java.util.List;
 
 /**
  * Controller phụ trách xác thực người dùng và quản lý phiên làm việc.
- * - Kiểm tra tên đăng nhập, mật khẩu trực tiếp dưới cơ sở dữ liệu (không mockup dữ liệu).
+ * - Kiểm tra tên đăng nhập, mật khẩu trực tiếp dưới cơ sở dữ liệu (không mockup
+ * dữ liệu).
  * - Cấp quyền và danh sách navigation menu theo role xác thực từ session.
  * - Cung cấp dữ liệu định danh cho Header và xử lý luồng đăng xuất.
  */
 public class AuthController {
 
-    private final TaiKhoanDao taiKhoanDao;
+    private final TaiKhoanDAO taiKhoanDao;
 
     public AuthController() {
-        this.taiKhoanDao = new TaiKhoanDaoImpl();
+        this.taiKhoanDao = new TaiKhoanDAO();
     }
 
     /**
@@ -90,8 +90,9 @@ public class AuthController {
      * Kiểm tra tài khoản và mật khẩu trực tiếp dưới cơ sở dữ liệu.
      * TUYỆT ĐỐI KHÔNG MOCKUP DỮ LIỆU.
      *
-     * @param tenDangNhap Tên đăng nhập nhập từ form UI (định dạng CCHxxx, TNVxxx, KTVxxx)
-     * @param matKhau Mật khẩu gốc người dùng nhập
+     * @param tenDangNhap Tên đăng nhập nhập từ form UI (định dạng CCHxxx, TNVxxx,
+     *                    KTVxxx)
+     * @param matKhau     Mật khẩu gốc người dùng nhập
      * @return KetQuaXacThuc chứa trạng thái và thông báo chi tiết
      */
     public KetQuaXacThuc dangNhap(String tenDangNhap, String matKhau) {
@@ -110,7 +111,8 @@ public class AuthController {
 
         // 2. Kiểm tra trạng thái kết nối CSDL thực tế
         if (!DbUtil.isDatabaseOnline()) {
-            return new KetQuaXacThuc(false, "Không thể kết nối đến cơ sở dữ liệu SQL Server. Vui lòng kiểm tra Docker.", null);
+            return new KetQuaXacThuc(false, "Không thể kết nối đến cơ sở dữ liệu SQL Server. Vui lòng kiểm tra Docker.",
+                    null);
         }
 
         // 3. Truy vấn trực tiếp từ Database thông qua TaiKhoanDao (KHÔNG MOCKUP)
@@ -147,7 +149,8 @@ public class AuthController {
     }
 
     /**
-     * Xử lý đăng xuất: xác nhận với người dùng, xóa phiên làm việc và mở lại màn hình đăng nhập.
+     * Xử lý đăng xuất: xác nhận với người dùng, xóa phiên làm việc và mở lại màn
+     * hình đăng nhập.
      *
      * @param currentFrame Cửa sổ chính hiện tại cần đóng
      */
@@ -159,6 +162,12 @@ public class AuthController {
                 JOptionPane.QUESTION_MESSAGE);
 
         if (opt == JOptionPane.YES_OPTION) {
+            // Dừng scheduler sao lưu nếu tài khoản vừa đăng xuất là Chủ cửa hàng
+            try {
+                backup.BackupScheduler.getInstance().shutdown();
+            } catch (Throwable ignored) {
+            }
+
             // Hủy phiên làm việc
             UserSession.getInstance().huyPhien();
 
@@ -172,7 +181,7 @@ public class AuthController {
                 DangNhapUI loginFrame = new DangNhapUI();
                 loginFrame.setDangNhapListener(nhanVien -> {
                     // Khi đăng nhập lại thì mở lại MainFrame
-                    app.Main.moManHinhChinh(nhanVien);
+                    app.App.moManHinhChinh(nhanVien);
                 });
                 loginFrame.setVisible(true);
             });
@@ -199,36 +208,45 @@ public class AuthController {
         return switch (vaiTro) {
             case CHU_CUA_HANG -> List.of(
                     new NavigationItem("NAV_DASHBOARD", "📊", "Dashboard", "Trang chủ / Tổng quan"),
-                    new NavigationItem("NAV_THONG_KE", "📈", "Thống kê doanh thu", "Kinh doanh / Báo cáo doanh thu"),
+                    new NavigationItem("NAV_THONG_KE", "📈", "Thống kê báo cáo", "Kinh doanh / Báo cáo doanh thu"),
                     new NavigationItem("NAV_QUAN_LY_DICH_VU", "🔧", "Quản lý dịch vụ", "Danh mục / Dịch vụ sửa chữa"),
-                    new NavigationItem("NAV_LINH_KIEN_KHO", "📦", "Linh kiện và tồn kho", "Kho hàng / Quản lý linh kiện"),
-                    new NavigationItem("NAV_YC_LINH_KIEN", "📋", "Yêu cầu cập nhật linh kiện", "Kho hàng / Yêu cầu phê duyệt"),
+                    new NavigationItem("NAV_LINH_KIEN_KHO", "📦", "Linh kiện và tồn kho",
+                            "Kho hàng / Quản lý linh kiện"),
+                    new NavigationItem("NAV_YC_LINH_KIEN", "📋", "Yêu cầu cập nhật linh kiện",
+                            "Kho hàng / Yêu cầu phê duyệt"),
                     new NavigationItem("NAV_KHUYEN_MAI", "🎁", "Chương trình khuyến mãi", "Kinh doanh / Khuyến mãi"),
                     new NavigationItem("NAV_NHAN_VIEN", "👥", "Quản lý nhân viên", "Hệ thống / Hồ sơ nhân viên"),
-                    new NavigationItem("NAV_TAI_KHOAN", "🔐", "Tài khoản và phân quyền", "Hệ thống / Quản lý tài khoản"),
+                    new NavigationItem("NAV_TAI_KHOAN", "🔐", "Tài khoản và phân quyền",
+                            "Hệ thống / Quản lý tài khoản"),
+                    new NavigationItem("NAV_SAO_LUU_PHUC_HOI", "💾", "Sao lưu & Phục hồi",
+                            "Hệ thống / Sao lưu và phục hồi CSDL"),
                     new NavigationItem("NAV_TRA_CUU", "🔍", "Tra cứu", "Tra cứu / Tìm kiếm tổng hợp"),
-                    new NavigationItem("NAV_THONG_TIN_CA_NHAN", "👤", "Thông tin cá nhân", "Tài khoản / Hồ sơ cá nhân")
-            );
+                    new NavigationItem("NAV_THONG_TIN_CA_NHAN", "👤", "Thông tin cá nhân",
+                            "Tài khoản / Hồ sơ cá nhân"));
 
             case TIEP_NHAN_VIEN -> List.of(
                     new NavigationItem("NAV_DASHBOARD", "📊", "Dashboard", "Trang chủ / Tổng quan tiếp nhận"),
-                    new NavigationItem("NAV_KHACH_HANG_XE", "👥", "Hồ sơ khách hàng và xe", "Khách hàng / Quản lý khách & xe"),
-                    new NavigationItem("NAV_PHIEU_TIEP_NHAN", "📝", "Lập phiếu tiếp nhận – sửa chữa", "Nghiệp vụ / Tiếp nhận xe"),
-                    new NavigationItem("NAV_HOA_DON", "🧾", "Lập hóa đơn thanh toán", "Thu ngân / Hóa đơn thanh toán"),
-                    new NavigationItem("NAV_DOI_TRA", "🔄", "Tạo phiếu đổi trả", "Nghiệp vụ / Đổi trả linh kiện"),
                     new NavigationItem("NAV_THONG_KE_TIEP_NHAN", "📈", "Thống kê tiếp nhận", "Báo cáo / Thống kê tiếp nhận xe"),
+                    new NavigationItem("NAV_KHACH_HANG_XE", "👥", "Hồ sơ khách hàng và xe", "Khách hàng / Quản lý khách & xe"),
+                    new NavigationItem("NAV_PHIEU_TIEP_NHAN", "📝", "Quản lý phiếu tiếp nhận", "Nghiệp vụ / Quản lý phiếu tiếp nhận xe"),
+                    new NavigationItem("NAV_HOA_DON", "🧾", "Lập hóa đơn thanh toán", "Thu ngân / Hóa đơn thanh toán"),
+                    new NavigationItem("NAV_DOI_TRA", "🔄", "Quản lý phiếu đổi trả", "Nghiệp vụ / Quản lý phiếu đổi trả - bảo hành"),
                     new NavigationItem("NAV_TRA_CUU", "🔍", "Tra cứu", "Tra cứu / Tìm kiếm tổng hợp"),
-                    new NavigationItem("NAV_THONG_TIN_CA_NHAN", "👤", "Thông tin cá nhân", "Tài khoản / Hồ sơ cá nhân")
-            );
+                    new NavigationItem("NAV_THONG_TIN_CA_NHAN", "👤", "Thông tin cá nhân",
+                            "Tài khoản / Hồ sơ cá nhân"));
 
             case KY_THUAT_VIEN -> List.of(
                     new NavigationItem("NAV_DASHBOARD", "📊", "Dashboard", "Trang chủ / Tổng quan kỹ thuật"),
-                    new NavigationItem("NAV_PHIEU_PHAN_CONG", "📋", "Phiếu được phân công", "Kỹ thuật / Danh sách phiếu được giao"),
-                    new NavigationItem("NAV_CAP_NHAT_SUA_CHUA", "🛠️", "Cập nhật phiếu sửa chữa", "Kỹ thuật / Tiến độ & Thay thế linh kiện"),
-                    new NavigationItem("NAV_YC_LINH_KIEN", "📦", "Yêu cầu cập nhật linh kiện", "Kỹ thuật / Yêu cầu xuất/nhập linh kiện"),
+                    new NavigationItem("NAV_THONG_KE", "📈", "Thống kê sửa chữa", "Kỹ thuật / Thống kê năng suất"),
+                    new NavigationItem("NAV_PHIEU_PHAN_CONG", "📋", "Phiếu được phân công",
+                            "Kỹ thuật / Danh sách phiếu được giao"),
+                    new NavigationItem("NAV_CAP_NHAT_SUA_CHUA", "🛠️", "Cập nhật phiếu sửa chữa",
+                            "Kỹ thuật / Tiến độ & Thay thế linh kiện"),
+                    new NavigationItem("NAV_YC_LINH_KIEN", "📦", "Yêu cầu cập nhật linh kiện",
+                            "Kỹ thuật / Yêu cầu xuất/nhập linh kiện"),
                     new NavigationItem("NAV_TRA_CUU", "🔍", "Tra cứu", "Tra cứu / Tìm kiếm kỹ thuật"),
-                    new NavigationItem("NAV_THONG_TIN_CA_NHAN", "👤", "Thông tin cá nhân", "Tài khoản / Hồ sơ cá nhân")
-            );
+                    new NavigationItem("NAV_THONG_TIN_CA_NHAN", "👤", "Thông tin cá nhân",
+                            "Tài khoản / Hồ sơ cá nhân"));
         };
     }
 
@@ -236,11 +254,12 @@ public class AuthController {
      * Tên tiếng Việt hiển thị của vai trò.
      */
     public static String layTenVaiTro(VaiTro vaiTro) {
-        if (vaiTro == null) return "Chủ cửa hàng";
+        if (vaiTro == null)
+            return "Chủ cửa hàng";
         return switch (vaiTro) {
-            case CHU_CUA_HANG   -> "Chủ cửa hàng";
+            case CHU_CUA_HANG -> "Chủ cửa hàng";
             case TIEP_NHAN_VIEN -> "Tiếp nhận viên";
-            case KY_THUAT_VIEN  -> "Kỹ thuật viên";
+            case KY_THUAT_VIEN -> "Kỹ thuật viên";
         };
     }
 }

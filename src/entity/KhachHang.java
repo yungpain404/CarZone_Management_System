@@ -7,17 +7,11 @@ import java.util.Objects;
  */
 public class KhachHang {
     private String maKH;
-
     private String hoTen;
-
     private String soDienThoai;
-
     private String ghiChu;
-
     private String CCCD;
-
     private boolean thanhVienThanThiet;
-
     private double diemTichLuy;
 
     public KhachHang() {

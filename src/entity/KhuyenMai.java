@@ -21,17 +21,13 @@ import enums.VaiTro;
  */
 public class KhuyenMai {
 	private String maKM;
-
 	private NhanVien nhanVien;
-
-	private String tenChuongTrinh;private Set<LinhKien> linhKienApDung = new HashSet<>();private Set<DichVu> dichVuApDung = new HashSet<>();
-
+	private String tenChuongTrinh;
+	private Set<LinhKien> linhKienApDung = new HashSet<>();
+	private Set<DichVu> dichVuApDung = new HashSet<>();
 	private double mucGiamPhanTram;
-
 	private Date ngayBatDau;
-
 	private Date ngayKetThuc;
-
 	private String ghiChu;
 
 	public KhuyenMai() {

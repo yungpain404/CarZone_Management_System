@@ -8,16 +8,10 @@ import java.util.Objects;
  * Cột thanhTien trong DB là cột tính toán, không ánh xạ; dùng {@link #tinhThanhTien()}.
  */
 public class ChiTietLinhKien {
-    private ChiTietLinhKienId id = new ChiTietLinhKienId();
-
     private PhieuTiepNhanSuaChua phieuSuaChua;
-
     private LinhKien linhKien;
-
     private int soLuong;
-
     private double donGiaXuat;
-
     private String ghiChu;
 
     public ChiTietLinhKien() {
@@ -41,7 +35,6 @@ public class ChiTietLinhKien {
     public void setPhieuSuaChua(PhieuTiepNhanSuaChua phieuSuaChua) {
         if (phieuSuaChua == null) throw new IllegalArgumentException("Chi tiết linh kiện phải thuộc phiếu sửa chữa.");
     	this.phieuSuaChua = phieuSuaChua;
-    	this.id.setMaPhieu(phieuSuaChua.getMaPhieu());
     }
     public LinhKien getLinhKien() {
     	return linhKien;
@@ -49,7 +42,6 @@ public class ChiTietLinhKien {
     public void setLinhKien(LinhKien linhKien) {
         if (linhKien == null) throw new IllegalArgumentException("Phải chọn linh kiện.");
     	this.linhKien = linhKien;
-    	this.id.setMaLK(linhKien.getMaLK());
     }
     public int getSoLuong() {
     	return soLuong;
@@ -97,6 +89,7 @@ public class ChiTietLinhKien {
     }
 
     public double getDonGia() { return donGiaXuat; }
+    public void setPhieuSuaChuaRaw(PhieuTiepNhanSuaChua p) { this.phieuSuaChua = p; }
     public void setLinhKienRaw(LinhKien lk) { this.linhKien = lk; }
     public void setSoLuongRaw(int sl) { this.soLuong = sl; }
     public void setDonGiaXuatRaw(double dg) { this.donGiaXuat = dg; }
