@@ -127,7 +127,7 @@ public class NhanVienDAO {
      * @return true nếu thêm thành công; mã do stored procedure gán vào entity
      */
     public boolean them(NhanVien nv) {
-        String sql = "{call sp_ThemNhanVien(?, ?, ?, ?, ?, ?, ?, ?)}";
+        String sql = "{call sp_ThemNhanVien(?, ?, ?, ?, ?, ?, ?, ?, ?)}";
         try (Connection con = DbUtil.getConnection();
              CallableStatement cs = con.prepareCall(sql)) {
             cs.setNString(1, nv.getHoTen());
@@ -137,9 +137,10 @@ public class NhanVienDAO {
             if (nv.getDiaChi() == null) cs.setNull(5, Types.NVARCHAR); else cs.setNString(5, nv.getDiaChi());
             cs.setDate(6, Date.valueOf(nv.getNgayVaoLam()));
             cs.setString(7, nv.getVaiTro().name());
-            cs.registerOutParameter(8, Types.VARCHAR);
+            cs.setString(8, nv.getEmail());
+            cs.registerOutParameter(9, Types.VARCHAR);
             cs.execute();
-            nv.setMaNVRaw(cs.getString(8));
+            nv.setMaNVRaw(cs.getString(9));
             return nv.getMaNV() != null;
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi thêm nhân viên: " + e.getMessage(), e);
@@ -153,17 +154,18 @@ public class NhanVienDAO {
      * @return true nếu cập nhật thành công
      */
     public boolean capNhat(NhanVien nv) {
-        String sql = "UPDATE NhanVien SET hoTen = ?, ngaySinh = ?, soDienThoai = ?, CCCD = ?, " +
+        String sql = "UPDATE NhanVien SET hoTen = ?, ngaySinh = ?, soDienThoai = ?, email = ?, CCCD = ?, " +
                      "diaChi = ?, ngayVaoLam = ? WHERE maNV = ?";
         try (Connection con = DbUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, nv.getHoTen());
             ps.setDate(2, nv.getNgaySinh() != null ? Date.valueOf(nv.getNgaySinh()) : null);
             ps.setString(3, nv.getSoDienThoai());
-            ps.setString(4, nv.getCCCD());
-            ps.setString(5, nv.getDiaChi());
-            ps.setDate(6, nv.getNgayVaoLam() != null ? Date.valueOf(nv.getNgayVaoLam()) : null);
-            ps.setString(7, nv.getMaNV());
+            ps.setString(4, nv.getEmail());
+            ps.setString(5, nv.getCCCD());
+            ps.setString(6, nv.getDiaChi());
+            ps.setDate(7, nv.getNgayVaoLam() != null ? Date.valueOf(nv.getNgayVaoLam()) : null);
+            ps.setString(8, nv.getMaNV());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi cập nhật nhân viên: " + e.getMessage(), e);
@@ -171,7 +173,7 @@ public class NhanVienDAO {
     }
 
     private static String selectNhanVienSql() {
-        return "SELECT nv.maNV, nv.hoTen, nv.ngaySinh, nv.soDienThoai, nv.CCCD, nv.diaChi, nv.ngayVaoLam, nv.vaiTro, "
+        return "SELECT nv.maNV, nv.hoTen, nv.ngaySinh, nv.soDienThoai, nv.email, nv.CCCD, nv.diaChi, nv.ngayVaoLam, nv.vaiTro, "
                 + "tk.tenDangNhap, tk.trangThaiHoatDong "
                 + "FROM NhanVien nv LEFT JOIN TaiKhoan tk ON tk.maNV = nv.maNV";
     }
@@ -183,6 +185,7 @@ public class NhanVienDAO {
         Date ngaySinhSql = rs.getDate("ngaySinh");
         if (ngaySinhSql != null) nv.setNgaySinhRaw(ngaySinhSql.toLocalDate());
         nv.setSoDienThoaiRaw(rs.getString("soDienThoai"));
+        nv.setEmailRaw(rs.getString("email"));
         nv.setCCCDRaw(rs.getString("CCCD"));
         nv.setDiaChi(rs.getString("diaChi"));
         Date ngayVaoLamSql = rs.getDate("ngayVaoLam");

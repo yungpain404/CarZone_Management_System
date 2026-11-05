@@ -23,6 +23,7 @@ public final class UIInputRules {
     private static final Pattern PERSON_NAME = Pattern.compile("^[\\p{L}\\p{M}]+(?:[\\s'’\\-][\\p{L}\\p{M}]+)*$");
     private static final Pattern UNIT = Pattern.compile("^[\\p{L}\\p{M}]{1,20}$");
     private static final Pattern PHONE = Pattern.compile("^0\\d{9,10}$");
+    private static final Pattern EMAIL = Pattern.compile("(?i)^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$");
     private static final Pattern CCCD = Pattern.compile("^\\d{12}$");
     private static final Pattern ADDRESS = Pattern.compile("^[\\p{L}\\p{M}\\p{N}][\\p{L}\\p{M}\\p{N}\\s.,'’/#()\\-]{0,199}$");
     private static final Pattern DATE_TEXT = Pattern.compile("^(0[1-9]|[12]\\d|3[01])/(0[1-9]|1[0-2])/\\d{4}$");
@@ -38,6 +39,7 @@ public final class UIInputRules {
     public static boolean isPersonName(String value) { return value != null && PERSON_NAME.matcher(value).matches(); }
     public static boolean isUnit(String value) { return value != null && UNIT.matcher(value).matches(); }
     public static boolean isPhone(String value) { return value != null && PHONE.matcher(value).matches(); }
+    public static boolean isEmail(String value) { return value != null && value.length() <= 254 && EMAIL.matcher(value).matches(); }
     public static boolean isCccd(String value) { return value != null && CCCD.matcher(value).matches(); }
     public static boolean isAddress(String value) { return value != null && ADDRESS.matcher(value).matches(); }
     public static boolean isDateText(String value) { return value != null && DATE_TEXT.matcher(value.trim()).matches(); }

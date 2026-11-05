@@ -80,7 +80,7 @@ public class TaiKhoanDAO {
     }
 
     private static String selectHoSoSql() {
-        return "SELECT nv.maNV, nv.hoTen, nv.ngaySinh, nv.soDienThoai, nv.CCCD, nv.diaChi, nv.ngayVaoLam, nv.vaiTro, "
+        return "SELECT nv.maNV, nv.hoTen, nv.ngaySinh, nv.soDienThoai, nv.email, nv.CCCD, nv.diaChi, nv.ngayVaoLam, nv.vaiTro, "
                 + "tk.tenDangNhap, tk.trangThaiHoatDong "
                 + "FROM NhanVien nv LEFT JOIN TaiKhoan tk ON tk.maNV = nv.maNV";
     }
@@ -92,6 +92,7 @@ public class TaiKhoanDAO {
         Date ngaySinh = rs.getDate("ngaySinh");
         if (ngaySinh != null) nv.setNgaySinhRaw(ngaySinh.toLocalDate());
         nv.setSoDienThoaiRaw(rs.getString("soDienThoai"));
+        nv.setEmailRaw(rs.getString("email"));
         nv.setCCCDRaw(rs.getString("CCCD"));
         nv.setDiaChi(rs.getString("diaChi"));
         Date ngayVaoLam = rs.getDate("ngayVaoLam");
@@ -117,7 +118,7 @@ public class TaiKhoanDAO {
     public TaiKhoan timTheoTenDangNhap(String tenDangNhap) {
         String sql =
             "SELECT tk.maNV, tk.tenDangNhap, tk.matKhau, tk.trangThaiHoatDong, " +
-            "       nv.hoTen, nv.ngaySinh, nv.soDienThoai, nv.CCCD, nv.diaChi, " +
+            "       nv.hoTen, nv.ngaySinh, nv.soDienThoai, nv.email, nv.CCCD, nv.diaChi, " +
             "       nv.ngayVaoLam, nv.vaiTro " +
             "FROM TaiKhoan tk " +
             "INNER JOIN NhanVien nv ON nv.maNV = tk.maNV " +
@@ -183,6 +184,7 @@ public class TaiKhoanDAO {
         java.sql.Date ngaySinhSql = rs.getDate("ngaySinh");
         if (ngaySinhSql != null) nv.setNgaySinhRaw(ngaySinhSql.toLocalDate());
         nv.setSoDienThoaiRaw(rs.getString("soDienThoai"));
+        nv.setEmailRaw(rs.getString("email"));
         nv.setCCCDRaw(rs.getString("CCCD"));
         nv.setDiaChi(rs.getString("diaChi"));
         java.sql.Date ngayVaoLamSql = rs.getDate("ngayVaoLam");

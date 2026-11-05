@@ -456,6 +456,7 @@ public class QuanLyNhanVienUI extends JPanel {
         private final JDateChooser spnNgaySinh = dateChooser(LocalDate.now().minusYears(25));
         private final JTextField txtTuoi = new JTextField();
         private final JTextField txtSdt = new JTextField();
+        private final JTextField txtEmail = new JTextField();
         private final JTextField txtCccd = new JTextField();
         private final JTextArea txtDiaChi = new JTextArea(3, 30);
         private final JDateChooser spnNgayVaoLam = dateChooser(LocalDate.now());
@@ -498,14 +499,15 @@ public class QuanLyNhanVienUI extends JPanel {
             g.gridx = 0; g.gridy = 2; g.gridwidth = 1; fields.add(birthday, g);
             g.gridx = 1; fields.add(age, g);
             addField(fields, g, "Số điện thoại *", txtSdt, 0, 3, 1, 1);
-            addField(fields, g, "CCCD *", txtCccd, 1, 3, 1, 1);
+            addField(fields, g, "Gmail khôi phục mật khẩu *", txtEmail, 1, 3, 1, 1);
+            addField(fields, g, "CCCD *", txtCccd, 0, 4, 1, 1);
             JScrollPane addressScroll = new JScrollPane(txtDiaChi); addressScroll.setPreferredSize(new Dimension(300, 78));
             addressScroll.setBorder(BorderFactory.createLineBorder(new Color(0xD7E1EF))); txtDiaChi.setFont(new Font("SansSerif", Font.PLAIN, 13));
             txtDiaChi.setLineWrap(true); txtDiaChi.setWrapStyleWord(true); txtDiaChi.setBorder(new EmptyBorder(8, 10, 8, 10));
-            addField(fields, g, "Địa chỉ *", addressScroll, 0, 4, 2, 1);
-            addField(fields, g, "Ngày vào làm *", spnNgayVaoLam, 0, 5, 1, 1);
+            addField(fields, g, "Địa chỉ *", addressScroll, 0, 5, 2, 1);
+            addField(fields, g, "Ngày vào làm *", spnNgayVaoLam, 0, 6, 1, 1);
 
-            g.gridx = 1; g.gridy = 5; g.weightx = 1; fields.add(Box.createHorizontalGlue(), g);
+            g.gridx = 1; g.gridy = 6; g.weightx = 1; fields.add(Box.createHorizontalGlue(), g);
             JPanel body = new JPanel(new BorderLayout(0, 8)); body.setOpaque(false); body.add(fields, BorderLayout.CENTER); body.add(lblError, BorderLayout.SOUTH);
             center.add(body, BorderLayout.CENTER); base.add(center, BorderLayout.CENTER);
             JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 12)); footer.setBackground(WHITE);
@@ -537,16 +539,17 @@ public class QuanLyNhanVienUI extends JPanel {
         private void fillCurrentValues() {
             txtTen.setText(existing.getHoTen()); cboRole.setSelectedItem(existing.getVaiTro());
             setDate(spnNgaySinh, existing.getNgaySinh()); setDate(spnNgayVaoLam, existing.getNgayVaoLam());
-            txtSdt.setText(existing.getSoDienThoai()); txtCccd.setText(existing.getCCCD());
+            txtSdt.setText(existing.getSoDienThoai()); txtEmail.setText(existing.getEmail() == null ? "" : existing.getEmail()); txtCccd.setText(existing.getCCCD());
             txtDiaChi.setText(existing.getDiaChi() == null ? "" : existing.getDiaChi()); capNhatTuoi();
         }
 
         private void installFilters() {
-            applyFilter(txtTen, 100, false); applyFilter(txtSdt, 11, true); applyFilter(txtCccd, 12, true); applyFilter(txtDiaChi, 200, false);
+            applyFilter(txtTen, 100, false); applyFilter(txtSdt, 11, true); applyFilter(txtEmail, 254, false); applyFilter(txtCccd, 12, true); applyFilter(txtDiaChi, 200, false);
             spnNgaySinh.addPropertyChangeListener("date", e -> capNhatTuoi());
             spnNgayVaoLam.addPropertyChangeListener("date", e -> capNhatTuoi());
             txtTen.addActionListener(e -> spnNgaySinh.requestFocusInWindow());
-            txtSdt.addActionListener(e -> txtCccd.requestFocusInWindow());
+            txtSdt.addActionListener(e -> txtEmail.requestFocusInWindow());
+            txtEmail.addActionListener(e -> txtCccd.requestFocusInWindow());
             txtCccd.addActionListener(e -> txtDiaChi.requestFocusInWindow());
         }
 
@@ -564,7 +567,7 @@ public class QuanLyNhanVienUI extends JPanel {
                 @Override public void removeUpdate(javax.swing.event.DocumentEvent e) { clearFormError(); }
                 @Override public void changedUpdate(javax.swing.event.DocumentEvent e) { clearFormError(); }
             };
-            txtTen.getDocument().addDocumentListener(listener); txtSdt.getDocument().addDocumentListener(listener);
+            txtTen.getDocument().addDocumentListener(listener); txtSdt.getDocument().addDocumentListener(listener); txtEmail.getDocument().addDocumentListener(listener);
             txtCccd.getDocument().addDocumentListener(listener); txtDiaChi.getDocument().addDocumentListener(listener);
         }
 
@@ -573,11 +576,13 @@ public class QuanLyNhanVienUI extends JPanel {
             try {
                 String hoTen = txtTen.getText().trim();
                 String sdt = txtSdt.getText().trim();
+                String email = txtEmail.getText().trim();
                 String cccd = txtCccd.getText().trim();
                 String diaChi = txtDiaChi.getText().trim();
                 VaiTro role = (VaiTro) cboRole.getSelectedItem();
                 if (!UIInputRules.isPersonName(hoTen)) { showFormError("Họ tên chỉ gồm chữ cái và dấu cách, dấu nháy hoặc gạch nối."); txtTen.requestFocusInWindow(); return; }
                 if (!UIInputRules.isPhone(sdt)) { showFormError("Số điện thoại phải bắt đầu bằng 0 và gồm 10 hoặc 11 chữ số."); txtSdt.requestFocusInWindow(); return; }
+                if (!UIInputRules.isEmail(email)) { showFormError("Vui lòng nhập địa chỉ Gmail hợp lệ để khôi phục mật khẩu."); txtEmail.requestFocusInWindow(); return; }
                 if (!UIInputRules.isCccd(cccd)) { showFormError("CCCD phải gồm đúng 12 chữ số."); txtCccd.requestFocusInWindow(); return; }
                 if (!UIInputRules.isAddress(diaChi)) { showFormError("Địa chỉ không hợp lệ hoặc vượt quá 200 ký tự."); txtDiaChi.requestFocusInWindow(); return; }
                 LocalDate birth = UIInputRules.readDate(spnNgaySinh), hireDate = UIInputRules.readDate(spnNgayVaoLam);
@@ -588,8 +593,8 @@ public class QuanLyNhanVienUI extends JPanel {
                 setSaving(true); clearFormError();
                 new SwingWorker<NhanVien, Void>() {
                     @Override protected NhanVien doInBackground() {
-                        if (adding) return formController.them(hoTen, birth, sdt, cccd, diaChi, hireDate, role);
-                        return formController.capNhat(existingSnapshot.getMaNV(), hoTen, birth, sdt, cccd, diaChi, hireDate);
+                        if (adding) return formController.them(hoTen, birth, sdt, email, cccd, diaChi, hireDate, role);
+                        return formController.capNhat(existingSnapshot.getMaNV(), hoTen, birth, sdt, email, cccd, diaChi, hireDate);
                     }
                     @Override protected void done() {
                         try { savedEmployee = get(); JOptionPane.showMessageDialog(NhanVienFormDialog.this,
