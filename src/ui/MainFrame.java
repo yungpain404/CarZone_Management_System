@@ -154,6 +154,7 @@ public class MainFrame extends JFrame {
     private QuanLyLinhKienUI quanLyLinhKienCCHUI;
     private QuanLyTaiKhoanUI quanLyTaiKhoanCCHUI;
     private TraCuuUI traCuuUI;
+    private LapPhieuTiepNhanUI lapPhieuTiepNhanUI;
 
     // Header dynamic components
     private JLabel lblHeaderUserName;
@@ -644,6 +645,26 @@ public class MainFrame extends JFrame {
         });
     }
 
+        /**
+     * Mở màn hình Quản lý phiếu tiếp nhận và tự động áp dụng bộ lọc trạng thái hoặc từ khóa.
+     */
+    public void moLapPhieuTiepNhanVoiLoc(TrangThaiPhieu trangThai, String tuKhoa) {
+        moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN");
+        if (lapPhieuTiepNhanUI != null) {
+            lapPhieuTiepNhanUI.apDungBoLocTuNgoai(trangThai, tuKhoa);
+        } else {
+            SwingUtilities.invokeLater(() -> {
+                if (pnlContentPanel == null) return;
+                for (Component c : pnlContentPanel.getComponents()) {
+                    if (c instanceof LapPhieuTiepNhanUI ui) {
+                        ui.apDungBoLocTuNgoai(trangThai, tuKhoa);
+                        return;
+                    }
+                }
+            });
+        }
+    }
+
     private void napCacPageTheoRole() {
         List<NavigationItem> items = authController.layDanhSachNavigationTheoRole(nhanVien.getVaiTro());
 
@@ -694,7 +715,8 @@ public class MainFrame extends JFrame {
             } else if ("NAV_KHACH_HANG_XE".equals(item.getId())) {
                 pnlContentPanel.add(new QuanLyKhachHangVaXeUI(), item.getId());
             } else if ("NAV_PHIEU_TIEP_NHAN".equals(item.getId())) {
-                pnlContentPanel.add(new LapPhieuTiepNhanUI(), item.getId());
+                lapPhieuTiepNhanUI = new LapPhieuTiepNhanUI();
+                pnlContentPanel.add(lapPhieuTiepNhanUI, item.getId());
             } else if ("NAV_HOA_DON".equals(item.getId())) {
                 pnlContentPanel.add(new LapHoaDonThanhToanUI(), item.getId());
             } else if ("NAV_DOI_TRA".equals(item.getId())) {
@@ -1623,15 +1645,15 @@ public class MainFrame extends JFrame {
 
             pnlStats.add(taoTheKpiTnv(0, "Tiếp nhận hôm nay", "Lượt xe vào xưởng hôm nay", "Lập phiếu tiếp nhận mới ↗",
                     new CarVectorIcon(C_WHITE, 22), C_PRIMARY, C_PRIMARY, C_WHITE, C_WHITE, new Color(0xDBEAFE), C_WHITE,
-                    () -> moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN")));
+                    () -> moLapPhieuTiepNhanVoiLoc(null, null)));
 
             pnlStats.add(taoTheKpiTnv(1, "Cần phân công KTV", "Đã phân công đầy đủ", "Xem danh sách xe ↗",
                     new CheckVectorIcon(new Color(0x059669), 22), C_WHITE, C_BORDER, C_TEXT_HEAD, C_TEXT_HEAD, C_TEXT_SUBTLE, C_PRIMARY,
-                    () -> moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN")));
+                    () -> moLapPhieuTiepNhanVoiLoc(TrangThaiPhieu.CHO_SUA, null)));
 
             pnlStats.add(taoTheKpiTnv(2, "Xe đang sửa chữa", "Đang tiến hành tại xưởng", "Xem tiến độ sửa chữa ↗",
                     new WrenchVectorIcon(C_PRIMARY, 22), C_WHITE, C_BORDER, C_TEXT_HEAD, C_TEXT_HEAD, C_TEXT_SUBTLE, C_PRIMARY,
-                    () -> moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN")));
+                    () -> moLapPhieuTiepNhanVoiLoc(TrangThaiPhieu.DANG_SUA, null)));
 
             pnlStats.add(taoTheKpiTnv(3, "Chờ thanh toán & giao xe", "Không có xe tồn thu", "Lập hóa đơn thanh toán ↗",
                     new MoneyVectorIcon(C_TEXT_SUBTLE, 22), C_WHITE, C_BORDER, C_TEXT_HEAD, C_TEXT_HEAD, C_TEXT_SUBTLE, C_PRIMARY,
@@ -1676,10 +1698,10 @@ public class MainFrame extends JFrame {
             lblMiniValChoLK = taoNhan("0 (0%)", Font.BOLD, 12, new Color(0xD97706).darker());
             lblMiniValChoThu = taoNhan("0 (0%)", Font.BOLD, 12, new Color(0x059669).darker());
 
-            pnlBoxes.add(taoMiniBox("Chờ sửa chữa", lblMiniValChoSua, new Color(0xEA580C), new Color(0xFFEDD5)));
-            pnlBoxes.add(taoMiniBox("Đang sửa chữa", lblMiniValDangSua, new Color(0x2563EB), new Color(0xDBEAFE)));
-            pnlBoxes.add(taoMiniBox("Chờ linh kiện", lblMiniValChoLK, new Color(0xD97706), new Color(0xFEF3C7)));
-            pnlBoxes.add(taoMiniBox("Chờ thu tiền", lblMiniValChoThu, new Color(0x059669), new Color(0xD1FAE5)));
+            pnlBoxes.add(taoMiniBox("Chờ sửa chữa", lblMiniValChoSua, new Color(0xEA580C), new Color(0xFFEDD5), () -> moLapPhieuTiepNhanVoiLoc(TrangThaiPhieu.CHO_SUA, null)));
+            pnlBoxes.add(taoMiniBox("Đang sửa chữa", lblMiniValDangSua, new Color(0x2563EB), new Color(0xDBEAFE), () -> moLapPhieuTiepNhanVoiLoc(TrangThaiPhieu.DANG_SUA, null)));
+            pnlBoxes.add(taoMiniBox("Chờ linh kiện", lblMiniValChoLK, new Color(0xD97706), new Color(0xFEF3C7), () -> moLapPhieuTiepNhanVoiLoc(TrangThaiPhieu.CHO_LINH_KIEN, null)));
+            pnlBoxes.add(taoMiniBox("Chờ thu tiền", lblMiniValChoThu, new Color(0x059669), new Color(0xD1FAE5), () -> moLapPhieuTiepNhanVoiLoc(TrangThaiPhieu.HOAN_TAT, null)));
             pnlProgressBody.add(pnlBoxes);
             cardProgress.add(pnlProgressBody, BorderLayout.CENTER);
             pnlChartsRow.add(cardProgress);
@@ -1849,7 +1871,14 @@ public class MainFrame extends JFrame {
                 @Override
                 public void mouseClicked(java.awt.event.MouseEvent e) {
                     if (e.getClickCount() == 2) {
-                        moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN");
+                        int row = tableLiveXe.getSelectedRow();
+                        if (row >= 0) {
+                            int mRow = tableLiveXe.convertRowIndexToModel(row);
+                            String mp = (String) modelLiveXe.getValueAt(mRow, 0);
+                            moLapPhieuTiepNhanVoiLoc(null, mp);
+                        } else {
+                            moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN");
+                        }
                     }
                 }
             });
@@ -2129,10 +2158,20 @@ public class MainFrame extends JFrame {
             return card;
         }
 
-        private JPanel taoMiniBox(String label, JLabel lblVal, Color dotColor, Color bgColor) {
+        private JPanel taoMiniBox(String label, JLabel lblVal, Color dotColor, Color bgColor, Runnable onClick) {
             JPanel box = new JPanel(new BorderLayout(6, 0));
             box.setBackground(bgColor);
             box.setBorder(new EmptyBorder(6, 10, 6, 10));
+            if (onClick != null) {
+                box.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                box.setToolTipText("Bấm để xem danh sách: " + label);
+                box.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mouseClicked(java.awt.event.MouseEvent e) {
+                        onClick.run();
+                    }
+                });
+            }
 
             JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
             left.setOpaque(false);
@@ -2221,7 +2260,7 @@ public class MainFrame extends JFrame {
             btnAction.addMouseListener(new java.awt.event.MouseAdapter() {
                 @Override
                 public void mouseClicked(java.awt.event.MouseEvent e) {
-                    moPageTheoNavigation("NAV_PHIEU_TIEP_NHAN");
+                    moLapPhieuTiepNhanVoiLoc(null, cb.bienSo);
                 }
             });
             item.add(btnAction, BorderLayout.EAST);

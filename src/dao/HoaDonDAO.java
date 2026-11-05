@@ -5,8 +5,12 @@ import entity.HoaDon;
 import entity.KhuyenMai;
 import entity.NhanVien;
 import entity.PhieuTiepNhanSuaChua;
+import entity.KhachHang;
+import entity.Xe;
 import enums.PhuongThucThanhToan;
+import enums.TrangThaiPhieu;
 import enums.TrangThaiThanhToan;
+import enums.VaiTro;
 
 import java.sql.Connection;
 import java.sql.CallableStatement;
@@ -27,9 +31,18 @@ public class HoaDonDAO {
     private static final String SELECT_BASE =
             "SELECT h.maHoaDon, h.maPhieu, h.maNV, h.maKM, h.ngayLap, h.phuongThucTT, " +
             "       h.trangThaiThanhToan, h.thoiGianThanhToan, h.maGiaoDich, " +
-            "       v.tongTienDichVu, v.tongTienLinhKien, v.tienGiam, v.thue, v.tongThanhToan " +
+            "       v.tongTienDichVu, v.tongTienLinhKien, v.tienGiam, v.thue, v.tongThanhToan, " +
+            "       p.trangThai AS trangThaiPhieu, p.ngayGioTiepNhan, p.yeuCauBanDau, p.bienSoXe, " +
+            "       x.hangXe, x.model, x.mauSac, x.namSanXuat, x.soKmHienTai, x.maKH, " +
+            "       kh.hoTen AS tenChuXe, kh.soDienThoai AS sdtChuXe, " +
+            "       nv.vaiTro AS vaiTroNhanVien, nv.hoTen AS tenNhanVien, km.tenChuongTrinh " +
             "FROM HoaDon h " +
-            "LEFT JOIN vw_HoaDon_TongTien v ON h.maHoaDon = v.maHoaDon ";
+            "LEFT JOIN vw_HoaDon_TongTien v ON h.maHoaDon = v.maHoaDon " +
+            "LEFT JOIN PhieuTiepNhanSuaChua p ON p.maPhieu = h.maPhieu " +
+            "LEFT JOIN Xe x ON x.bienSoXe = p.bienSoXe " +
+            "LEFT JOIN KhachHang kh ON kh.maKH = x.maKH " +
+            "LEFT JOIN NhanVien nv ON nv.maNV = h.maNV " +
+            "LEFT JOIN KhuyenMai km ON km.maKM = h.maKM ";
 
     /**
      * Tìm hóa đơn theo mã hóa đơn.
@@ -140,10 +153,7 @@ public class HoaDonDAO {
      * Tìm kiếm hóa đơn theo từ khóa (mã HD, mã phiếu, biển số xe, tên khách hàng).
      */
     public List<HoaDon> timKiem(String tuKhoa, TrangThaiThanhToan trangThai) {
-        StringBuilder sql = new StringBuilder(SELECT_BASE)
-                .append("LEFT JOIN PhieuTiepNhanSuaChua p ON p.maPhieu = h.maPhieu ")
-                .append("LEFT JOIN Xe x ON x.bienSoXe = p.bienSoXe ")
-                .append("LEFT JOIN KhachHang kh ON kh.maKH = x.maKH WHERE 1=1 ");
+        StringBuilder sql = new StringBuilder(SELECT_BASE).append("WHERE 1=1 ");
         List<Object> params = new ArrayList<>();
         if (trangThai != null) { sql.append("AND h.trangThaiThanhToan = ? "); params.add(trangThai.name()); }
         if (tuKhoa != null && !tuKhoa.isBlank()) {
@@ -200,28 +210,68 @@ public class HoaDonDAO {
         HoaDon hd = new HoaDon(rs.getString("maHoaDon"));
 
         String maPhieu = rs.getString("maPhieu");
-        if (maPhieu != null) hd.setPhieuSuaChua(new PhieuTiepNhanSuaChua(maPhieu));
+        if (maPhieu != null) {
+            PhieuTiepNhanSuaChua phieu = new PhieuTiepNhanSuaChua(maPhieu);
+            String trangThaiPhieu = rs.getString("trangThaiPhieu");
+            if (trangThaiPhieu != null) phieu.setTrangThaiRaw(TrangThaiPhieu.valueOf(trangThaiPhieu));
+            Timestamp ngayTiepNhan = rs.getTimestamp("ngayGioTiepNhan");
+            if (ngayTiepNhan != null) phieu.setNgayGioTiepNhanRaw(new java.util.Date(ngayTiepNhan.getTime()));
+            phieu.setYeuCauBanDauRaw(rs.getString("yeuCauBanDau"));
+
+            String bienSoXe = rs.getString("bienSoXe");
+            if (bienSoXe != null) {
+                Xe xe = new Xe();
+                xe.setBienSoXeRaw(bienSoXe);
+                xe.setHangXeRaw(rs.getString("hangXe"));
+                xe.setModelRaw(rs.getString("model"));
+                xe.setMauSacRaw(rs.getString("mauSac"));
+                xe.setNamSanXuatRaw(rs.getInt("namSanXuat"));
+                xe.setSoKmHienTaiRaw(rs.getInt("soKmHienTai"));
+
+                String maKH = rs.getString("maKH");
+                if (maKH != null) {
+                    KhachHang kh = new KhachHang();
+                    kh.setMaKHRaw(maKH);
+                    kh.setHoTenRaw(rs.getString("tenChuXe"));
+                    kh.setSoDienThoaiRaw(rs.getString("sdtChuXe"));
+                    xe.setChuXeRaw(kh);
+                }
+                phieu.setXeRaw(xe);
+            }
+            hd.setPhieuSuaChuaRaw(phieu);
+        }
 
         String maNV = rs.getString("maNV");
-        if (maNV != null) hd.setNhanVien(new NhanVien(maNV));
+        if (maNV != null) {
+            NhanVien nhanVien = new NhanVien(maNV);
+            nhanVien.setHoTenRaw(rs.getString("tenNhanVien"));
+            String vaiTro = rs.getString("vaiTroNhanVien");
+            if (vaiTro != null) nhanVien.setVaiTroRaw(VaiTro.valueOf(vaiTro));
+            hd.setNhanVienRaw(nhanVien);
+        }
 
         String maKM = rs.getString("maKM");
-        if (maKM != null) hd.setKhuyenMai(new KhuyenMai(maKM));
+        if (maKM != null) {
+            KhuyenMai khuyenMai = new KhuyenMai(maKM);
+            String tenChuongTrinh = rs.getString("tenChuongTrinh");
+            if (tenChuongTrinh != null) khuyenMai.setTenChuongTrinh(tenChuongTrinh);
+            hd.setKhuyenMaiRaw(khuyenMai);
+        }
 
         Timestamp ngayLap = rs.getTimestamp("ngayLap");
-        if (ngayLap != null) hd.setNgayLap(new java.util.Date(ngayLap.getTime()));
+        if (ngayLap != null) hd.setNgayLapRaw(new java.util.Date(ngayLap.getTime()));
 
         String pt = rs.getString("phuongThucTT");
-        if (pt != null) hd.setPhuongThucTT(PhuongThucThanhToan.valueOf(pt));
+        if (pt != null) hd.setPhuongThucTTRaw(PhuongThucThanhToan.valueOf(pt));
 
         String tt = rs.getString("trangThaiThanhToan");
-        if (tt != null) hd.setTrangThaiThanhToan(TrangThaiThanhToan.valueOf(tt));
+        if (tt != null) hd.setTrangThaiThanhToanRaw(TrangThaiThanhToan.valueOf(tt));
 
         Timestamp thoiGianTT = rs.getTimestamp("thoiGianThanhToan");
-        if (thoiGianTT != null) hd.setThoiGianThanhToan(new java.util.Date(thoiGianTT.getTime()));
+        if (thoiGianTT != null) hd.setThoiGianThanhToanRaw(new java.util.Date(thoiGianTT.getTime()));
 
         String maGD = rs.getString("maGiaoDich");
-        if (maGD != null) hd.setMaGiaoDich(maGD);
+        if (maGD != null) hd.setMaGiaoDichRaw(maGD);
 
         // Computed values from view vw_HoaDon_TongTien
         hd.setTongTienDichVuRaw(rs.getDouble("tongTienDichVu"));

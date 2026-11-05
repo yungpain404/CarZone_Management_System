@@ -3,6 +3,11 @@
 > Agent đọc file này đầu mỗi phiên và cập nhật khi xong việc. Giữ ngắn, dưới 60 dòng. Trạng thái dưới đây lấy từ hai bản zip ngày 25/10/2026.
 
 ## Đã xong
+- **In hóa đơn bằng bản xem trước trên màn hình (05/11/2026):** Nút hóa đơn mở dialog xem trước; nút **In hóa đơn** trong dialog hiện thông báo in thành công trên màn hình. Không gửi lệnh máy in hay tạo PDF.
+- **Sửa KPI thống kê tiếp nhận (05/11/2026):** Thay số đếm toàn bộ khách hàng bằng số khách hàng duy nhất có phiếu trong bộ lọc ngày/trạng thái/vai trò; cận ngày kết thúc dùng khoảng nửa mở để bao gồm trọn ngày.
+- **Chỉ tải danh sách khi tìm kiếm/lọc (05/11/2026):** Hồ sơ khách hàng/xe, phiếu chờ thanh toán, lịch sử hóa đơn và danh sách phiếu đổi trả không tự truy vấn khi dựng trang; Tìm kiếm/bộ lọc mới tải, nút Làm mới xóa kết quả.
+- **Sửa lịch sử thanh toán (05/11/2026):** Sau khi lọc hóa đơn, đồng bộ danh sách nền với bảng đang hiển thị để thao tác xem chi tiết mở đúng hóa đơn được chọn.
+- **Sửa lỗi thu tiền và nạp lịch sử hóa đơn (05/11/2026):** `HoaDonDAO` map các quan hệ qua raw setter thay vì kiểm tra trạng thái phiếu chưa nạp; query nạp dữ liệu phiếu/xe/khách hàng, và phiếu HOAN_TAT có hóa đơn CHUA_THANH_TOAN vẫn hiện để thu tiền tiếp.
 - **Cấu hình Gmail quên mật khẩu local:** `GmailSmtpSender` đọc biến môi trường trước, nếu trống sẽ đọc `infra/docker/gmail.local.properties`; tệp mẫu được Git bỏ qua để người dùng tự điền App Password, không lưu bí mật trong mã nguồn.
 - **Sửa luồng và chẩn đoán gửi OTP (05/11/2026):** Link Quên mật khẩu hỏi tên tài khoản trước khi mở trang OTP; lỗi gửi được phân biệt thành xác thực Gmail, kết nối SMTP và Gmail từ chối nhận thư. Khi gửi lỗi, cho phép thử lại ngay thay vì khóa nhầm 60 giây.
 - **Sửa lỗi không bấm được Đặt lại mật khẩu:** Sau khi gửi OTP, trạng thái busy trước đó đã để nút đặt lại ở disabled; bật lại nút theo trạng thái OTP, giới hạn hàng nút theo bề rộng form và co dialog theo vùng màn hình khi chuyển bước.

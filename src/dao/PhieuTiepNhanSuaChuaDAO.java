@@ -27,7 +27,8 @@ public class PhieuTiepNhanSuaChuaDAO {
     /** Danh sách phiếu HOAN_TAT chưa có hóa đơn, dùng cho luồng lập hóa đơn. */
     public List<PhieuTiepNhanSuaChua> layDanhSachDuDieuKienLapHoaDon() {
         String sql = SELECT_TNV_BASE + "WHERE p.trangThai='HOAN_TAT' "
-                + "AND NOT EXISTS (SELECT 1 FROM HoaDon hd WHERE hd.maPhieu=p.maPhieu) "
+                + "AND NOT EXISTS (SELECT 1 FROM HoaDon hd WHERE hd.maPhieu=p.maPhieu "
+                + "AND hd.trangThaiThanhToan='DA_THANH_TOAN') "
                 + "ORDER BY p.ngayGioTiepNhan DESC";
         List<PhieuTiepNhanSuaChua> result = new ArrayList<>();
         try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql);
