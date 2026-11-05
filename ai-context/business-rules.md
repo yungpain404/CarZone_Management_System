@@ -72,3 +72,4 @@ Còn lại:
   + Bắt buộc nhập mã PIN cấp 2 của Chủ cửa hàng trên modal dialog.
   + Đúng PIN: Cấp quyền ngoại lệ tạm thời trong 60 giây.
   + Sai PIN ≥ 3 lần: Khóa phiên làm việc tức thì (Force Logout), hủy toàn bộ giao dịch, sao lưu khẩn cấp dữ liệu (Emergency Transaction Log Backup), và phát cảnh báo đến kênh an ninh `ntfy.sh`.
+- **Khôi phục mật khẩu qua OTP**: Hiển thị số lần nhập sai trên tổng 5 lần; đến lần sai thứ 5, khóa mã, gửi cảnh báo an ninh ghi rõ OTP tới `ntfy.sh`, hủy phiên hiện tại và đóng ứng dụng qua `AppShutdownManager` sau khi hoàn tất gửi cảnh báo.

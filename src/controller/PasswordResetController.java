@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** Coordinates one-time email codes and password recovery. Codes remain in process memory. */
 public final class PasswordResetController {
+    private static final int MAX_CODE_ATTEMPTS = 5;
     public enum SendResult { SENT, INVALID_USERNAME, MISSING_EMAIL, TOO_SOON, UNAVAILABLE, AUTHENTICATION_FAILED, CONNECTION_FAILED, DELIVERY_FAILED, FAILED }
     public enum ResetResult { VALIDATED, SUCCESS, INVALID_CODE, EXPIRED, LOCKED, FAILED }
     public record SendOutcome(SendResult result, String emailDaChe, boolean maHienTaiConDung) {}
@@ -77,11 +78,11 @@ public final class PasswordResetController {
             if (pending == null) return ResetResult.FAILED;
             Instant now=Instant.now();
             if (!pending.expiresAt().isAfter(now)) { CODES.remove(target.maNV()); return ResetResult.EXPIRED; }
-            if (pending.attempts() >= 5) return ResetResult.LOCKED;
+            if (pending.attempts() >= MAX_CODE_ATTEMPTS) return ResetResult.LOCKED;
             if (!pending.hash().equalsIgnoreCase(bam(codeInput))) {
                 PendingCode updated=pending.withAttempt();
                 CODES.put(target.maNV(),updated);
-                return updated.attempts() >= 5 ? ResetResult.LOCKED : ResetResult.INVALID_CODE;
+                return updated.attempts() >= MAX_CODE_ATTEMPTS ? ResetResult.LOCKED : ResetResult.INVALID_CODE;
             }
             CODES.put(target.maNV(), pending.markVerified());
             return ResetResult.VALIDATED;
@@ -101,7 +102,7 @@ public final class PasswordResetController {
             if (pending == null || !pending.verified()) return ResetResult.FAILED;
             Instant now=Instant.now();
             if (!pending.expiresAt().isAfter(now)) { CODES.remove(target.maNV()); return ResetResult.EXPIRED; }
-            if (pending.attempts() >= 5) return ResetResult.LOCKED;
+            if (pending.attempts() >= MAX_CODE_ATTEMPTS) return ResetResult.LOCKED;
             if (!dao.datLaiMatKhau(target.maNV(),validated.getMatKhau())) return ResetResult.FAILED;
             CODES.remove(target.maNV());
             return ResetResult.SUCCESS;
@@ -113,6 +114,16 @@ public final class PasswordResetController {
         String value=input.strip().toUpperCase(java.util.Locale.ROOT);
         return value.matches("(CCH|TNV|KTV)\\d{3}") ? value : null;
     }
+
+    public int soLanNhapSai(String maNV) {
+        String normalized = chuanHoaTenDangNhap(maNV);
+        if (normalized == null) return 0;
+        PendingCode pending = CODES.get(normalized);
+        return pending == null ? 0 : pending.attempts();
+    }
+
+    public int soLanNhapSaiToiDa() { return MAX_CODE_ATTEMPTS; }
+
     private static String cheEmail(String email) {
         if (email == null || !email.contains("@")) return null;
         int at=email.lastIndexOf('@');
