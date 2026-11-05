@@ -140,7 +140,11 @@ public class LapPhieuTiepNhanUI extends JPanel {
         });
         cboLocTrangThai.setFont(f(Font.PLAIN, 13));
         cboLocTrangThai.setPreferredSize(new Dimension(220, 36));
-        cboLocTrangThai.addActionListener(e -> thucHienTimKiem());
+        cboLocTrangThai.addActionListener(e -> {
+            if (!dangCapNhatBoLocNgoai) {
+                thucHienTimKiem();
+            }
+        });
         left.add(cboLocTrangThai);
 
         JButton btnTim = new RoundedButton("Tìm kiếm", 8, C_WHITE, new Color(0xF1F5F9), C_BORDER);
@@ -272,14 +276,17 @@ public class LapPhieuTiepNhanUI extends JPanel {
     // ─────────────────────────────────────────────────────────────────────────
     // 3. TẢI DỮ LIỆU & BỘ LỌC (Tối ưu tìm kiếm trực tiếp qua SQL, không lag)
     // ─────────────────────────────────────────────────────────────────────────
-    private boolean dangTimKiem = false;
+    private boolean dangCapNhatBoLocNgoai = false;
+    private SwingWorker<List<PhieuTiepNhanSuaChua>, Void> workerHienTai;
 
     public void taiDanhSachPhieu() {
         thucHienTimKiem();
     }
 
     public void thucHienTimKiem() {
-        if (dangTimKiem) return;
+        if (workerHienTai != null && !workerHienTai.isDone()) {
+            workerHienTai.cancel(true);
+        }
 
         String kw = txtTimKiem != null ? txtTimKiem.getText().trim() : "";
         int idx = cboLocTrangThai != null ? cboLocTrangThai.getSelectedIndex() : 0;
@@ -292,11 +299,10 @@ public class LapPhieuTiepNhanUI extends JPanel {
             default -> null;
         };
 
-        dangTimKiem = true;
         lblSoLuong.setText("Đang tìm kiếm dữ liệu...");
         btnXemChiTiet.setEnabled(false);
 
-        new SwingWorker<List<PhieuTiepNhanSuaChua>, Void>() {
+        workerHienTai = new SwingWorker<List<PhieuTiepNhanSuaChua>, Void>() {
             @Override
             protected List<PhieuTiepNhanSuaChua> doInBackground() {
                 return controller.timKiemPhieu(kw, tt);
@@ -304,7 +310,7 @@ public class LapPhieuTiepNhanUI extends JPanel {
 
             @Override
             protected void done() {
-                dangTimKiem = false;
+                if (isCancelled()) return;
                 try {
                     dsPhieu = get();
                     hienThiKetQuaLenBang();
@@ -312,7 +318,8 @@ public class LapPhieuTiepNhanUI extends JPanel {
                     lblSoLuong.setText("Lỗi tìm kiếm: " + ex.getMessage());
                 }
             }
-        }.execute();
+        };
+        workerHienTai.execute();
     }
 
     private void hienThiKetQuaLenBang() {
@@ -351,21 +358,26 @@ public class LapPhieuTiepNhanUI extends JPanel {
      * Áp dụng bộ lọc từ bên ngoài (ví dụ nhấp vào thẻ KPI trên Dashboard).
      */
     public void apDungBoLocTuNgoai(TrangThaiPhieu tt, String tuKhoa) {
-        if (cboLocTrangThai != null) {
-            if (tt != null) {
-                switch (tt) {
-                    case CHO_SUA -> cboLocTrangThai.setSelectedIndex(1);
-                    case DANG_SUA -> cboLocTrangThai.setSelectedIndex(2);
-                    case CHO_LINH_KIEN -> cboLocTrangThai.setSelectedIndex(3);
-                    case HOAN_TAT -> cboLocTrangThai.setSelectedIndex(4);
+        dangCapNhatBoLocNgoai = true;
+        try {
+            if (cboLocTrangThai != null) {
+                if (tt != null) {
+                    switch (tt) {
+                        case CHO_SUA -> cboLocTrangThai.setSelectedIndex(1);
+                        case DANG_SUA -> cboLocTrangThai.setSelectedIndex(2);
+                        case CHO_LINH_KIEN -> cboLocTrangThai.setSelectedIndex(3);
+                        case HOAN_TAT -> cboLocTrangThai.setSelectedIndex(4);
+                    }
+                } else {
+                    cboLocTrangThai.setSelectedIndex(0);
                 }
-            } else {
-                cboLocTrangThai.setSelectedIndex(0);
             }
-        }
 
-        if (txtTimKiem != null) {
-            txtTimKiem.setText(tuKhoa != null ? tuKhoa : "");
+            if (txtTimKiem != null) {
+                txtTimKiem.setText(tuKhoa != null ? tuKhoa : "");
+            }
+        } finally {
+            dangCapNhatBoLocNgoai = false;
         }
 
         thucHienTimKiem();
