@@ -106,3 +106,9 @@ Mục đích là tránh hai bên làm trùng hoặc mâu thuẫn:
   + Tạm dừng luồng DB đang chạy, hiển thị `PinVerificationDialog` trên EDT yêu cầu mã PIN cấp 2 (băm SHA-256).
   + Đúng PIN: Mở khóa, thêm bảng vào `whitelist` tạm thời 60 giây (suppression window) để không bị hỏi lại.
   + Sai PIN ≥ 3 lần: Cưỡng chế thoát (Force Logout), hủy giao dịch, kích hoạt sao lưu khẩn cấp (`BackupService.thucHienBackup(BackupType.LOG)`), gửi cảnh báo khẩn cấp tới `ntfy.sh` và Audit Log, đóng toàn bộ Frame về màn hình Đăng nhập.
+
+## Quyền truy cập riêng theo tài khoản (Chốt 05/11/2026)
+- Chủ cửa hàng cấu hình quyền cho **một tài khoản nhân viên cụ thể**, không thay đổi cấu hình quyền dùng chung của vai trò.
+- Tài khoản có thể dùng tập quyền theo hồ sơ hiện tại, toàn bộ màn hình TNV/KTV, hoặc tập màn hình tùy chỉnh.
+- Cấp màn hình của vai trò khác là **chỉ xem**; controller và DB vẫn áp dụng vai trò hồ sơ cho thao tác ghi nghiệp vụ. Mã nhân viên, tên đăng nhập và lịch sử giao dịch không bị đổi.
+- Đây là quyền truy cập ứng dụng, không phải quy trình chuyển đổi hồ sơ nhân sự giữa KTV và TNV. Ràng buộc DB gắn vai trò với mã nhân viên và lưu lịch sử bằng mã đó.

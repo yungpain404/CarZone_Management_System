@@ -220,3 +220,12 @@
 - Chuẩn hóa tên các DAO sang hậu tố `DAO`; gộp DAO TNV vào một class cụ thể trong `src/dao/`, không giữ cặp interface/implementation trong `dao.impl`.
 - Kiểm tra `mvn -q compile` thành công sau khi tích hợp.
 - Pull cập nhật tiếp theo từ `feature/backup`: giữ instance màn CCH trong `MainFrame`, giữ chọn ngày bằng JCalendar và các bộ lọc số trong `UIInputRules`; bổ sung các thay đổi audit/PIN của backup. Đã giải quyết các conflict và `mvn -q compile` thành công.
+
+- **Gắn UI phân quyền vào Quản lý tài khoản (05/11/2026):** thêm nút Phân quyền và dialog bật/tắt quyền chỉ cho Tiếp nhận viên/Kỹ thuật viên; lưu qua controller/DAO vào QuyenChucNang, báo rõ nếu thiếu migration V6. Đồng thời bỏ lại cột Thao tác theo yêu cầu trước đó.
+
+- **Hoàn thiện phân quyền theo vai trò (05/11/2026):** cấu hình chỉ gồm Tiếp nhận viên và Kỹ thuật viên; quyền được tải từ DB khi đăng nhập, menu lọc theo quyền và MainFrame chặn điều hướng tới module bị thu hồi. Chủ cửa hàng giữ toàn quyền.
+
+- **Hiển thị email trong Quản lý nhân viên (05/11/2026):** thêm cột Email vào bảng kết quả và giữ renderer trạng thái tài khoản ở cột cuối; email lấy từ trường nhân viên đã được DAO map.
+- **Tinh gọn nút màn quản trị hồ sơ/tài khoản (05/11/2026):** bỏ nút Quay lại ở Quản lý nhân viên và Quản lý tài khoản; bỏ Tra cứu và Tạo tài khoản khỏi Quản lý nhân viên (cả thanh tác vụ và chi tiết hồ sơ). Tạo tài khoản vẫn thao tác tại màn Quản lý tài khoản.
+- **Căn lại card cảnh báo Dashboard CCH (05/11/2026):** đặt card cảnh báo hết hàng trong cột căn NORTH để giữ chiều cao theo nội dung thay vì bị kéo bằng bảng yêu cầu; các hàng linh kiện giữ chiều cao tự nhiên, tránh tạo khoảng trắng lớn giữa các mã.
+- **Chuyển phân quyền từ vai trò sang tài khoản (05/11/2026):** thêm migration V7 lưu tập quyền cho từng tài khoản; dialog chọn hồ sơ hiện tại, toàn bộ màn hình TNV/KTV hoặc màn hình tùy chỉnh. Quyền chéo vai trò mở trang ở chế độ xem, giữ kiểm tra vai trò khi ghi nghiệp vụ; thống kê tiếp nhận của người không phải CCH được giới hạn theo mã người đăng nhập.

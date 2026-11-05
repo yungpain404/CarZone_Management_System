@@ -2,6 +2,7 @@ package controller;
 
 import connectDB.DbUtil;
 import dao.TaiKhoanDAO;
+import dao.QuyenTaiKhoanDAO;
 import entity.NhanVien;
 import entity.TaiKhoan;
 import enums.VaiTro;
@@ -10,6 +11,7 @@ import ui.DangNhapUI;
 
 import javax.swing.*;
 import java.util.List;
+import java.util.LinkedHashMap;
 
 /**
  * Controller phụ trách xác thực người dùng và quản lý phiên làm việc.
@@ -21,6 +23,7 @@ import java.util.List;
 public class AuthController {
 
     private final TaiKhoanDAO taiKhoanDao;
+    private final QuyenTaiKhoanDAO quyenTaiKhoanDAO = new QuyenTaiKhoanDAO();
 
     public AuthController() {
         this.taiKhoanDao = new TaiKhoanDAO();
@@ -144,6 +147,16 @@ public class AuthController {
 
         // 6. Khởi tạo phiên làm việc (Session) cho người dùng
         UserSession.getInstance().batDauPhien(taiKhoan, nhanVien);
+        if (nhanVien.getVaiTro() != VaiTro.CHU_CUA_HANG) {
+            try {
+                QuyenTaiKhoanDAO.CauHinh cauHinh = quyenTaiKhoanDAO.layCauHinh(nhanVien.getMaNV());
+                if (cauHinh != null)
+                    UserSession.getInstance().datCauHinhTruyCap(cauHinh.cheDo(), cauHinh.maChucNang());
+            } catch (RuntimeException e) {
+                UserSession.getInstance().huyPhien();
+                return new KetQuaXacThuc(false, "Không thể tải phân quyền tài khoản. Hãy chạy migration V7. " + e.getMessage(), null);
+            }
+        }
 
         return new KetQuaXacThuc(true, "Chào mừng " + nhanVien.getHoTen() + "!", nhanVien);
     }
@@ -205,7 +218,7 @@ public class AuthController {
             vaiTro = VaiTro.CHU_CUA_HANG;
         }
 
-        return switch (vaiTro) {
+        List<NavigationItem> navigation = switch (vaiTro) {
             case CHU_CUA_HANG -> List.of(
                     new NavigationItem("NAV_DASHBOARD", "📊", "Dashboard", "Trang chủ / Tổng quan"),
                     new NavigationItem("NAV_THONG_KE", "📈", "Thống kê báo cáo", "Kinh doanh / Báo cáo doanh thu"),
@@ -248,6 +261,18 @@ public class AuthController {
                     new NavigationItem("NAV_THONG_TIN_CA_NHAN", "👤", "Thông tin cá nhân",
                             "Tài khoản / Hồ sơ cá nhân"));
         };
+        UserSession session = UserSession.getInstance();
+        if (session.getVaiTro() != vaiTro || vaiTro == VaiTro.CHU_CUA_HANG) return navigation;
+        if (session.dangDungQuyenRieng()) {
+            LinkedHashMap<String, NavigationItem> all = new LinkedHashMap<>();
+            navigation.forEach(item -> all.put(item.getId(), item));
+            for (VaiTro sourceRole : List.of(VaiTro.TIEP_NHAN_VIEN, VaiTro.KY_THUAT_VIEN)) {
+                if (sourceRole == vaiTro) continue;
+                layDanhSachNavigationTheoRole(sourceRole).forEach(item -> all.putIfAbsent(item.getId(), item));
+            }
+            return all.values().stream().filter(item -> session.coQuyenChucNang(item.getId())).toList();
+        }
+        return navigation.stream().filter(item -> session.coQuyenChucNang(item.getId())).toList();
     }
 
     /**

@@ -559,6 +559,11 @@ public class MainFrame extends JFrame {
     public void moPageTheoNavigation(String navId) {
         if (navId == null || navId.equals(activeNavId))
             return;
+        if (!UserSession.getInstance().coQuyenChucNang(navId)) {
+            JOptionPane.showMessageDialog(this, "Vai trò của bạn chưa được cấp quyền vào chức năng này.",
+                    "Không đủ quyền", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         this.activeNavId = navId;
 
         // Chuyển card trong contentPanel
@@ -668,7 +673,7 @@ public class MainFrame extends JFrame {
                 pnlContentPanel.add(buildRoleDashboardPage(), item.getId());
             } else if ("NAV_THONG_KE".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
                 pnlContentPanel.add(new ThongKeDoanhThuUI(nhanVien), item.getId());
-            } else if ("NAV_THONG_KE".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.KY_THUAT_VIEN) {
+            } else if ("NAV_THONG_KE".equals(item.getId()) && nhanVien.getVaiTro() != VaiTro.CHU_CUA_HANG) {
                 ThongKeSuaChuaUI thongKeUI = new ThongKeSuaChuaUI();
                 thongKeUI.setOnMoYeuCauLinhKien(() -> moPageTheoNavigation("NAV_YC_LINH_KIEN"));
                 pnlContentPanel.add(thongKeUI, item.getId());
@@ -681,17 +686,17 @@ public class MainFrame extends JFrame {
             } else if ("NAV_YC_LINH_KIEN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
                 xuLyYeuCauCCHUI = new XuLyYeuCauLinhKienUI();
                 pnlContentPanel.add(xuLyYeuCauCCHUI, item.getId());
-            } else if ("NAV_PHIEU_PHAN_CONG".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.KY_THUAT_VIEN) {
+            } else if ("NAV_PHIEU_PHAN_CONG".equals(item.getId())) {
                 pnlContentPanel.add(new PhieuPhanCongUI(maPhieu -> {
                     moPageTheoNavigation("NAV_CAP_NHAT_SUA_CHUA");
                     if (capNhatPhieuUI != null) {
                         capNhatPhieuUI.datMaPhieuCanSua(maPhieu);
                     }
                 }), item.getId());
-            } else if ("NAV_CAP_NHAT_SUA_CHUA".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.KY_THUAT_VIEN) {
+            } else if ("NAV_CAP_NHAT_SUA_CHUA".equals(item.getId())) {
                 capNhatPhieuUI = new CapNhatPhieuSuaChuaUI(v -> moPageTheoNavigation("NAV_PHIEU_PHAN_CONG"));
                 pnlContentPanel.add(capNhatPhieuUI, item.getId());
-            } else if ("NAV_YC_LINH_KIEN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.KY_THUAT_VIEN) {
+            } else if ("NAV_YC_LINH_KIEN".equals(item.getId()) && nhanVien.getVaiTro() != VaiTro.CHU_CUA_HANG) {
                 pnlContentPanel.add(new YeuCauLinhKienKTVUI(), item.getId());
             } else if ("NAV_KHUYEN_MAI".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.CHU_CUA_HANG) {
                 pnlContentPanel.add(new QuanLyKhuyenMaiUI(), item.getId());
@@ -707,16 +712,16 @@ public class MainFrame extends JFrame {
                 pnlContentPanel.add(traCuuUI, item.getId());
             } else if ("NAV_THONG_TIN_CA_NHAN".equals(item.getId())) {
                 pnlContentPanel.add(new ThongTinCaNhanUI(), item.getId());
-            } else if ("NAV_KHACH_HANG_XE".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.TIEP_NHAN_VIEN) {
+            } else if ("NAV_KHACH_HANG_XE".equals(item.getId())) {
                 pnlContentPanel.add(new QuanLyKhachHangVaXeUI(), item.getId());
-            } else if ("NAV_PHIEU_TIEP_NHAN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.TIEP_NHAN_VIEN) {
+            } else if ("NAV_PHIEU_TIEP_NHAN".equals(item.getId())) {
                 lapPhieuTiepNhanUI = new LapPhieuTiepNhanUI();
                 pnlContentPanel.add(lapPhieuTiepNhanUI, item.getId());
-            } else if ("NAV_HOA_DON".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.TIEP_NHAN_VIEN) {
+            } else if ("NAV_HOA_DON".equals(item.getId())) {
                 pnlContentPanel.add(new LapHoaDonThanhToanUI(), item.getId());
-            } else if ("NAV_DOI_TRA".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.TIEP_NHAN_VIEN) {
+            } else if ("NAV_DOI_TRA".equals(item.getId())) {
                 pnlContentPanel.add(new TaoPhieuDoiTraUI(), item.getId());
-            } else if ("NAV_THONG_KE_TIEP_NHAN".equals(item.getId()) && nhanVien.getVaiTro() == VaiTro.TIEP_NHAN_VIEN) {
+            } else if ("NAV_THONG_KE_TIEP_NHAN".equals(item.getId())) {
                 pnlContentPanel.add(new ThongKeTiepNhanUI(), item.getId());
             } else {
                 pnlContentPanel.add(buildModulePage(item), item.getId());
@@ -928,7 +933,13 @@ public class MainFrame extends JFrame {
             pnlHangViec.setAlignmentX(Component.CENTER_ALIGNMENT);
             pnlHangViec.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
             pnlHangViec.add(taoBangYeuCauChoDuyet(), BorderLayout.CENTER);
-            pnlHangViec.add(taoCardCanhBaoHetHang(), BorderLayout.EAST);
+            JPanel cotCanhBao = new JPanel(new BorderLayout());
+            cotCanhBao.setOpaque(false);
+            cotCanhBao.setPreferredSize(new Dimension(310, 0));
+            cotCanhBao.setMinimumSize(new Dimension(310, 0));
+            cotCanhBao.setMaximumSize(new Dimension(310, Integer.MAX_VALUE));
+            cotCanhBao.add(taoCardCanhBaoHetHang(), BorderLayout.NORTH);
+            pnlHangViec.add(cotCanhBao, BorderLayout.EAST);
             add(pnlHangViec);
             add(Box.createVerticalStrut(18));
 
@@ -1116,8 +1127,7 @@ public class MainFrame extends JFrame {
         private JPanel taoCardCanhBaoHetHang() {
             RoundedPanel card = new RoundedPanel(C_WHITE, 14, F_LINE, new Insets(14, 14, 14, 14));
             card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-            card.setPreferredSize(new Dimension(310, 0)); // chỉ cố định rộng, cao tự co
-            card.setMinimumSize(new Dimension(310, 80));
+            card.setMinimumSize(new Dimension(310, 0));
             card.setMaximumSize(new Dimension(310, Integer.MAX_VALUE));
 
             // Heading: hàng trên – icon cảnh báo ⚠ + tiêu đề (trái); badge số mã (phải)
@@ -1158,7 +1168,6 @@ public class MainFrame extends JFrame {
             item.setLayout(new BoxLayout(item, BoxLayout.Y_AXIS));
             item.setOpaque(false);
             item.setAlignmentX(Component.LEFT_ALIGNMENT);
-            item.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
             item.setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createMatteBorder(0, 0, 1, 0, F_LINE),
                     new EmptyBorder(0, 0, 14, 0)));
@@ -1169,6 +1178,7 @@ public class MainFrame extends JFrame {
             top.add(taoNhan(r.tenLinhKien, Font.BOLD, 13, F_TITLE), BorderLayout.WEST);
             top.add(taoNhan("0 " + r.donVi, Font.BOLD, 13, F_DANGER), BorderLayout.EAST);
             item.add(top);
+            item.setMaximumSize(new Dimension(Integer.MAX_VALUE, item.getPreferredSize().height));
             return item;
         }
 

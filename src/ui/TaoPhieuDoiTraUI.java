@@ -3,6 +3,7 @@ package ui;
 import controller.TaoPhieuDoiTraController;
 import entity.*;
 import enums.HuongXuLyDoiTra;
+import enums.VaiTro;
 import session.UserSession;
 
 import javax.swing.*;
@@ -168,6 +169,7 @@ public class TaoPhieuDoiTraUI extends JPanel {
         btnThemPhieu.setFont(f(Font.BOLD, 12));
         btnThemPhieu.setForeground(C_WHITE);
         btnThemPhieu.setPreferredSize(new Dimension(200, 36));
+        btnThemPhieu.setVisible(UserSession.getInstance().getVaiTro() == VaiTro.TIEP_NHAN_VIEN);
         btnThemPhieu.addActionListener(e -> moModalTaoPhieu());
         right.add(btnThemPhieu);
 
@@ -396,6 +398,7 @@ public class TaoPhieuDoiTraUI extends JPanel {
     }
 
     private void moModalTaoPhieu() {
+        if (UserSession.getInstance().getVaiTro() != VaiTro.TIEP_NHAN_VIEN) return;
         Window parent = SwingUtilities.getWindowAncestor(this);
         TaoPhieuDoiTraModalDialog dialog = new TaoPhieuDoiTraModalDialog(parent);
         dialog.setVisible(true);

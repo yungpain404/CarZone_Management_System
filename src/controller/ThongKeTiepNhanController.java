@@ -26,8 +26,8 @@ public class ThongKeTiepNhanController {
         this.thongKeDao = new ThongKeTiepNhanDAO();
     }
 
-    private String layMaNVNeuLaTNV() {
-        if (UserSession.getInstance() != null && UserSession.getInstance().getVaiTro() == VaiTro.TIEP_NHAN_VIEN) {
+    private String layMaNVNguoiDangNhap() {
+        if (UserSession.getInstance() != null && UserSession.getInstance().getVaiTro() != VaiTro.CHU_CUA_HANG) {
             if (UserSession.getInstance().getNhanVien() != null) {
                 return UserSession.getInstance().getNhanVien().getMaNV();
             }
@@ -39,7 +39,7 @@ public class ThongKeTiepNhanController {
      * Lấy dữ liệu thống kê tổng quan (Phần 1).
      */
     public ThongKeData layThongKe(Date tuNgay, Date denNgay, String trangThai) {
-        String maNV = layMaNVNeuLaTNV();
+        String maNV = layMaNVNguoiDangNhap();
         return thongKeDao.layThongKe(maNV, tuNgay, denNgay, trangThai);
     }
 
@@ -47,7 +47,7 @@ public class ThongKeTiepNhanController {
      * Lấy dữ liệu so sánh Tháng này vs Tháng trước (Phần 2 - Dashboard A).
      */
     public SoSanhThangData laySoSanhThang() {
-        String maNV = layMaNVNeuLaTNV();
+        String maNV = layMaNVNguoiDangNhap();
         return thongKeDao.laySoSanhThang(maNV);
     }
 
@@ -55,7 +55,7 @@ public class ThongKeTiepNhanController {
      * Lấy dữ liệu so sánh Năm nay vs Năm trước (Phần 2 - Dashboard B).
      */
     public SoSanhNamData laySoSanhNam() {
-        String maNV = layMaNVNeuLaTNV();
+        String maNV = layMaNVNguoiDangNhap();
         return thongKeDao.laySoSanhNam(maNV);
     }
 
@@ -63,7 +63,7 @@ public class ThongKeTiepNhanController {
      * Lấy dữ liệu tình hình xử lý và tồn đọng phiếu (Phần 3).
      */
     public TinhHinhXuLyData layTinhHinhXuLy() {
-        String maNV = layMaNVNeuLaTNV();
+        String maNV = layMaNVNguoiDangNhap();
         return thongKeDao.layTinhHinhXuLy(maNV);
     }
 
@@ -71,7 +71,7 @@ public class ThongKeTiepNhanController {
      * Lấy dữ liệu thống kê đổi trả (Phần 4): hôm nay, tháng này, 7 ngày, phân bố, danh sách gần đây.
      */
     public ThongKeDoiTraData layThongKeDoiTra() {
-        String maNV = layMaNVNeuLaTNV();
+        String maNV = layMaNVNguoiDangNhap();
         return thongKeDao.layThongKeDoiTra(maNV);
     }
 
