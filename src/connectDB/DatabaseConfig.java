@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,18 +17,39 @@ import java.util.Map;
  * Khóa: SQLSERVER_DATABASE, SQLSERVER_SA_PASSWORD, SQLSERVER_PORT.
  */
 public final class DatabaseConfig {
-    /** Đường dẫn .env, tính từ thư mục gốc dự án (thư mục chạy ứng dụng). */
-    private static final Path ENV_FILE = Path.of("infra", "docker", ".env");
+    /** Tìm .env từ thư mục chạy hoặc vị trí class/JAR, kể cả khi IDE đổi working directory. */
+    private static Path timFileEnv() {
+        List<Path> diemBatDau = new ArrayList<>();
+        diemBatDau.add(Path.of(System.getProperty("user.dir", ".")));
+        try {
+            Path viTriCode = Path.of(DatabaseConfig.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toURI());
+            diemBatDau.add(Files.isDirectory(viTriCode) ? viTriCode : viTriCode.getParent());
+        } catch (Exception ignored) {
+            // Vẫn thử từ working directory nếu không xác định được vị trí class/JAR.
+        }
+
+        for (Path diem : diemBatDau) {
+            if (diem == null) continue;
+            Path thuMuc = diem.toAbsolutePath().normalize();
+            for (int i = 0; thuMuc != null && i < 8; i++, thuMuc = thuMuc.getParent()) {
+                Path ungVien = thuMuc.resolve("infra").resolve("docker").resolve(".env");
+                if (Files.isRegularFile(ungVien)) return ungVien;
+            }
+        }
+        return Path.of("infra", "docker", ".env");
+    }
 
     private DatabaseConfig() {
     }
 
     private static Map<String, String> docEnv() {
         Map<String, String> m = new HashMap<>();
+        Path envFile = timFileEnv();
         try {
-            List<String> lines = Files.readAllLines(ENV_FILE, StandardCharsets.UTF_8);
+            List<String> lines = Files.readAllLines(envFile, StandardCharsets.UTF_8);
             for (String line : lines) {
-                String t = line.strip();
+                String t = line.replace("\uFEFF", "").strip();
                 if (t.isEmpty() || t.startsWith("#"))
                     continue;
                 int i = t.indexOf('=');
@@ -52,7 +74,7 @@ public final class DatabaseConfig {
             v = env.get(khoa);
         if (v == null || v.isBlank()) {
             throw new IllegalStateException("Thiếu cấu hình " + khoa
-                    + " (biến môi trường hoặc " + ENV_FILE + ").");
+                    + " (biến môi trường hoặc infra/docker/.env trong thư mục dự án).");
         }
         return v;
     }
