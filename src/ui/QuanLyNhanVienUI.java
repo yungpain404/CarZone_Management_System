@@ -48,16 +48,13 @@ public class QuanLyNhanVienUI extends JPanel {
             "Tất cả", "Chủ cửa hàng", "Tiếp nhận viên", "Kỹ thuật viên"});
     private final JButton btnTim = button("Tìm kiếm", true, 94);
     private final JButton btnLamMoi = button("Làm mới", false, 92);
-    private final JButton btnQuayLai = button("Quay lại", false, 88);
     private final JButton btnThem = button("Thêm hồ sơ", true, 114);
     private final JButton btnSua = button("Sửa", false, 62);
-    private final JButton btnTaoTaiKhoan = button("Tạo tài khoản", false, 122);
-    private final JButton btnTraCuu = button("Tra cứu", false, 84);
     private final JLabel lblError = label("", 12, RED, Font.PLAIN);
     private final JLabel lblStatus = label("", 12, SUBTLE, Font.PLAIN);
     private final JPanel pnlResults = new JPanel();
     private final DefaultTableModel model = new DefaultTableModel(new Object[]{
-            "Mã nhân viên", "Họ tên", "Vai trò", "Số điện thoại", "Ngày vào làm", "Tài khoản"}, 0) {
+            "Mã nhân viên", "Họ tên", "Vai trò", "Số điện thoại", "Email", "Ngày vào làm", "Tài khoản"}, 0) {
         @Override public boolean isCellEditable(int row, int column) { return false; }
     };
     private final JTable table = new JTable(model);
@@ -150,7 +147,7 @@ public class QuanLyNhanVienUI extends JPanel {
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 22));
         buttons.setOpaque(false);
-        buttons.add(btnTim); buttons.add(btnLamMoi); buttons.add(btnQuayLai);
+        buttons.add(btnTim); buttons.add(btnLamMoi);
         g.gridx = 2; g.weightx = .25; g.insets = new Insets(0, 0, 0, 0);
         row.add(buttons, g);
         return row;
@@ -160,7 +157,7 @@ public class QuanLyNhanVienUI extends JPanel {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         row.setOpaque(false);
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
-        row.add(btnThem); row.add(btnSua); row.add(btnTaoTaiKhoan); row.add(btnTraCuu);
+        row.add(btnThem); row.add(btnSua);
         return row;
     }
 
@@ -168,14 +165,8 @@ public class QuanLyNhanVienUI extends JPanel {
         btnTim.addActionListener(e -> timKiem());
         txtTimKiem.addActionListener(e -> timKiem());
         btnLamMoi.addActionListener(e -> lamMoi());
-        btnQuayLai.addActionListener(e -> {
-            Window owner = SwingUtilities.getWindowAncestor(this);
-            if (owner instanceof MainFrame frame) frame.moPageTheoNavigation("NAV_DASHBOARD");
-        });
         btnThem.addActionListener(e -> moForm(null));
         btnSua.addActionListener(e -> moFormSua());
-        btnTaoTaiKhoan.addActionListener(e -> moTrang("NAV_TAI_KHOAN"));
-        btnTraCuu.addActionListener(e -> moTrang("NAV_TRA_CUU"));
         table.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) capNhatChiTiet();
         });
@@ -189,11 +180,6 @@ public class QuanLyNhanVienUI extends JPanel {
                 if (e.getKeyCode() == KeyEvent.VK_ESCAPE) lamMoi();
             }
         });
-    }
-
-    private void moTrang(String navId) {
-        Window owner = SwingUtilities.getWindowAncestor(this);
-        if (owner instanceof MainFrame frame) frame.moPageTheoNavigation(navId);
     }
 
     private VaiTro vaiTroDaChon() {
@@ -261,7 +247,7 @@ public class QuanLyNhanVienUI extends JPanel {
                 return cell;
             }
         };
-        table.getColumnModel().getColumn(5).setCellRenderer(accountRenderer);
+        table.getColumnModel().getColumn(6).setCellRenderer(accountRenderer);
         JScrollPane tableScroll = new JScrollPane(table);
         tableScroll.setBorder(BorderFactory.createLineBorder(BORDER)); tableScroll.getViewport().setBackground(WHITE);
         listCard.add(tableScroll, BorderLayout.CENTER);
@@ -276,7 +262,7 @@ public class QuanLyNhanVienUI extends JPanel {
         model.setRowCount(0);
         for (NhanVien nv : ketQua) {
             model.addRow(new Object[]{nv.getMaNV(), nv.getHoTen(), tenVaiTro(nv.getVaiTro()), nv.getSoDienThoai(),
-                    ngay(nv.getNgayVaoLam()), nv.getTaiKhoan() == null ? "Chưa cấp" : "Đã cấp"});
+                    nv.getEmail(), ngay(nv.getNgayVaoLam()), nv.getTaiKhoan() == null ? "Chưa cấp" : "Đã cấp"});
         }
         if (!ketQua.isEmpty()) table.setRowSelectionInterval(0, 0);
         pnlResults.revalidate(); pnlResults.repaint(); capNhatChiTiet();
@@ -339,9 +325,9 @@ public class QuanLyNhanVienUI extends JPanel {
                     ? "Hồ sơ này chưa được liên kết tài khoản đăng nhập."
                     : "Tài khoản liên kết đang hoạt động: " + (selected.getTaiKhoan().isTrangThaiHoatDong() ? "Có" : "Không"), 12, SUBTLE, Font.PLAIN));
             JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0)); actions.setOpaque(false);
-            JButton edit = button("Sửa hồ sơ", false, 102); JButton account = button("Tạo tài khoản", true, 122); JButton lookup = button("Tra cứu", false, 84);
-            edit.addActionListener(e -> moFormSua()); account.addActionListener(e -> moTrang("NAV_TAI_KHOAN")); lookup.addActionListener(e -> moTrang("NAV_TRA_CUU"));
-            actions.add(edit); if (selected.getTaiKhoan() == null) actions.add(account); actions.add(lookup);
+            JButton edit = button("Sửa hồ sơ", false, 102);
+            edit.addActionListener(e -> moFormSua());
+            actions.add(edit);
             JPanel content = new JPanel(new BorderLayout(0, 12)); content.setOpaque(false);
             content.add(body, BorderLayout.CENTER); content.add(actions, BorderLayout.SOUTH);
             detail.add(header, BorderLayout.NORTH); detail.add(content, BorderLayout.CENTER);
@@ -385,13 +371,13 @@ public class QuanLyNhanVienUI extends JPanel {
     private void setBusy(boolean busy) {
         dangXuLy = busy;
         txtTimKiem.setEnabled(!busy); cboVaiTro.setEnabled(!busy); btnTim.setEnabled(!busy); btnLamMoi.setEnabled(!busy);
-        btnThem.setEnabled(!busy); btnQuayLai.setEnabled(!busy); capNhatNut();
+        btnThem.setEnabled(!busy); capNhatNut();
         lblStatus.setText(busy ? "Đang xử lý…" : (daTimKiem ? ketQua.size() + " hồ sơ" : ""));
     }
 
     private void capNhatNut() {
         boolean selected = selectedEmployee() != null && !dangXuLy;
-        btnSua.setEnabled(selected); btnTaoTaiKhoan.setEnabled(selected); btnTraCuu.setEnabled(selected);
+        btnSua.setEnabled(selected);
     }
 
     private void showWorkerError(String title, Exception exception) {
