@@ -3,6 +3,7 @@
 > Agent đọc file này đầu mỗi phiên và cập nhật khi xong việc. Giữ ngắn, dưới 60 dòng. Trạng thái dưới đây lấy từ hai bản zip ngày 25/10/2026.
 
 ## Đã xong
+- **Đồng bộ giảm giá trên màn thanh toán (06/11/2026):** Nạp phạm vi dịch vụ/linh kiện của khuyến mãi đang hiệu lực vào UI; tính tiền giảm chỉ theo các dòng áp dụng (hoặc toàn hóa đơn nếu chưa chọn mặt hàng), khớp `vw_HoaDon_TongTien` để tổng trước và sau thanh toán không lệch.
 - **In hóa đơn bằng bản xem trước trên màn hình (05/11/2026):** Nút hóa đơn mở dialog xem trước; nút **In hóa đơn** trong dialog hiện thông báo in thành công trên màn hình. Không gửi lệnh máy in hay tạo PDF.
 - **Sửa KPI thống kê tiếp nhận (05/11/2026):** Thay số đếm toàn bộ khách hàng bằng số khách hàng duy nhất có phiếu trong bộ lọc ngày/trạng thái/vai trò; cận ngày kết thúc dùng khoảng nửa mở để bao gồm trọn ngày.
 - **Chỉ tải danh sách khi tìm kiếm/lọc (05/11/2026):** Hồ sơ khách hàng/xe, phiếu chờ thanh toán, lịch sử hóa đơn và danh sách phiếu đổi trả không tự truy vấn khi dựng trang; Tìm kiếm/bộ lọc mới tải, nút Làm mới xóa kết quả.

@@ -1221,9 +1221,26 @@ public class LapHoaDonThanhToanUI extends JPanel {
             tienGiam = 0;
             if (idxKm > 0 && idxKm - 1 < dsKmHieuLuc.size()) {
                 KhuyenMai km = dsKmHieuLuc.get(idxKm - 1);
-                double phanTram = km.getMucGiamPhanTram();
-                // Khuyến mãi chung tính trên tổng tiền chưa giảm
-                tienGiam = Math.round((tongTienDV + tongTienLK) * (phanTram / 100.0));
+                double tongTienApDung = 0;
+                if (km.apDungTatCa()) {
+                    tongTienApDung = tongTienDV + tongTienLK;
+                } else {
+                    for (ChiTietDichVu ctdv : dsDV) {
+                        DichVu dv = ctdv.getDichVu();
+                        if (dv != null && km.getDichVuApDung().stream()
+                                .anyMatch(dvApDung -> dv.getMaDV().equals(dvApDung.getMaDV()))) {
+                            tongTienApDung += ctdv.getDonGia() * ctdv.getSoLuong();
+                        }
+                    }
+                    for (ChiTietLinhKien ctlk : dsLK) {
+                        LinhKien lk = ctlk.getLinhKien();
+                        if (lk != null && km.getLinhKienApDung().stream()
+                                .anyMatch(lkApDung -> lk.getMaLK().equals(lkApDung.getMaLK()))) {
+                            tongTienApDung += ctlk.getDonGia() * ctlk.getSoLuong();
+                        }
+                    }
+                }
+                tienGiam = Math.round(tongTienApDung * (km.getMucGiamPhanTram() / 100.0));
             }
 
             tongPhaiThu = tongTienDV + tongTienLK - tienGiam + tienThue;

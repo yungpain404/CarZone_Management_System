@@ -286,7 +286,7 @@ GO
 DECLARE @ktv1 VARCHAR(10), @ktv2 VARCHAR(10), @cch VARCHAR(10);
 SELECT @ktv1 = maNV FROM NhanVien WHERE soDienThoai = '0901000004'; -- Vũ Thanh Tùng (KTV001)
 SELECT @ktv2 = maNV FROM NhanVien WHERE soDienThoai = '0901000005'; -- Đỗ Văn Hùng (KTV002)
-SELECT @cch  = maNV FROM NhanVien WHERE soDienThoai = '0901000001'; -- Trần Minh Quân (CCH001)
+SELECT TOP (1) @cch = maNV FROM NhanVien WHERE vaiTro = 'CHU_CUA_HANG' ORDER BY maNV;
 
 -- YC 1: Bugi Denso (LK00006 - hết hàng) -> CHO_DUYET
 IF NOT EXISTS (SELECT 1 FROM PhieuYeuCauNhapLinhKien WHERE maLK = 'LK00006' AND trangThai = 'CHO_DUYET')
@@ -362,7 +362,7 @@ BEGIN
 
     -- Bước 2: DA_DUYET -> DA_NHAP_KHO (tồn kho tự động cộng thêm 20 can)
     UPDATE PhieuYeuCauNhapLinhKien
-    SET trangThai = 'DA_NHAP_KHO'
+    SET trangThai = 'DA_NHAP_KHO', soLuongNhapThucTe = 20
     WHERE maYeuCau = @yc5;
 
     PRINT N'Tạo yêu cầu Đã nhập kho: ' + @yc5;

@@ -87,9 +87,15 @@ public class KhuyenMaiDAO {
         String sql = "SELECT maKM, maNV, tenChuongTrinh, mucGiamPhanTram, ngayBatDau, ngayKetThuc, ghiChu "
                 + "FROM KhuyenMai " + dieuKien;
         List<KhuyenMai> result = new ArrayList<>();
-        try (Connection con = DbUtil.getConnection(); PreparedStatement ps = con.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) result.add(mapKhuyenMai(rs));
+        try (Connection con = DbUtil.getConnection()) {
+            try (PreparedStatement ps = con.prepareStatement(sql);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) result.add(mapKhuyenMai(rs));
+            }
+            for (KhuyenMai km : result) {
+                km.setDichVuApDung(lookupDichVu(con, km.getMaKM()));
+                km.setLinhKienApDung(lookupLinhKien(con, km.getMaKM()));
+            }
             return result;
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi lấy danh sách khuyến mãi: " + e.getMessage(), e);
